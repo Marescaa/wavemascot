@@ -21,8 +21,10 @@ from pathlib import Path
 
 DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(DIR))
+import idiomas  # noqa: E402
 import mascota as m  # noqa: E402
 import sprites  # noqa: E402
+from idiomas import t  # noqa: E402
 
 from PyQt6.QtCore import QFileSystemWatcher, QSize, QTimer  # noqa: E402
 from PyQt6.QtGui import QIcon, QPixmap  # noqa: E402
@@ -90,26 +92,28 @@ class Bandeja(QSystemTrayIcon):
     def __init__(self):
         super().__init__()
         menu = QMenu()
-        self.accion_ajustes = menu.addAction("Abrir ajustes")
+        self.accion_ajustes = menu.addAction("")
         self.accion_ajustes.triggered.connect(self.abrir_ajustes)
         menu.setDefaultAction(self.accion_ajustes)
-        menu.addAction("Probar aviso").triggered.connect(self.probar)
+        self.accion_probar = menu.addAction("")
+        self.accion_probar.triggered.connect(self.probar)
         menu.addSeparator()
-        self.accion_hora = menu.addAction("Silenciar por 1 hora")
+        self.accion_hora = menu.addAction("")
         self.accion_hora.triggered.connect(lambda: self.silenciar(time.time() + 3600))
-        self.accion_siempre = menu.addAction("Silenciar hasta que los reactive")
+        self.accion_siempre = menu.addAction("")
         self.accion_siempre.triggered.connect(lambda: self.silenciar(INDEFINIDO))
-        self.accion_reactivar = menu.addAction("Reactivar avisos")
+        self.accion_reactivar = menu.addAction("")
         self.accion_reactivar.triggered.connect(lambda: self.silenciar(0))
         menu.addSeparator()
-        self.accion_compania = menu.addAction("Modo compañera (fija en pantalla)")
+        self.accion_compania = menu.addAction("")
         self.accion_compania.setCheckable(True)
         self.accion_compania.toggled.connect(self.cambiar_modo)
-        self.accion_inicio = menu.addAction("Abrir al iniciar Windows")
+        self.accion_inicio = menu.addAction("")
         self.accion_inicio.setCheckable(True)
         self.accion_inicio.toggled.connect(self.cambiar_inicio)
         menu.addSeparator()
-        menu.addAction("Salir").triggered.connect(QApplication.quit)
+        self.accion_salir = menu.addAction("")
+        self.accion_salir.triggered.connect(QApplication.quit)
         menu.aboutToShow.connect(self.actualizar)
         self.menu = menu
         self.setContextMenu(menu)
@@ -125,6 +129,13 @@ class Bandeja(QSystemTrayIcon):
 
     def actualizar(self) -> None:
         config = m.cargar_config()
+        idiomas.usar(config["idioma"])  # los textos siguen al idioma de los ajustes
+        for accion, texto in ((self.accion_ajustes, "Abrir ajustes"), (self.accion_probar, "Probar aviso"),
+                              (self.accion_hora, "Silenciar por 1 hora"),
+                              (self.accion_siempre, "Silenciar hasta que los reactive"),
+                              (self.accion_compania, "Modo compañera (fija en pantalla)"),
+                              (self.accion_inicio, "Abrir al iniciar Windows"), (self.accion_salir, "Salir")):
+            accion.setText(t(texto))
         silenciada = m.silenciada(config)
         if config["aspecto"]["color"] != self.color:
             self.color = config["aspecto"]["color"]
@@ -132,16 +143,17 @@ class Bandeja(QSystemTrayIcon):
             self.icono_gris = QIcon(self.icono_normal.pixmap(QSize(32, 32), QIcon.Mode.Disabled))
         self.setIcon(self.icono_gris if silenciada else self.icono_normal)
         if not silenciada:
-            estado = "avisos activos"
+            estado = t("avisos activos")
         elif config["silenciado_hasta"] >= INDEFINIDO:
-            estado = "avisos silenciados"
+            estado = t("avisos silenciados")
         else:
-            estado = f"silenciada hasta las {datetime.fromtimestamp(config['silenciado_hasta']):%H:%M}"
+            estado = t("silenciada hasta las {hora}",
+                       hora=f"{datetime.fromtimestamp(config['silenciado_hasta']):%H:%M}")
         self.setToolTip(f"WaveMascot: {estado}")
         self.accion_hora.setVisible(not silenciada)
         self.accion_siempre.setVisible(not silenciada)
         self.accion_reactivar.setVisible(silenciada)
-        self.accion_reactivar.setText(f"Reactivar avisos ({estado})")
+        self.accion_reactivar.setText(t("Reactivar avisos ({estado})", estado=estado))
         for accion, marcada in ((self.accion_inicio, inicio_automatico()),
                                 (self.accion_compania, config["modo"] == "compania")):
             accion.blockSignals(True)
@@ -159,7 +171,7 @@ class Bandeja(QSystemTrayIcon):
 
     def probar(self) -> None:
         m.lanzar_desacoplado([str(DIR / "mascota.py"), "--estado=listo", "--forzar",
-                              "--detalle=Prueba desde el ícono"])
+                              "--detalle=" + t("Prueba desde el ícono")])
 
     def silenciar(self, hasta: float) -> None:
         config = m.cargar_config()

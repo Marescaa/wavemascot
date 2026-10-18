@@ -47,7 +47,7 @@ $comunes = @('--noconfirm', '--clean', '--windowed', '--icon', $icono,
 Ejecutar $py (@('-m', 'PyInstaller') + $comunes + @(
     '--name', 'WaveMascot', '--distpath', (Join-Path $build 'dist'),
     '--add-data', "$(Join-Path $raiz 'assets');assets",
-    '--hidden-import', 'ajustes', '--hidden-import', 'bandeja', '--hidden-import', 'instalador',
+    '--hidden-import', 'ajustes', '--hidden-import', 'bandeja', '--hidden-import', 'instalador', '--hidden-import', 'idiomas',
     '--exclude-module', 'tkinter',
     (Join-Path $raiz 'principal.py')))
 
@@ -61,7 +61,7 @@ foreach ($s in $sobran) { Remove-Item -Path (Join-Path $interno $s) -Recurse -Fo
 
 # Licencias: la del proyecto, las atribuciones y los textos de las bibliotecas incluidas (PyQt6 es GPL v3).
 $carpetaApp = Join-Path $build 'dist\WaveMascot'
-Copy-Item -LiteralPath (Join-Path $raiz 'LICENSE'), (Join-Path $raiz 'TERCEROS.md') -Destination $carpetaApp
+Copy-Item -LiteralPath (Join-Path $raiz 'LICENSE'), (Join-Path $raiz 'THIRD_PARTY.md') -Destination $carpetaApp
 $licencias = Join-Path $carpetaApp 'licencias'
 New-Item -ItemType Directory -Force -Path $licencias | Out-Null
 $sitio = Join-Path $venv 'Lib\site-packages'

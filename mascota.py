@@ -33,10 +33,12 @@ import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import idiomas
 import sprites
 import ventanas
+from idiomas import t
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 CONGELADO = getattr(sys, "frozen", False)  # corriendo como WaveMascot.exe (PyInstaller)
 DIR = Path(__file__).resolve().parent
 # Empaquetado, los assets viven en la carpeta interna de PyInstaller.
@@ -94,7 +96,7 @@ CONFIG_DEFECTO = {
     "duracion": 5,
     "sonido": True,
     "volumen": 60,
-    "mensajes": {"Stop": "¡Listo! Terminé", "Notification": "{mensaje}"},
+    "mensajes": {"Stop": "", "Notification": ""},  # vacío = el texto automático, en tu idioma
     "aspecto": dict(sprites.ASPECTO_DEFECTO),  # color y vestuario de la mascota dibujada
     "imagen": "",                              # nombre de una imagen propia; vacío = mascota dibujada
     "tamano": 3,
@@ -117,6 +119,7 @@ CONFIG_DEFECTO = {
     "sonidos": {"listo": "arpegio", "permiso": "doble", "pensando": "ninguno", "subagente": "pop",
                 "limite": "grave", "error": "triste"},
     "tema": "oscuro",
+    "idioma": idiomas.POR_DEFECTO,  # en, es o pt: la banderita de los ajustes
 }
 CANAL = "wavemascot-" + re.sub(r"\W", "", os.environ.get("USERNAME") or os.environ.get("USER") or "yo")
 
@@ -170,6 +173,9 @@ def cargar_config(ruta: Path = CONFIG) -> dict:
         for evento in config["mensajes"]:
             if isinstance(datos["mensajes"].get(evento), str):
                 config["mensajes"][evento] = datos["mensajes"][evento]
+    for evento, texto in config["mensajes"].items():  # los de antes por defecto: ahora salen en tu idioma
+        if texto.strip() in ("¡Listo! Terminé", "{mensaje}"):
+            config["mensajes"][evento] = ""
     # Grupos de opciones: se copia cada valor que tenga el mismo tipo que el de por defecto.
     for grupo in ("contenido", "eventos", "no_molestar", "vida", "sonidos"):
         if isinstance(datos.get(grupo), dict):
@@ -194,6 +200,8 @@ def cargar_config(ruta: Path = CONFIG) -> dict:
         config["modo"] = datos["modo"]
     if datos.get("tema") in TEMAS:
         config["tema"] = datos["tema"]
+    if datos.get("idioma") in idiomas.IDIOMAS:
+        config["idioma"] = datos["idioma"]
     posicion = datos.get("posicion")
     if isinstance(posicion, list) and len(posicion) == 2 and all(isinstance(v, int) for v in posicion):
         config["posicion"] = posicion
@@ -289,13 +297,13 @@ def leer_evento(espera: float = 1.5) -> dict:
 def traducir_notificacion(mensaje: str, tipo: str) -> str:
     m = re.search(r"needs your permission to use (.+?)\.?$", mensaje)
     if m and m.group(1) == "AskUserQuestion":
-        return "Tengo una pregunta para vos"
+        return t("Tengo una pregunta para vos")
     if m:
-        return f"Necesito permiso para usar {m.group(1)}"
+        return t("Necesito permiso para usar {herramienta}", herramienta=m.group(1))
     if tipo == "idle_prompt" or "waiting for your input" in mensaje.lower():
-        return "Te estoy esperando"
+        return t("Te estoy esperando")
     if tipo == "permission_prompt" or "needs your permission" in mensaje:
-        return "Necesito tu permiso"
+        return t("Necesito tu permiso")
     return mensaje
 
 
@@ -303,16 +311,16 @@ def mensaje_para(estado: str, evento: dict) -> str:
     nombre = evento.get("hook_event_name")
     if nombre == "Notification":
         texto = traducir_notificacion(evento.get("message") or "", evento.get("notification_type") or "")
-        return texto or ESTADOS[estado]["mensaje"]
+        return texto or t(ESTADOS[estado]["mensaje"])
     if nombre == "Stop":
-        return "¡Listo! Terminé"
+        return t("¡Listo! Terminé")
     if nombre == "SubagentStop" and evento.get("agent_type"):
-        return f"Terminó el subagente {evento['agent_type']}"
+        return t("Terminó el subagente {nombre}", nombre=evento["agent_type"])
     if nombre == "StopFailure" and estado == "error":
-        return f"Error de la API ({evento.get('error') or 'desconocido'})"
+        return t("Error de la API ({error})", error=evento.get("error") or t("desconocido"))
     if nombre == "PermissionRequest":
-        return f"¿Permitir {evento.get('tool_name') or 'esta acción'}?"
-    return ESTADOS[estado]["mensaje"]
+        return t("¿Permitir {herramienta}?", herramienta=evento.get("tool_name") or t("esta acción"))
+    return t(ESTADOS[estado]["mensaje"])
 
 
 def texto_corto(texto: str, largo: int = 140) -> str:
@@ -734,7 +742,7 @@ class Cartel:
             self.meta_h = fmeta.lineSpacing()
             ancho = max(ancho, min(fmeta.horizontalAdvance(meta), self.ANCHO_TEXTO))
         fb = QFontMetricsF(self.fuente_boton)
-        self.anchos_boton = [fb.horizontalAdvance(self.BOTONES[b]) + 20 for b in self.botones]
+        self.anchos_boton = [fb.horizontalAdvance(t(self.BOTONES[b])) + 20 for b in self.botones]
         if self.botones:
             ancho = max(ancho, sum(self.anchos_boton) + 6 * (len(self.botones) - 1))
         self.ancho = ancho + 28
@@ -819,7 +827,7 @@ class Cartel:
                 p.setBrush(c["principal"] if principal else c["boton"])
                 p.drawRoundedRect(zona, 7, 7)
                 p.setPen(c["texto_principal"] if principal else c["texto"])
-                p.drawText(zona, int(Qt.AlignmentFlag.AlignCenter), self.BOTONES[clave])
+                p.drawText(zona, int(Qt.AlignmentFlag.AlignCenter), t(self.BOTONES[clave]))
                 self.zonas[clave] = p.transform().mapRect(zona)
                 x += w + 6
 
@@ -899,6 +907,7 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
     except ValueError:
         datos = {}
     datos.setdefault("estado", args.estado)
+    idiomas.usar(datos.get("idioma") or cargar_config()["idioma"])
 
     def enviar_a_la_existente() -> bool:
         s = QLocalSocket()
@@ -991,6 +1000,8 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             if d.get("accion") == "salir":
                 self.salir()
                 return
+            if d.get("idioma"):
+                idiomas.usar(d["idioma"])
             estado = d["estado"] if d.get("estado") in ESTADOS else "listo"
             if self.respuesta and estado == "permiso" and not d.get("respuesta"):
                 return  # el aviso genérico de Notification no pisa los botones Permitir/Denegar
@@ -1236,9 +1247,9 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
                 self.hacer_extra("idle_bostezo")
 
         def contar_que_duerme(self) -> None:
-            hasta = (f"Me despierto a las {datetime.fromtimestamp(self.despertar):%H:%M}" if self.despertar
-                     else "Me despierto cuando me vuelvas a escribir")
-            self.mensaje = "Zzz… se terminó el límite de uso"
+            hasta = (t("Me despierto a las {hora}", hora=f"{datetime.fromtimestamp(self.despertar):%H:%M}")
+                     if self.despertar else t("Me despierto cuando me vuelvas a escribir"))
+            self.mensaje = t("Zzz… se terminó el límite de uso")
             self.cartel.medir(self.mensaje, hasta, "")
             self.mostrar_cartel = True
             self.maquetar()
@@ -1400,7 +1411,7 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
                     self.salir(rapido=True)
             elif clave in ("permitir", "denegar"):
                 self.responder("allow" if clave == "permitir" else "deny")
-                self.cartel.medir("Permitido ✓" if clave == "permitir" else "Denegado", self.cartel.resumen)
+                self.cartel.medir(t("Permitido ✓") if clave == "permitir" else t("Denegado"), self.cartel.resumen)
                 self.maquetar()
                 self.total = self.restante = 1200
                 self.update()
@@ -1435,13 +1446,14 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
                 self.responder(None)  # que la terminal muestre su diálogo de siempre
 
         def menu_compania(self, donde) -> None:
+            idiomas.usar(cargar_config()["idioma"])  # pudo cambiar en los ajustes desde que se abrió
             menu = QMenu()
-            menu.addAction("Abrir ajustes").triggered.connect(self.abrir_ajustes)
+            menu.addAction(t("Abrir ajustes")).triggered.connect(self.abrir_ajustes)
             if self.base.get("posicion"):
-                menu.addAction("Volver a la esquina").triggered.connect(lambda: self.guardar_en_config(posicion=None))
-            menu.addAction("Pasar a modo aviso").triggered.connect(lambda: self.guardar_en_config(modo="aviso"))
+                menu.addAction(t("Volver a la esquina")).triggered.connect(lambda: self.guardar_en_config(posicion=None))
+            menu.addAction(t("Pasar a modo aviso")).triggered.connect(lambda: self.guardar_en_config(modo="aviso"))
             menu.addSeparator()
-            menu.addAction("Ocultar hasta el próximo aviso").triggered.connect(lambda: self.salir(rapido=True))
+            menu.addAction(t("Ocultar hasta el próximo aviso")).triggered.connect(lambda: self.salir(rapido=True))
             menu.exec(donde)
 
         def abrir_ajustes(self) -> None:
@@ -1626,6 +1638,7 @@ def main() -> int:
     try:
         evento = leer_evento()
         config = cargar_config(args.config)  # en cada aviso, así los cambios de ajustes.py valen ya
+        idiomas.usar(config["idioma"])
         nombre = evento.get("hook_event_name") or "manual"
         estado = args.estado
         if nombre == "StopFailure":
@@ -1634,7 +1647,7 @@ def main() -> int:
             registrar_inicio(evento)
         apariencia = {clave: config[clave] for clave in
                       ("aspecto", "imagen", "tamano", "volumen", "tema", "modo", "vida", "posicion", "boton_enfocar",
-                       "no_molestar")}
+                       "no_molestar", "idioma")}
         if args.compania:
             lanzar_ventana({"estado": "idle", "mensaje": "", **apariencia, "modo": "compania",
                             "esquina": config["esquina"]})
@@ -1729,7 +1742,7 @@ def responder_permiso(aviso: dict, espera: int) -> None:
         return
     salida = {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": decision}}}
     if decision == "deny":
-        salida["hookSpecificOutput"]["decision"]["message"] = "El usuario lo denegó desde la mascota."
+        salida["hookSpecificOutput"]["decision"]["message"] = "The user denied it from WaveMascot."
     if sys.stdout:
         sys.stdout.write(json.dumps(salida))
         sys.stdout.flush()

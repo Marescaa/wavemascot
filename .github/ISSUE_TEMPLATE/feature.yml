@@ -1,31 +1,31 @@
-name: Proponer una idea
-description: Una función nueva o una mejora para la mascota.
-labels: ["mejora"]
+name: Suggest an idea
+description: A new feature or an improvement for the mascot. (Español y português también.)
+labels: ["enhancement"]
 body:
   - type: textarea
-    id: problema
+    id: problem
     attributes:
-      label: Qué te gustaría resolver
-      description: Contá el caso de uso: qué te pasa hoy y por qué te vendría bien.
+      label: What would you like to solve
+      description: Describe the use case — what happens today and why this would help. English, Spanish or Portuguese.
     validations:
       required: true
   - type: textarea
-    id: propuesta
+    id: proposal
     attributes:
-      label: Cómo te lo imaginás
-      description: Cómo debería verse o funcionar. Si es un estado, accesorio o animación nueva, un boceto ayuda.
+      label: How you picture it
+      description: How it should look or work. If it's a new state, accessory or animation, a sketch helps.
     validations:
       required: true
   - type: textarea
-    id: alternativas
+    id: alternatives
     attributes:
-      label: Alternativas que pensaste
+      label: Alternatives you considered
   - type: checkboxes
-    id: principios
+    id: principles
     attributes:
-      label: Antes de enviar
+      label: Before sending
       options:
-        - label: La idea funciona sin conexión a internet y sin enviar datos fuera del equipo.
+        - label: The idea works offline and without sending data off the computer.
           required: true
-        - label: No requiere logos, imágenes ni otros assets de Anthropic o de terceros sin licencia compatible.
+        - label: It doesn't need logos, images or other assets from Anthropic or third parties without a compatible license.
           required: true

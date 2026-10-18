@@ -1,33 +1,33 @@
 ﻿<#
 .SYNOPSIS
-    Instala WaveMascot desde el código fuente.
+    Installs WaveMascot from source.
 
 .DESCRIPTION
-    Copia los archivos a la carpeta de destino, instala PyQt6 y Pillow si faltan, agrega los
-    hooks a ~/.claude/settings.json sin tocar los que ya tengas (antes guarda un backup), crea
-    el comando /wavemascot y el ícono junto al reloj. Para revertirlo: uninstall.ps1.
+    Copies the files to the install folder, installs PyQt6 and Pillow if they are missing, adds the
+    hooks to ~/.claude/settings.json without touching the ones you already have (a backup is saved
+    first), and creates the /wavemascot command and the tray icon. To undo it: uninstall.ps1.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File .\install.ps1
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File .\install.ps1 -Python C:\Python312\python.exe -SinInicio
+    powershell -ExecutionPolicy Bypass -File .\install.ps1 -Python C:\Python312\python.exe -NoStartup
 #>
 [CmdletBinding()]
 param(
-    # Dónde se copia el programa.
-    [string]$Destino = (Join-Path $env:LOCALAPPDATA 'Programs\WaveMascot'),
-    # Carpeta de configuración de Claude Code (la que tiene settings.json).
+    # Where the program is copied.
+    [Alias('Destination')][string]$Destino = (Join-Path $env:LOCALAPPDATA 'Programs\WaveMascot'),
+    # Claude Code's settings folder (the one with settings.json).
     [string]$ClaudeDir = (Join-Path $env:USERPROFILE '.claude'),
-    # Intérprete de Python a usar (por defecto: el lanzador "py" o "python" del PATH).
+    # Python interpreter to use (default: the "py" launcher or "python" on PATH).
     [string]$Python = '',
-    # Sin ícono junto al reloj al iniciar Windows.
-    [switch]$SinInicio
+    # No tray icon when Windows starts.
+    [Alias('NoStartup')][switch]$SinInicio
 )
 
 $ErrorActionPreference = 'Stop'
 $Origen = $PSScriptRoot
-$Archivos = 'mascota.py', 'ajustes.py', 'bandeja.py', 'sprites.py', 'ventanas.py', 'instalador.py',
+$Archivos = 'mascota.py', 'ajustes.py', 'bandeja.py', 'sprites.py', 'ventanas.py', 'instalador.py', 'idiomas.py',
             'uninstall.ps1', 'requirements.txt', 'LICENSE'
 
 function Correr([string]$exe, [string[]]$argumentos, [switch]$Callado) {
@@ -38,7 +38,7 @@ function Correr([string]$exe, [string[]]$argumentos, [switch]$Callado) {
 }
 
 function Ejecutar([string]$exe, [string[]]$argumentos) {
-    if ((Correr $exe $argumentos) -ne 0) { throw "Falló: $exe $($argumentos -join ' ')" }
+    if ((Correr $exe $argumentos) -ne 0) { throw "Failed: $exe $($argumentos -join ' ')" }
 }
 
 function Buscar-Python {
@@ -51,18 +51,18 @@ function Buscar-Python {
         # El "python" de la Microsoft Store sin instalar es un atajo que abre la tienda.
         if ($LASTEXITCODE -eq 0 -and $ruta -and (Test-Path "$ruta".Trim())) { return "$ruta".Trim() }
     }
-    throw 'No encontré Python 3.10 o superior. Instalalo desde https://www.python.org (marcá "Add to PATH") o pasá -Python <ruta a python.exe>.'
+    throw 'Python 3.10 or newer was not found. Install it from https://www.python.org (check "Add to PATH") or pass -Python <path to python.exe>.'
 }
 
-Write-Host 'WaveMascot: instalación desde el código fuente' -ForegroundColor Cyan
+Write-Host 'WaveMascot: installing from source' -ForegroundColor Cyan
 $py = Buscar-Python
 $version = & $py -c 'import sys; print(sys.version_info[0], sys.version_info[1], sep=chr(46))'
-if ([version]$version -lt [version]'3.10') { throw "Hace falta Python 3.10 o superior (encontré $version en $py)." }
+if ([version]$version -lt [version]'3.10') { throw "Python 3.10 or newer is required (found $version at $py)." }
 Write-Host "  Python $version ($py)"
 
 # Dependencias: solo si faltan, así no se tocan otras instalaciones.
 if ((Correr $py @('-c', 'import PyQt6.QtMultimedia, PIL') -Callado) -ne 0) {
-    Write-Host '  Instalando PyQt6 y Pillow...'
+    Write-Host '  Installing PyQt6 and Pillow...'
     $pip = @('-m', 'pip', 'install', '--disable-pip-version-check', '-q', '-r', (Join-Path $Origen 'requirements.txt'))
     if ((Correr $py $pip) -ne 0) {  # Python del sistema sin permisos de escritura: al perfil del usuario
         Ejecutar $py ($pip + '--user')
@@ -83,7 +83,7 @@ if (-not $mismaCarpeta) {
     $assets = Join-Path $Destino 'assets'
     if (Test-Path $assets) { Remove-Item -LiteralPath $assets -Recurse -Force }
     Copy-Item -LiteralPath (Join-Path $Origen 'assets') -Destination $assets -Recurse
-    Write-Host "  Archivos copiados a $Destino"
+    Write-Host "  Files copied to $Destino"
 }
 
 # Hooks (merge con backup), comando /wavemascot y accesos directos.
@@ -99,5 +99,6 @@ if (-not $SinInicio) {
 }
 
 Write-Host ''
-Write-Host 'Listo. Wave avisa la próxima vez que Claude Code termine o necesite algo.' -ForegroundColor Green
-Write-Host 'Ajustes: el ícono junto al reloj o /wavemascot en Claude Code. Desinstalar: uninstall.ps1'
+Write-Host 'Done. Wave will show up the next time Claude Code finishes or needs something.' -ForegroundColor Green
+Write-Host 'Settings: the tray icon or /wavemascot in Claude Code (the flag at the top changes the language).'
+Write-Host 'Uninstall: uninstall.ps1'

@@ -1,31 +1,54 @@
 # Changelog
 
-Todos los cambios importantes del proyecto. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
-y el proyecto usa [versionado semántico](https://semver.org/lang/es/).
+All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+and the project uses [semantic versioning](https://semver.org/).
+
+## [1.1.0] - 2026-10-18
+
+### Added
+
+- Languages: English, Spanish and Portuguese across the whole app (notices, buttons, settings, tray menu, installer).
+  English is the default.
+- Language flag at the top right of the settings window; switching rebuilds the window in place, on the same tab.
+- Qt's own texts (Yes/No, Copy/Paste…) follow the chosen language.
+- README in English, Spanish ([README.es.md](README.es.md)) and Portuguese ([README.pt.md](README.pt.md)).
+- Test that fails if any visible text is missing a translation.
+
+### Changed
+
+- The default messages are now empty and use the automatic text in your language; the previous fixed Spanish
+  default is migrated automatically.
+- `install.ps1` / `uninstall.ps1` print in English and accept `-Destination`, `-NoStartup` and `-DeleteSettings`
+  (the Spanish names still work).
+- `TERCEROS.md` is now [THIRD_PARTY.md](THIRD_PARTY.md).
+
+### Fixed
+
+- Outfit names that don't fit on one line now wrap to a second line instead of being cut off.
 
 ## [1.0.0] - 2026-10-18
 
-Primera versión pública de WaveMascot.
+First public release of WaveMascot.
 
-### Agregado
+### Added
 
-- Mascota en pixel art que reemplaza la notificación de Windows de Claude Code: entra desde el borde de la pantalla,
-  muestra el chat, el proyecto, la duración y un resumen de la respuesta, y se va sola o con un click.
-- Estados `listo`, `permiso`, `pensando`, `subagente`, `limite` y `error`, con animación y sonido propios.
-- Permitir / Denegar desde la mascota con el hook `PermissionRequest`; botón para enfocar la terminal.
-- Modo compañera: chiquita sobre la barra de tareas, con paseos, mirada que sigue al cursor y siesta al llegar al
-  límite de uso.
-- Centro de ajustes con vista previa en vivo, ícono junto al reloj y comando `/wavemascot`.
-- Vestuario (colores, cabezas, ropa, accesorios), imagen propia, tamaños, temas oscuro / claro / acento y sonido por
-  evento.
-- No molestar por horario, en pantalla completa y con la terminal enfocada; duración mínima para avisar.
-- Varias sesiones de Claude Code a la vez: cada aviso muestra su proyecto y los avisos de otras sesiones se encolan.
-- Varios monitores: el aviso sale en el monitor de la ventana de Claude Code.
-- Funciona sin `config.json` (valores por defecto) y sin dispositivo de audio; los errores van al log y nunca
-  bloquean a Claude Code.
-- `install.ps1` / `uninstall.ps1`: merge de hooks en `~/.claude/settings.json` con backup previo, sin tocar los
-  existentes; la desinstalación deja el archivo como estaba.
-- Instalador `WaveMascot-Setup.exe` (PyInstaller, sin Python ni permisos de administrador) y workflow de
-  GitHub Actions que lo publica en cada tag `v*`.
+- Pixel-art mascot that replaces Claude Code's Windows notification: it slides in from the edge of the screen, shows
+  the chat, project, duration and a summary of the answer, and leaves on its own or with a click.
+- `done`, `permission`, `thinking`, `subagent`, `limit` and `error` states, each with its own animation and sound.
+- Allow / Deny from the mascot with the `PermissionRequest` hook; button to focus the terminal.
+- Companion mode: small on the taskbar, with walks, eyes that follow the cursor and a nap when you hit the usage limit.
+- Settings window with a live preview, tray icon and the `/wavemascot` command.
+- Outfits (colors, heads, clothes, accessories), your own image, sizes, dark / light / accent themes and a sound per
+  event.
+- Do not disturb by schedule, over full-screen apps and when the terminal has focus; minimum duration to notify.
+- Several Claude Code sessions at once: each notice shows its project and notices from other sessions queue up.
+- Multiple monitors: the notice shows up on the monitor of the Claude Code window.
+- Works without `config.json` (defaults) and without an audio device; errors go to the log and never block Claude
+  Code.
+- `install.ps1` / `uninstall.ps1`: hook merge into `~/.claude/settings.json` with a backup first, without touching
+  existing hooks; uninstalling leaves the file as it was.
+- `WaveMascot-Setup.exe` installer (PyInstaller, no Python or administrator rights needed) and a GitHub Actions
+  workflow that publishes it on every `v*` tag.
 
+[1.1.0]: ../../releases/tag/v1.1.0
 [1.0.0]: ../../releases/tag/v1.0.0

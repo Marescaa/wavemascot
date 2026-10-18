@@ -1,71 +1,80 @@
-name: Reportar un error
-description: Algo no funciona como debería.
+name: Bug report
+description: Something doesn't work as it should. (Español y português también.)
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        ¡Gracias por avisar! Antes de enviar, revisá que no haya un issue parecido abierto.
-        **No pegues datos privados**: el log puede incluir títulos de chats, nombres de proyectos o fragmentos de
-        respuestas; borralos antes de pegarlo.
+        Thanks for reporting! Before sending, check there isn't a similar open issue.
+        You can write in English, Spanish or Portuguese.
+        **Don't paste private data**: the log can include chat titles, project names or bits of answers; remove them
+        before pasting it.
   - type: textarea
-    id: que-paso
+    id: what-happened
     attributes:
-      label: Qué pasó
-      description: Qué esperabas que pasara y qué pasó en cambio.
+      label: What happened
+      description: What you expected to happen and what happened instead.
     validations:
       required: true
   - type: textarea
-    id: pasos
+    id: steps
     attributes:
-      label: Cómo reproducirlo
+      label: How to reproduce it
       placeholder: |
-        1. Configurar ...
-        2. Pedirle a Claude Code ...
-        3. La mascota ...
+        1. Set ...
+        2. Ask Claude Code to ...
+        3. The mascot ...
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: Versión de la mascota
-      placeholder: "1.0.0"
+      label: WaveMascot version
+      placeholder: "1.1.0"
     validations:
       required: true
   - type: dropdown
-    id: instalacion
+    id: install
     attributes:
-      label: Cómo la instalaste
+      label: How you installed it
       options:
-        - Instalador .exe
-        - install.ps1 (código fuente)
-        - A mano
+        - .exe installer
+        - install.ps1 (source)
+        - By hand
     validations:
       required: true
+  - type: dropdown
+    id: language
+    attributes:
+      label: App language
+      options:
+        - English
+        - Español
+        - Português
   - type: input
     id: windows
     attributes:
-      label: Versión de Windows
+      label: Windows version
       placeholder: "Windows 11 23H2"
   - type: dropdown
     id: claude
     attributes:
-      label: Dónde usás Claude Code
+      label: Where you use Claude Code
       multiple: true
       options:
         - Terminal (CLI)
-        - App de escritorio
-        - Extensión de VS Code
-        - Extensión de JetBrains
-        - Otro
+        - Desktop app
+        - VS Code extension
+        - JetBrains extension
+        - Other
   - type: textarea
     id: log
     attributes:
       label: Log
-      description: Las últimas líneas de `%USERPROFILE%\.wavemascot\mascota.log` (sin datos privados).
+      description: The last lines of `%USERPROFILE%\.wavemascot\mascota.log` (without private data).
       render: text
   - type: textarea
     id: extra
     attributes:
-      label: Algo más
-      description: Capturas, varios monitores, modo compañera, configuración que cambiaste, etc.
+      label: Anything else
+      description: Screenshots, multiple monitors, companion mode, settings you changed, etc.

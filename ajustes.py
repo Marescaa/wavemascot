@@ -9,6 +9,7 @@ Se abre en un proceso aparte y vuelve enseguida. Los cambios se guardan solos en
 
 from __future__ import annotations
 
+import ctypes
 import json
 import os
 import random
@@ -21,22 +22,25 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import mascota as m  # noqa: E402
+import idiomas  # noqa: E402
 import sprites  # noqa: E402
+from idiomas import t  # noqa: E402
 
 if __name__ == "__main__" and "--ventana" not in sys.argv[1:]:
     # Lanzador: abre la ventana desacoplada y sale sin cargar Qt.
     m.lanzar_desacoplado([str(Path(__file__).resolve()), "--ventana"])
     os._exit(0)
 
-from PyQt6.QtCore import QElapsedTimer, QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal  # noqa: E402
+from PyQt6.QtCore import (QElapsedTimer, QLibraryInfo, QPointF, QRectF, QSize, Qt, QTimer,  # noqa: E402
+                          QTranslator, pyqtSignal)
 from PyQt6.QtGui import (QColor, QIcon, QImageReader, QKeySequence, QLinearGradient, QPainter,  # noqa: E402
                          QPainterPath, QPalette, QPen, QPixmap, QShortcut)
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket  # noqa: E402
 from PyQt6.QtCore import QFileSystemWatcher, QTime  # noqa: E402
 from PyQt6.QtWidgets import (QAbstractButton, QAbstractSpinBox, QApplication, QButtonGroup, QCheckBox, QComboBox,  # noqa: E402
                              QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget,
-                             QListWidgetItem, QMessageBox, QPushButton, QScrollArea, QSlider, QTabWidget,
-                             QTimeEdit, QVBoxLayout, QWidget)
+                             QListWidgetItem, QMenu, QMessageBox, QPushButton, QScrollArea, QSlider, QTabWidget,
+                             QTimeEdit, QToolButton, QVBoxLayout, QWidget)
 
 import bandeja  # noqa: E402
 
@@ -123,6 +127,15 @@ QComboBox::down-arrow { image: url(%(flecha)s); width: 12px; height: 8px; }
 QComboBox::down-arrow:on { top: 1px; }
 QComboBox QAbstractItemView { background: %(campo)s; border: 1px solid %(borde)s; padding: 4px; outline: none;
                               selection-background-color: %(acento)s; selection-color: #1C1513; }
+QToolButton#idioma { background: %(campo)s; border: 1px solid %(borde)s; border-radius: 8px;
+                     padding: 5px 26px 5px 9px; font-weight: 600; }
+QToolButton#idioma:hover, QToolButton#idioma:open { border-color: %(acento)s; }
+QToolButton#idioma::menu-indicator { image: url(%(flecha)s); width: 12px; height: 8px;
+                                     subcontrol-origin: padding; subcontrol-position: center right; right: 9px; }
+QMenu { background: %(campo)s; border: 1px solid %(borde)s; padding: 4px; }
+QMenu::item { padding: 6px 18px 6px 10px; border-radius: 6px; }
+QMenu::item:selected { background: %(acento)s; color: #1C1513; }
+QMenu::icon { padding-left: 6px; }
 """  # se completa con C (ver aplicar_tema)
 
 
@@ -144,13 +157,13 @@ def aplicar_tema(tema: str) -> None:
 
 
 def seccion(texto: str) -> QLabel:
-    etiqueta = QLabel(texto.upper())
+    etiqueta = QLabel(t(texto).upper())
     etiqueta.setObjectName("seccion")
     return etiqueta
 
 
 def ayuda(texto: str) -> QLabel:
-    etiqueta = QLabel(texto)
+    etiqueta = QLabel(t(texto))
     etiqueta.setObjectName("ayuda")
     etiqueta.setWordWrap(True)
     return etiqueta
@@ -176,7 +189,7 @@ def opcion(texto: str, al_cambiar) -> tuple[QCheckBox, QHBoxLayout]:
     """Interruptor con su texto al lado."""
     interruptor = Interruptor()
     interruptor.toggled.connect(al_cambiar)
-    caja = fila(interruptor, QLabel(texto), espacio=10)
+    caja = fila(interruptor, QLabel(t(texto)), espacio=10)
     caja.addStretch(1)
     return interruptor, caja
 
@@ -186,7 +199,7 @@ def segmentado(opciones: dict[str, str], al_elegir, padre) -> tuple[dict[str, QP
     caja, botones, grupo = QHBoxLayout(), {}, QButtonGroup(padre)
     caja.setSpacing(0)
     for i, (clave, texto) in enumerate(opciones.items()):
-        boton = QPushButton(texto, objectName="segmento", checkable=True)
+        boton = QPushButton(t(texto), objectName="segmento", checkable=True)
         boton.setProperty("pos", "ini" if i == 0 else "fin" if i == len(opciones) - 1 else "medio")
         boton.clicked.connect(lambda _, c=clave: al_elegir(c))
         grupo.addButton(boton)
@@ -227,6 +240,64 @@ def miniatura_imagen(ruta: Path, lado: QSize, dpr: float) -> QPixmap:
     return lienzo
 
 
+def traducir_qt(app: QApplication, idioma: str) -> None:
+    """Los textos propios de Qt (Sí/No, Copiar/Pegar...) en el mismo idioma que el resto."""
+    for viejo in getattr(app, "traductores", []):
+        app.removeTranslator(viejo)
+    app.traductores = []
+    archivo = {"es": "qtbase_es", "pt": "qtbase_pt_BR"}.get(idioma)
+    traductor = QTranslator(app)
+    if archivo and traductor.load(archivo, QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)):
+        app.installTranslator(traductor)
+        app.traductores.append(traductor)
+
+
+def bandera(idioma: str, dpr: float) -> QPixmap:
+    """Banderita de 22x15 dibujada a mano: Estados Unidos (en), Argentina (es) y Brasil (pt)."""
+    ancho, alto = 22, 15
+    lienzo = QPixmap(round(ancho * dpr), round(alto * dpr))
+    lienzo.fill(Qt.GlobalColor.transparent)
+    lienzo.setDevicePixelRatio(dpr)
+    p = QPainter(lienzo)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    forma = QPainterPath()
+    forma.addRoundedRect(QRectF(0, 0, ancho, alto), 2.5, 2.5)
+    p.setClipPath(forma)
+    p.setPen(Qt.PenStyle.NoPen)
+    if idioma == "en":
+        for franja in range(7):  # 7 franjas en vez de 13: a este tamaño se leen mejor
+            p.setBrush(QColor("#B22234" if franja % 2 == 0 else "#FFFFFF"))
+            p.drawRect(QRectF(0, franja * alto / 7, ancho, alto / 7 + 0.5))
+        p.setBrush(QColor("#3C3B6E"))
+        p.drawRect(QRectF(0, 0, ancho * 0.45, alto * 4 / 7))
+        p.setBrush(QColor("#FFFFFF"))
+        for fila_e in range(3):
+            for col in range(4 - fila_e % 2):
+                p.drawEllipse(QPointF(1.6 + col * 2.4 + (fila_e % 2) * 1.2, 1.5 + fila_e * 2.3), 0.55, 0.55)
+    elif idioma == "es":
+        for franja, color in enumerate(("#74ACDF", "#FFFFFF", "#74ACDF")):
+            p.setBrush(QColor(color))
+            p.drawRect(QRectF(0, franja * alto / 3, ancho, alto / 3 + 0.5))
+        p.setBrush(QColor("#F6B40E"))
+        p.drawEllipse(QPointF(ancho / 2, alto / 2), 1.9, 1.9)
+    else:
+        p.setBrush(QColor("#009C3B"))
+        p.drawRect(QRectF(0, 0, ancho, alto))
+        p.setBrush(QColor("#FFDF00"))
+        p.drawPolygon([QPointF(ancho / 2, 1.6), QPointF(ancho - 2, alto / 2), QPointF(ancho / 2, alto - 1.6),
+                       QPointF(2, alto / 2)])
+        p.setBrush(QColor("#002776"))
+        p.drawEllipse(QPointF(ancho / 2, alto / 2), 3.6, 3.6)
+        p.setPen(QPen(QColor("#FFFFFF"), 0.8))
+        p.drawArc(QRectF(ancho / 2 - 5, alto / 2 - 1.4, 10, 8), 40 * 16, 100 * 16)
+    p.setClipping(False)
+    p.setPen(QPen(QColor(0, 0, 0, 60), 1))
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawRoundedRect(QRectF(0.5, 0.5, ancho - 1, alto - 1), 2.5, 2.5)
+    p.end()
+    return lienzo
+
+
 def traer_al_frente(ventana: QWidget) -> None:
     """La ventana la pidió el usuario: que aparezca adelante y con foco."""
     ventana.setWindowState(ventana.windowState() & ~Qt.WindowState.WindowMinimized)
@@ -260,7 +331,7 @@ class BotonEscuchar(QAbstractButton):
         super().__init__()
         self.setFixedSize(32, 30)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setToolTip("Escuchar")
+        self.setToolTip(t("Escuchar"))
 
     def paintEvent(self, evento) -> None:
         from PyQt6.QtGui import QPolygonF
@@ -313,7 +384,7 @@ class MuestraColor(QAbstractButton):
         nombre, cuerpo, sombra, _ = sprites.COLORES[color_id]
         self.color_id, self.cuerpo, self.sombra = color_id, QColor(*cuerpo), QColor(*sombra)
         self.setCheckable(True)
-        self.setToolTip(nombre)
+        self.setToolTip(t(nombre))
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFixedSize(36, 36)
 
@@ -360,12 +431,18 @@ class Galeria(QListWidget):
         """opciones: (id, nombre, miniatura). Si elegido no está, no queda nada seleccionado."""
         self.blockSignals(True)
         self.clear()
+        # Una segunda línea de texto solo si algún nombre no entra (pasa en algunos idiomas).
+        self.ensurePolished()  # con la fuente de la hoja de estilo, no la de por defecto
+        fm = self.fontMetrics()
+        largo = any(fm.horizontalAdvance(nombre) > self.gridSize().width() - 13 for _, nombre, _ in opciones)
+        self.setGridSize(QSize(self.gridSize().width(), self.iconSize().height() + 30 + (fm.height() if largo else 0)))
         for clave, nombre, pixmap in opciones:
             icono = QIcon(pixmap)
             icono.addPixmap(pixmap, QIcon.Mode.Selected)  # sin el tinte que Qt le pone al elegido
             item = QListWidgetItem(icono, nombre)
             item.setData(Qt.ItemDataRole.UserRole, clave)
             item.setToolTip(nombre)
+            item.setSizeHint(self.gridSize())  # así el nombre puede usar la segunda línea
             self.addItem(item)
             if clave == elegido:
                 self.setCurrentItem(item)
@@ -539,12 +616,15 @@ class VistaPrevia(QWidget):
 # --- ventana principal -------------------------------------------------------------
 
 class Ajustes(QWidget):
+    idioma_cambiado = pyqtSignal(str)
+
     def __init__(self):
         super().__init__()
         self.setObjectName("raiz")
-        self.setWindowTitle("Ajustes de la mascota")
-        self.setWindowIcon(bandeja.icono_mascota("terracota"))
         self.config = m.cargar_config()
+        idiomas.usar(self.config["idioma"])  # antes de cualquier texto
+        self.setWindowTitle(t("Ajustes de WaveMascot"))
+        self.setWindowIcon(bandeja.icono_mascota("terracota"))
         self.estado_vista = "listo"
         self.sonidos = m.Sonidos(self)
         self.timer_guardar = QTimer(self, singleShot=True, interval=300, timeout=self.guardar)
@@ -562,7 +642,7 @@ class Ajustes(QWidget):
             area = QScrollArea(widgetResizable=True, frameShape=QFrame.Shape.NoFrame)
             area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             area.setWidget(pagina)  # si la pantalla es chica, la pestaña se desplaza en vez de cortarse
-            self.pestanas.addTab(area, titulo)
+            self.pestanas.addTab(area, t(titulo))
         cuerpo.addWidget(self.pestanas, 1)
         cuerpo.addLayout(self.panel_vista())
         raiz.addLayout(cuerpo, 1)
@@ -570,7 +650,7 @@ class Ajustes(QWidget):
         QShortcut(QKeySequence("Esc"), self, activated=self.close)
 
         self.cargar_en_controles()
-        self.estado_guardado.setText("Los cambios se guardan solos")
+        self.estado_guardado.setText(t("Los cambios se guardan solos"))
         m.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         self.vigia = QFileSystemWatcher([str(m.CONFIG_DIR)], self)
         self.vigia.directoryChanged.connect(lambda _: QTimer.singleShot(300, self.sincronizar))
@@ -585,11 +665,32 @@ class Ajustes(QWidget):
         textos = QVBoxLayout()
         textos.setSpacing(0)
         textos.addWidget(QLabel("WaveMascot", objectName="titulo"))
-        textos.addWidget(QLabel("Cómo y dónde te avisa cuando Claude Code termina o necesita algo",
+        textos.addWidget(QLabel(t("Cómo y dónde te avisa cuando Claude Code termina o necesita algo"),
                                 objectName="subtitulo"))
         caja.addWidget(self.icono_cabecera)
         caja.addLayout(textos, 1)
+        caja.addWidget(self.selector_idioma(), 0, Qt.AlignmentFlag.AlignTop)
         return caja
+
+    def selector_idioma(self) -> QToolButton:
+        """La banderita de arriba a la derecha: cambia el idioma de todo."""
+        boton = QToolButton(objectName="idioma")
+        boton.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        boton.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        boton.setCursor(Qt.CursorShape.PointingHandCursor)
+        boton.setToolTip("Idioma · Language · Idioma")
+        dpr = self.devicePixelRatioF()
+        boton.setIcon(QIcon(bandera(idiomas.actual(), dpr)))
+        boton.setIconSize(QSize(22, 15))
+        boton.setText(idiomas.actual().upper())
+        menu = QMenu(boton)
+        for codigo, nombre in idiomas.IDIOMAS.items():
+            accion = menu.addAction(QIcon(bandera(codigo, dpr)), nombre)
+            accion.setCheckable(True)
+            accion.setChecked(codigo == idiomas.actual())
+            accion.triggered.connect(lambda _=False, c=codigo: self.cambiar_idioma(c))
+        boton.setMenu(menu)
+        return boton
 
     def pestana_notificacion(self) -> QWidget:
         pagina = QWidget()
@@ -624,12 +725,12 @@ class Ajustes(QWidget):
         self.textos = {}
         for numero, (evento, titulo) in enumerate((("Stop", "Cuando termina (Stop)"),
                                                     ("Notification", "Cuando necesita algo (Notification)")), 10):
-            campo = QLineEdit(placeholderText="Vacío = texto automático", clearButtonEnabled=True)
+            campo = QLineEdit(placeholderText=t("Vacío = texto automático"), clearButtonEnabled=True)
             campo.textChanged.connect(lambda texto, ev=evento: self.cambiar_mensaje(ev, texto))
             self.textos[evento] = campo
             bloque = QVBoxLayout()
             bloque.setSpacing(4)
-            bloque.addWidget(QLabel(titulo))
+            bloque.addWidget(QLabel(t(titulo)))
             bloque.addWidget(campo)
             grilla.addLayout(bloque, numero, 0, 1, 2)
         grilla.addWidget(ayuda("Podés usar {mensaje} (el texto original del aviso, por ejemplo "
@@ -680,11 +781,11 @@ class Ajustes(QWidget):
             hora.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
             hora.setAlignment(Qt.AlignmentFlag.AlignCenter)
             hora.setFixedWidth(66)
-            hora.setToolTip("Escribí la hora o cambiala con la ruedita del mouse o las flechas")
+            hora.setToolTip(t("Escribí la hora o cambiala con la ruedita del mouse o las flechas"))
         self.desde.timeChanged.connect(lambda t: self.cambiar_grupo("no_molestar", "desde", t.toString("HH:mm")))
         self.hasta.timeChanged.connect(lambda t: self.cambiar_grupo("no_molestar", "hasta", t.toString("HH:mm")))
         fila_nm.insertWidget(2, self.desde)
-        fila_nm.insertWidget(3, QLabel("y"))
+        fila_nm.insertWidget(3, QLabel(t("y")))
         fila_nm.insertWidget(4, self.hasta)
         caja.addLayout(fila_nm)
         self.pantalla_completa, fila_pc = opcion("Silenciar si hay algo en pantalla completa (juegos, videos, "
@@ -694,7 +795,7 @@ class Ajustes(QWidget):
         self.enfocada, fila_foco = opcion("No avisar si la terminal o el editor de Claude ya tiene el foco",
                                           lambda v: self.cambiar("omitir_si_enfocada", v))
         caja.addLayout(fila_foco)
-        caja.addWidget(QLabel("Avisar «terminó» solo si la tarea duró más de"))
+        caja.addWidget(QLabel(t("Avisar «terminó» solo si la tarea duró más de")))
         self.umbral = QSlider(Qt.Orientation.Horizontal, minimum=0, maximum=300, singleStep=5, pageStep=30)
         self.valor_umbral = valor()
         self.umbral.valueChanged.connect(lambda v: self.cambiar("umbral_segundos", v))
@@ -705,7 +806,7 @@ class Ajustes(QWidget):
         self.permisos, fila_permisos = opcion("Aprobar o denegar permisos desde la mascota",
                                               lambda v: self.cambiar("permisos_desde_mascota", v))
         caja.addLayout(fila_permisos)
-        self.etiqueta_espera = QLabel("Esperar mi respuesta")
+        self.etiqueta_espera = QLabel(t("Esperar mi respuesta"))
         self.espera = QSlider(Qt.Orientation.Horizontal, minimum=5, maximum=120, singleStep=5, pageStep=15)
         self.valor_espera = valor()
         self.espera.valueChanged.connect(lambda v: self.cambiar("espera_permiso", v))
@@ -735,7 +836,7 @@ class Ajustes(QWidget):
         self.valor_volumen = valor()
         self.volumen.valueChanged.connect(lambda v: self.cambiar("volumen", v))
         self.volumen.sliderReleased.connect(self.escuchar)
-        self.etiqueta_volumen = QLabel("Volumen")
+        self.etiqueta_volumen = QLabel(t("Volumen"))
         caja.addLayout(fila(self.etiqueta_volumen, self.volumen, self.valor_volumen))
 
         caja.addSpacing(10)
@@ -744,7 +845,7 @@ class Ajustes(QWidget):
         grilla.setHorizontalSpacing(10)
         grilla.setVerticalSpacing(6)
         self.sonidos_evento = {}
-        nombres = {"ninguno": "Sin sonido", **{c: n for c, (n, _) in sprites.SONIDOS.items()}}
+        nombres = {"ninguno": t("Sin sonido"), **{c: t(n) for c, (n, _) in sprites.SONIDOS.items()}}
         for numero, estado in enumerate(("listo", "permiso", "pensando", "subagente", "limite", "error")):
             combo = QComboBox()
             for clave, nombre in nombres.items():
@@ -753,7 +854,7 @@ class Ajustes(QWidget):
             escuchar = BotonEscuchar()
             escuchar.clicked.connect(lambda _=False, e=estado: self.escuchar(e))
             self.sonidos_evento[estado] = combo
-            grilla.addWidget(QLabel(NOMBRES_ESTADO[estado]), numero, 0)
+            grilla.addWidget(QLabel(t(NOMBRES_ESTADO[estado])), numero, 0)
             grilla.addWidget(combo, numero, 1)
             grilla.addWidget(escuchar, numero, 2)
         grilla.setColumnStretch(1, 1)
@@ -812,8 +913,8 @@ class Ajustes(QWidget):
         self.galeria_imagenes.elegido.connect(self.elegir_imagen)
         caja.addWidget(self.galeria_imagenes)
         botones = QHBoxLayout()
-        botones.addWidget(QPushButton("Agregar PNG/GIF…", clicked=self.agregar_imagen))
-        self.quitar = QPushButton("Quitar", clicked=self.quitar_imagen)
+        botones.addWidget(QPushButton(t("Agregar PNG/GIF…"), clicked=self.agregar_imagen))
+        self.quitar = QPushButton(t("Quitar"), clicked=self.quitar_imagen)
         botones.addWidget(self.quitar)
         botones.addStretch(1)
         caja.addLayout(botones)
@@ -840,8 +941,8 @@ class Ajustes(QWidget):
         caja.addWidget(self.aviso_imagen)
         caja.addStretch(1)
         botones = QHBoxLayout()
-        botones.addWidget(QPushButton("Al azar", clicked=self.al_azar))
-        botones.addWidget(QPushButton("Sacar todo", clicked=self.sacar_todo))
+        botones.addWidget(QPushButton(t("Al azar"), clicked=self.al_azar))
+        botones.addWidget(QPushButton(t("Sacar todo"), clicked=self.sacar_todo))
         botones.addStretch(1)
         caja.addLayout(botones)
         return pagina
@@ -857,7 +958,7 @@ class Ajustes(QWidget):
             segmentos = QHBoxLayout()
             segmentos.setSpacing(0)
             for i, estado in enumerate(fila_estados):
-                boton = QPushButton(NOMBRES_ESTADO[estado], objectName="segmento", checkable=True)
+                boton = QPushButton(t(NOMBRES_ESTADO[estado]), objectName="segmento", checkable=True)
                 boton.setProperty("pos", "ini" if i == 0 else "fin" if i == len(fila_estados) - 1 else "medio")
                 boton.setChecked(estado == self.estado_vista)
                 boton.clicked.connect(lambda _, e=estado: self.ver_estado(e))
@@ -871,8 +972,8 @@ class Ajustes(QWidget):
         caja = QHBoxLayout()
         self.estado_guardado = QLabel(objectName="estado")
         caja.addWidget(self.estado_guardado, 1)
-        caja.addWidget(QPushButton("Restablecer valores", clicked=self.restablecer))
-        caja.addWidget(QPushButton("Cerrar", clicked=self.close))
+        caja.addWidget(QPushButton(t("Restablecer valores"), clicked=self.restablecer))
+        caja.addWidget(QPushButton(t("Cerrar"), clicked=self.close))
         return caja
 
     # datos <-> controles
@@ -924,10 +1025,10 @@ class Ajustes(QWidget):
         aspecto = self.config["aspecto"]
         usando_imagen = bool(self.config["imagen"])
         for parte, galeria in self.galerias.items():
-            opciones = [(clave, nombre, miniatura({**aspecto, parte: clave}, parte, dpr))
+            opciones = [(clave, t(nombre), miniatura({**aspecto, parte: clave}, parte, dpr))
                         for clave, nombre in sprites.OPCIONES[parte].items()]
             galeria.cargar(opciones, None if usando_imagen else aspecto[parte])
-        imagenes = [("", "Mascota dibujada", miniatura(aspecto, "entera", dpr, escala=1.5))]
+        imagenes = [("", t("Mascota dibujada"), miniatura(aspecto, "entera", dpr, escala=1.5))]
         imagenes += [(ruta.name, ruta.stem, miniatura_imagen(ruta, QSize(72, 63), dpr)) for ruta in m.listar_imagenes()]
         self.galeria_imagenes.cargar(imagenes, self.config["imagen"])
         self.quitar.setEnabled(usando_imagen)
@@ -942,16 +1043,16 @@ class Ajustes(QWidget):
 
     def actualizar_etiquetas(self) -> None:
         c = self.config
-        self.nombre_esquina.setText(NOMBRES_ESQUINA[c["esquina"]])
+        self.nombre_esquina.setText(t(NOMBRES_ESQUINA[c["esquina"]]))
         self.valor_duracion.setText(f"{round(c['duracion'])} s")
-        self.texto_sonido.setText("Activado" if c["sonido"] else "Desactivado")
+        self.texto_sonido.setText(t("Activado") if c["sonido"] else t("Desactivado"))
         self.valor_volumen.setText(f"{c['volumen']} %")
         for control in (self.volumen, self.valor_volumen, self.etiqueta_volumen):
             control.setEnabled(c["sonido"])
-        self.valor_tamano.setText(f"{NOMBRES_TAMANO.get(c['tamano'], c['tamano'])} · {m.LADO_ARTE * c['tamano']} px")
-        self.nombre_color.setText("" if c["imagen"] else sprites.COLORES[c["aspecto"]["color"]][0])
-        self.probar.setText(f"Probar aviso «{NOMBRES_ESTADO[self.estado_vista]}»")
-        self.valor_umbral.setText("Siempre" if not c["umbral_segundos"] else m.formato_duracion(c["umbral_segundos"]))
+        self.valor_tamano.setText(f"{t(NOMBRES_TAMANO.get(c['tamano'], ''))} · {m.LADO_ARTE * c['tamano']} px")
+        self.nombre_color.setText("" if c["imagen"] else t(sprites.COLORES[c["aspecto"]["color"]][0]))
+        self.probar.setText(t("Probar aviso «{estado}»", estado=t(NOMBRES_ESTADO[self.estado_vista])))
+        self.valor_umbral.setText(t("Siempre") if not c["umbral_segundos"] else m.formato_duracion(c["umbral_segundos"]))
         self.valor_espera.setText(f"{c['espera_permiso']} s")
         for control in (self.espera, self.valor_espera, self.etiqueta_espera):
             control.setEnabled(c["permisos_desde_mascota"])
@@ -963,22 +1064,23 @@ class Ajustes(QWidget):
             combo.setEnabled(c["sonido"])
 
     def mensaje_de_ejemplo(self) -> str:
-        automatico = AUTOMATICO[self.estado_vista]
+        automatico = t(AUTOMATICO[self.estado_vista])
         plantilla = self.config["mensajes"].get(m.EVENTO_POR_ESTADO.get(self.estado_vista), "")
         if not plantilla.strip():
             return automatico
-        return m.aplicar_plantilla(plantilla, {"mensaje": automatico, **EJEMPLO}) or automatico
+        ejemplo = {clave: t(texto) for clave, texto in EJEMPLO.items()}
+        return m.aplicar_plantilla(plantilla, {"mensaje": automatico, **ejemplo}) or automatico
 
     def refrescar_vista(self) -> None:
         c, estado = self.config, self.estado_vista
         datos = ["2 min 05 s" if c["contenido"]["duracion"] and estado == "listo" else "",
-                 EJEMPLO["proyecto"] if c["contenido"]["proyecto"] else "",
-                 EJEMPLO["chat"] if c["contenido"]["chat"] else ""]
+                 t(EJEMPLO["proyecto"]) if c["contenido"]["proyecto"] else "",
+                 t(EJEMPLO["chat"]) if c["contenido"]["chat"] else ""]
         botones = ["permitir", "denegar"] if estado == "permiso" and c["permisos_desde_mascota"] else []
         if c["boton_enfocar"]:
             botones.append("enfocar")
         self.vista.mostrar(c, estado, self.mensaje_de_ejemplo()[:120],
-                           RESUMEN_EJEMPLO[estado] if c["contenido"]["resumen"] else "",
+                           t(RESUMEN_EJEMPLO[estado]) if c["contenido"]["resumen"] else "",
                            " · ".join(d for d in datos if d), botones)
 
     # cambios
@@ -1020,7 +1122,7 @@ class Ajustes(QWidget):
     def cambio(self) -> None:
         self.actualizar_etiquetas()
         self.refrescar_vista()
-        self.estado_guardado.setText("Guardando…")
+        self.estado_guardado.setText(t("Guardando…"))
         self.timer_guardar.start()
 
     def al_cambiar_sonido(self, activo: bool) -> None:
@@ -1056,14 +1158,14 @@ class Ajustes(QWidget):
         self.cambio()
 
     def agregar_imagen(self) -> None:
-        ruta, _ = QFileDialog.getOpenFileName(self, "Elegí una imagen para la mascota", str(Path.home()),
-                                              "Imágenes (*.png *.gif)")
+        ruta, _ = QFileDialog.getOpenFileName(self, t("Elegí una imagen para la mascota"), str(Path.home()),
+                                              t("Imágenes") + " (*.png *.gif)")
         if not ruta:
             return
         origen = Path(ruta)
         if origen.stat().st_size > 20_000_000 or not QImageReader(str(origen)).canRead():
-            QMessageBox.warning(self, "Imagen no válida",
-                                "No pude leer esa imagen. Probá con un PNG o GIF de menos de 20 MB.")
+            QMessageBox.warning(self, t("Imagen no válida"),
+                                t("No pude leer esa imagen. Probá con un PNG o GIF de menos de 20 MB."))
             return
         m.IMAGENES.mkdir(parents=True, exist_ok=True)
         base = re.sub(r"[^\w\- ]", "", origen.stem).strip()[:40] or "propia"
@@ -1077,8 +1179,9 @@ class Ajustes(QWidget):
         nombre = self.config["imagen"]
         if not nombre:
             return
-        respuesta = QMessageBox.question(self, "Quitar imagen",
-                                         f"¿Quitar «{Path(nombre).stem}»? Tu archivo original no se toca.")
+        respuesta = QMessageBox.question(self, t("Quitar imagen"),
+                                         t("¿Quitar «{nombre}»? Tu archivo original no se toca.",
+                                           nombre=Path(nombre).stem))
         if respuesta != QMessageBox.StandardButton.Yes:
             return
         (m.IMAGENES / nombre).unlink(missing_ok=True)  # es la copia guardada en ~/.wavemascot/imagenes
@@ -1092,7 +1195,7 @@ class Ajustes(QWidget):
                 bandeja.lanzar()
         except (OSError, subprocess.SubprocessError) as e:
             m.log(f"[ajustes] no se pudo cambiar el inicio automático: {e}")
-            self.estado_guardado.setText("No se pudo crear el acceso directo de inicio")
+            self.estado_guardado.setText(t("No se pudo crear el acceso directo de inicio"))
         finally:
             self.unsetCursor()
             self.inicio.blockSignals(True)
@@ -1100,10 +1203,12 @@ class Ajustes(QWidget):
             self.inicio.blockSignals(False)
 
     def restablecer(self) -> None:
-        if QMessageBox.question(self, "Restablecer", "¿Volver a los valores por defecto? "
-                                "Las imágenes propias quedan guardadas.") != QMessageBox.StandardButton.Yes:
+        if QMessageBox.question(self, t("Restablecer"), t("¿Volver a los valores por defecto? "
+                                "Las imágenes propias quedan guardadas.")) != QMessageBox.StandardButton.Yes:
             return
+        idioma = self.config["idioma"]
         self.config = json.loads(json.dumps(m.CONFIG_DEFECTO))  # copia profunda
+        self.config["idioma"] = idioma  # el idioma elegido se queda
         aplicar_tema(self.config["tema"])
         self.cargar_en_controles()
         self.cambio()
@@ -1125,15 +1230,23 @@ class Ajustes(QWidget):
             self.config["silenciado_hasta"], self.config["posicion"] = disco["silenciado_hasta"], disco["posicion"]
             m.guardar_config(self.config)
         except OSError as e:
-            self.estado_guardado.setText(f"No se pudo guardar: {e}")
+            self.estado_guardado.setText(t("No se pudo guardar: {error}", error=e))
             m.log(f"[ajustes] no se pudo guardar: {e}")
             return
-        self.estado_guardado.setText(f"✓ Guardado en {m.CONFIG.parent.name}/{m.CONFIG.name}")
+        self.estado_guardado.setText(t("✓ Guardado en {archivo}", archivo=f"{m.CONFIG.parent.name}/{m.CONFIG.name}"))
 
     def probar_aviso(self) -> None:
         self.guardar()  # el aviso de prueba lee config.json, igual que uno real
         m.lanzar_desacoplado([str(m.DIR / "mascota.py"), f"--estado={self.estado_vista}", "--forzar",
-                              "--detalle=Prueba desde ajustes"])
+                              "--detalle=" + t("Prueba desde ajustes")])
+
+    def cambiar_idioma(self, idioma: str) -> None:
+        """Guarda el idioma y pide rearmar la ventana con los textos nuevos."""
+        if idioma == self.config["idioma"]:
+            return
+        self.config["idioma"] = idioma
+        self.guardar()  # el ícono, la mascota y el próximo aviso lo leen de config.json
+        self.idioma_cambiado.emit(idioma)
 
     def closeEvent(self, evento) -> None:
         if self.timer_guardar.isActive():
@@ -1141,13 +1254,26 @@ class Ajustes(QWidget):
         super().closeEvent(evento)
 
 
+def identidad_en_barra() -> None:
+    """Sin esto Windows agrupa la ventana con pythonw.exe y la barra de tareas muestra el ícono de Python."""
+    if os.name == "nt":
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("WaveMascot.Ajustes")
+        except (AttributeError, OSError):
+            pass
+
+
 def ejecutar_ventana() -> int:
     # Un error se registra en el log; no cierra la ventana (PyQt6 aborta ante errores no atrapados).
     sys.excepthook = lambda tipo, valor, tb: m.log("[ajustes] error:\n" + "".join(
         traceback.format_exception(tipo, valor, tb)))
+    identidad_en_barra()  # antes de crear cualquier ventana
     app = QApplication(sys.argv[:1])
+    app.setWindowIcon(bandeja.icono_mascota("terracota"))  # también para los diálogos
     app.setStyle("Fusion")
-    aplicar_tema(m.cargar_config()["tema"])
+    config = m.cargar_config()
+    aplicar_tema(config["tema"])
+    traducir_qt(app, config["idioma"])
 
     # Una sola ventana de ajustes: si ya hay una abierta, se la trae al frente.
     s = QLocalSocket()
@@ -1160,10 +1286,25 @@ def ejecutar_ventana() -> int:
     servidor = QLocalServer()
     servidor.listen(CANAL_AJUSTES)
 
-    ventana = Ajustes()
-    ventana.resize(940, 760)
-    servidor.newConnection.connect(lambda: (servidor.nextPendingConnection(), traer_al_frente(ventana)))
-    traer_al_frente(ventana)
+    actual = {}
+
+    def abrir(anterior: Ajustes | None = None) -> None:
+        """Arma la ventana; al cambiar de idioma se rearma en el mismo lugar y en la misma pestaña."""
+        ventana = Ajustes()
+        ventana.idioma_cambiado.connect(lambda idioma: (traducir_qt(app, idioma), abrir(ventana)))
+        if anterior is None:
+            ventana.resize(940, 760)
+        else:
+            ventana.setGeometry(anterior.geometry())
+            ventana.pestanas.setCurrentIndex(anterior.pestanas.currentIndex())
+        actual["ventana"] = ventana
+        traer_al_frente(ventana)
+        if anterior is not None:  # recién ahora: si se cerrara antes, la app terminaría
+            anterior.close()
+            anterior.deleteLater()
+
+    servidor.newConnection.connect(lambda: (servidor.nextPendingConnection(), traer_al_frente(actual["ventana"])))
+    abrir()
     m.log("[ajustes] ventana abierta")
     return app.exec()
 

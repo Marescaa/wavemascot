@@ -23,7 +23,16 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "1.0.0"
+try:
+    import idiomas
+    from idiomas import t
+except ImportError:  # sin idiomas.py al lado (p. ej. un desinstalador copiado solo): textos sin traducir
+    idiomas = None
+
+    def t(texto: str, **datos) -> str:
+        return texto.format(**datos) if datos else texto
+
+VERSION = "1.1.0"
 NOMBRE = "WaveMascot"
 CONGELADO = getattr(sys, "frozen", False)
 MANIFIESTO = "instalacion.json"   # qué se instaló y qué había antes (para desinstalar)
@@ -38,7 +47,8 @@ HOOKS = {
     "StopFailure": ("limite", 10, False),
     "PermissionRequest": ("permiso", 150, False),  # espera tu Permitir/Denegar en la mascota
 }
-ARCHIVOS_FUENTE = ("mascota.py", "ajustes.py", "bandeja.py", "sprites.py", "ventanas.py", "instalador.py")
+ARCHIVOS_FUENTE = ("mascota.py", "ajustes.py", "bandeja.py", "sprites.py", "ventanas.py", "instalador.py",
+                   "idiomas.py")
 
 
 class ErrorInstalacion(Exception):
@@ -111,9 +121,10 @@ def leer_json(ruta: Path) -> dict | None:
     try:
         datos = json.loads(texto)
     except ValueError as e:
-        raise ErrorInstalacion(f"{ruta} no es JSON válido ({e}); no lo modifico. Arreglalo y volvé a probar.")
+        raise ErrorInstalacion(t("{ruta} no es JSON válido ({error}); no lo modifico. Arreglalo y volvé a probar.",
+                                 ruta=ruta, error=e))
     if not isinstance(datos, dict):
-        raise ErrorInstalacion(f"{ruta} no tiene el formato esperado (un objeto JSON); no lo modifico.")
+        raise ErrorInstalacion(t("{ruta} no tiene el formato esperado (un objeto JSON); no lo modifico.", ruta=ruta))
     return datos
 
 
@@ -207,19 +218,20 @@ def quitar_hooks(settings: dict, manifiesto: dict, destino: Path) -> dict:
 
 def texto_comando(tipo: str, destino: Path) -> str:
     comando = linea_de_comando(lanzador(tipo, destino, "ajustes"))
-    return (f"---\ndescription: Abre los ajustes de {NOMBRE}\nallowed-tools: Bash({comando})\n---\n"
-            f"<!-- {MARCA}: lo creó el instalador y se borra al desinstalar -->\n!`{comando}`\n\n"
-            "La ventana de ajustes de la mascota ya se abrió en un proceso aparte (no bloquea esta sesión). "
-            "Respondé solo con una línea breve confirmándolo, sin usar herramientas.\n")
+    descripcion = t("Abre los ajustes de {nombre}", nombre=NOMBRE)
+    return (f"---\ndescription: {descripcion}\nallowed-tools: Bash({comando})\n---\n"
+            f"<!-- {MARCA}: created by the installer, removed on uninstall -->\n!`{comando}`\n\n"
+            "The WaveMascot settings window is already open in a separate process (it does not block this "
+            "session). Reply with one short line confirming it, without using any tools.\n")
 
 
 def crear_comando(claude_dir: Path, tipo: str, destino: Path) -> tuple[Path | None, str]:
     ruta = claude_dir / "commands" / "wavemascot.md"
     if ruta.exists() and MARCA not in ruta.read_text(encoding="utf-8", errors="replace"):
-        return None, f"ya existe un /wavemascot tuyo en {ruta}: no lo toco"
+        return None, t("ya existe un /wavemascot tuyo en {ruta}: no lo toco", ruta=ruta)
     ruta.parent.mkdir(parents=True, exist_ok=True)
     ruta.write_text(texto_comando(tipo, destino), encoding="utf-8")
-    return ruta, f"comando /wavemascot: {ruta}"
+    return ruta, t("comando /wavemascot: {ruta}", ruta=ruta)
 
 
 def crear_acceso(lnk: Path, partes: list[str], icono: Path, descripcion: str) -> None:
@@ -284,14 +296,16 @@ def configurar(tipo: str, destino: Path, claude_dir: Path, sin_inicio: bool = Fa
                                         if isinstance(base.get("hooks"), dict) else []),
         "comando": None, "accesos": [],
     }
-    informe = [f"{NOMBRE} {VERSION} ({'ejecutable' if tipo == 'exe' else 'código fuente'}) en {destino}"]
+    informe = [t("{nombre} {version} ({tipo}) en {destino}", nombre=NOMBRE, version=VERSION, destino=destino,
+                 tipo=t("ejecutable") if tipo == "exe" else t("código fuente"))]
     nuevo, reemplazados = agregar_hooks(base, tipo, destino)
     manifiesto["reemplazados"] = {**(anterior.get("reemplazados") or {}), **reemplazados}
     copia = escribir_json(ruta_settings, nuevo)
-    informe.append(f"hooks agregados a {ruta_settings}" + (f" (backup: {copia.name})" if copia else " (archivo nuevo)"))
+    informe.append(t("hooks agregados a {ruta} (backup: {copia})", ruta=ruta_settings, copia=copia.name) if copia
+                   else t("hooks agregados a {ruta} (archivo nuevo)", ruta=ruta_settings))
     if reemplazados:
-        informe.append(f"reemplazados los hooks de una versión anterior de la mascota ({', '.join(reemplazados)}); "
-                       "vuelven a su lugar si desinstalás")
+        informe.append(t("reemplazados los hooks de una versión anterior de la mascota ({eventos}); "
+                         "vuelven a su lugar si desinstalás", eventos=", ".join(reemplazados)))
     comando, texto = crear_comando(claude_dir, tipo, destino)
     manifiesto["comando"] = str(comando) if comando else None
     informe.append(texto)
@@ -304,15 +318,16 @@ def configurar(tipo: str, destino: Path, claude_dir: Path, sin_inicio: bool = Fa
             respaldo.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(acceso_inicio(), respaldo)
             manifiesto["accesos_previos"][str(acceso_inicio())] = str(respaldo)
-        crear_acceso(acceso_inicio(), lanzador(tipo, destino, "bandeja"), icono, f"{NOMBRE} (ícono junto al reloj)")
+        crear_acceso(acceso_inicio(), lanzador(tipo, destino, "bandeja"), icono, t("{nombre} (ícono junto al reloj)", nombre=NOMBRE))
         manifiesto["accesos"].append(str(acceso_inicio()))
-        informe.append("ícono junto al reloj al iniciar Windows")
+        informe.append(t("ícono junto al reloj al iniciar Windows"))
     if tipo == "exe":
-        for nombre, programa in ((f"Ajustes de {NOMBRE}", "ajustes"), (f"Desinstalar {NOMBRE}", "desinstalar")):
+        for nombre, programa in ((t("Ajustes de {nombre}", nombre=NOMBRE), "ajustes"),
+                                 (t("Desinstalar {nombre}", nombre=NOMBRE), "desinstalar")):
             lnk = carpeta_menu() / f"{nombre}.lnk"
             crear_acceso(lnk, lanzador(tipo, destino, programa), icono, nombre)
             manifiesto["accesos"].append(str(lnk))
-        informe.append(f"accesos en el menú Inicio: {carpeta_menu()}")
+        informe.append(t("accesos en el menú Inicio: {carpeta}", carpeta=carpeta_menu()))
     (destino / MANIFIESTO).write_text(json.dumps(manifiesto, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return informe
 
@@ -321,7 +336,7 @@ def desinstalar(destino: Path, claude_dir: Path | None = None, borrar_config: bo
     destino = destino.resolve()
     manifiesto = leer_json(destino / MANIFIESTO) or {}
     claude_dir = (claude_dir or Path(manifiesto.get("claude_dir") or Path.home() / ".claude")).resolve()
-    informe = [f"desinstalando {NOMBRE} de {destino}"]
+    informe = [t("desinstalando {nombre} de {destino}", nombre=NOMBRE, destino=destino)]
     detener_procesos(destino)
     ruta_settings = claude_dir / "settings.json"
     actual = leer_json(ruta_settings)
@@ -331,14 +346,16 @@ def desinstalar(destino: Path, claude_dir: Path | None = None, borrar_config: bo
             if not limpio and manifiesto.get("creado_settings"):  # lo había creado el instalador
                 copia = backup(ruta_settings)
                 ruta_settings.unlink()
-                informe.append(f"{ruta_settings} borrado (lo había creado el instalador; backup: {copia.name})")
+                informe.append(t("{ruta} borrado (lo había creado el instalador; backup: {copia})",
+                                 ruta=ruta_settings, copia=copia.name))
             else:
                 copia = escribir_json(ruta_settings, limpio)
-                informe.append(f"hooks de la mascota quitados de {ruta_settings} (backup: {copia.name})")
+                informe.append(t("hooks de la mascota quitados de {ruta} (backup: {copia})",
+                                 ruta=ruta_settings, copia=copia.name))
     comando = claude_dir / "commands" / "wavemascot.md"
     if comando.exists() and MARCA in comando.read_text(encoding="utf-8", errors="replace"):
         comando.unlink()
-        informe.append("comando /wavemascot borrado")
+        informe.append(t("comando /wavemascot borrado"))
         try:
             comando.parent.rmdir()  # solo si quedó vacía
         except OSError:
@@ -349,15 +366,15 @@ def desinstalar(destino: Path, claude_dir: Path | None = None, borrar_config: bo
     for lnk, respaldo in (manifiesto.get("accesos_previos") or {}).items():
         if Path(respaldo).exists() and not Path(lnk).exists():
             shutil.copy2(respaldo, lnk)
-            informe.append(f"repuesto el acceso directo que había antes: {Path(lnk).name}")
+            informe.append(t("repuesto el acceso directo que había antes: {nombre}", nombre=Path(lnk).name))
     if carpeta_menu().exists() and not any(carpeta_menu().iterdir()):
         carpeta_menu().rmdir()
-    informe.append("accesos directos borrados")
+    informe.append(t("accesos directos borrados"))
     if borrar_config:
         shutil.rmtree(Path.home() / ".wavemascot", ignore_errors=True)
-        informe.append("configuración borrada (~/.wavemascot)")
+        informe.append(t("configuración borrada (~/.wavemascot)"))
     else:
-        informe.append("tu configuración queda en ~/.wavemascot (borrala a mano si no la querés)")
+        informe.append(t("tu configuración queda en ~/.wavemascot (borrala a mano si no la querés)"))
     informe.append(borrar_programa(destino, manifiesto))
     return informe
 
@@ -365,22 +382,22 @@ def desinstalar(destino: Path, claude_dir: Path | None = None, borrar_config: bo
 def borrar_programa(destino: Path, manifiesto: dict) -> str:
     """Borra la carpeta instalada, solo si la creó el instalador (y nunca un repositorio)."""
     if not manifiesto or not (destino / MANIFIESTO).exists() or (destino / ".git").exists():
-        return f"la carpeta {destino} no la creó el instalador: no la borro"
+        return t("la carpeta {destino} no la creó el instalador: no la borro", destino=destino)
     os.chdir(Path.home())
     if CONGELADO and Path(sys.executable).resolve().is_relative_to(destino):
         # El .exe no puede borrarse a sí mismo mientras corre: lo borra cmd apenas termine.
         subprocess.Popen(f'cmd /c ping 127.0.0.1 -n 3 > nul & rmdir /s /q "{destino}"', shell=True,
                          creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS)
-        return f"la carpeta {destino} se borra en unos segundos"
+        return t("la carpeta {destino} se borra en unos segundos", destino=destino)
     shutil.rmtree(destino, ignore_errors=True)
-    return f"carpeta {destino} borrada"
+    return t("carpeta {destino} borrada", destino=destino)
 
 
 def instalar_exe(destino: Path, claude_dir: Path, sin_inicio: bool) -> list[str]:
     """Instalador .exe: desempaqueta la app (app.zip, dentro del instalador) y la configura."""
     paquete = Path(getattr(sys, "_MEIPASS", Path(__file__).parent)) / "app.zip"
     if not paquete.exists():
-        raise ErrorInstalacion("al instalador le falta app.zip (se arma con build.ps1)")
+        raise ErrorInstalacion(t("al instalador le falta app.zip (se arma con build.ps1)"))
     destino.mkdir(parents=True, exist_ok=True)
     detener_procesos(destino)
     for viejo in (destino / EXE, destino / "_internal"):  # se reemplaza la versión anterior
@@ -398,6 +415,13 @@ def instalar_exe(destino: Path, claude_dir: Path, sin_inicio: bool) -> list[str]
 
 
 # --- interfaz ------------------------------------------------------------------------
+
+def idioma_guardado() -> str:
+    try:
+        return json.loads((Path.home() / ".wavemascot" / "config.json").read_text(encoding="utf-8"))["idioma"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return idiomas.POR_DEFECTO if idiomas else "en"
+
 
 def mensaje(texto: str, titulo: str = NOMBRE, pregunta: bool = False) -> bool:
     """Cuadro de diálogo de Windows (el .exe no tiene consola). Devuelve True si se aceptó."""
@@ -420,6 +444,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--borrar-config", action="store_true", help="al desinstalar, borrar también ~/.wavemascot")
     p.add_argument("--silencioso", action="store_true", help="sin cuadros de diálogo")
     a = p.parse_args(argv)
+    if idiomas:  # el idioma elegido en los ajustes; si todavía no hay, inglés
+        idiomas.usar(idioma_guardado())
     interactivo = CONGELADO and not a.silencioso
     try:
         if a.accion == "detener":
@@ -430,26 +456,26 @@ def main(argv: list[str] | None = None) -> int:
                                  a.claude_dir or Path.home() / ".claude", a.sin_inicio)
         elif a.accion == "desinstalar":
             destino = a.destino or (Path(sys.executable).parent if CONGELADO else Path(__file__).resolve().parent)
-            if interactivo and not mensaje(f"¿Desinstalar {NOMBRE}?\n\nSe quitan solo sus hooks de "
-                                           f"~/.claude/settings.json (con backup); los tuyos quedan como estaban.",
-                                           pregunta=True):
+            if interactivo and not mensaje(t("¿Desinstalar {nombre}?\n\nSe quitan solo sus hooks de "
+                                             "~/.claude/settings.json (con backup); los tuyos quedan como estaban.",
+                                             nombre=NOMBRE), pregunta=True):
                 return 0
             informe = desinstalar(destino, a.claude_dir, a.borrar_config)
         else:  # instalar (el .exe)
             destino = a.destino or destino_exe_por_defecto()
             if interactivo and not mensaje(
-                    f"¿Instalar {NOMBRE} {VERSION}?\n\nSe instala en {destino} y se agregan sus hooks a "
-                    f"~/.claude/settings.json sin tocar los que ya tengas (antes se guarda un backup).",
-                    pregunta=True):
+                    t("¿Instalar {nombre} {version}?\n\nSe instala en {destino} y se agregan sus hooks a "
+                      "~/.claude/settings.json sin tocar los que ya tengas (antes se guarda un backup).",
+                      nombre=NOMBRE, version=VERSION, destino=destino), pregunta=True):
                 return 0
             informe = instalar_exe(destino, a.claude_dir or Path.home() / ".claude", a.sin_inicio)
     except (ErrorInstalacion, OSError, subprocess.SubprocessError) as e:
         if interactivo:
-            mensaje(f"No se pudo completar:\n\n{e}", f"{NOMBRE}: error")
+            mensaje(t("No se pudo completar:\n\n{error}", error=e), f"{NOMBRE}: error")
         print(f"ERROR: {e}", file=sys.stderr if sys.stderr else None)
         return 1
     if interactivo:
-        mensaje("Listo.\n\n" + "\n".join(f"• {linea}" for linea in informe))
+        mensaje(t("Listo.") + "\n\n" + "\n".join(f"• {linea}" for linea in informe))
     elif sys.stdout:
         print("\n".join(informe))
     return 0
