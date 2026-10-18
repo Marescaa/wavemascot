@@ -1,0 +1,42 @@
+name: Release
+
+# Al pushear un tag v* (por ejemplo v1.0.0): pruebas, build del instalador .exe y release con el .exe adjunto.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Versión del tag = versión del código
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path mascota.py -Pattern '^__version__ = "(.+)"').Matches[0].Groups[1].Value
+          if ("v$version" -ne "${{ github.ref_name }}") {
+            throw "El tag ${{ github.ref_name }} no coincide con __version__ = $version en mascota.py"
+          }
+
+      - name: Pruebas
+        run: python -m unittest discover tests -v
+
+      - name: Build del instalador
+        shell: pwsh
+        run: ./build.ps1 -Python python
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/WaveMascot-Setup.exe
+            dist/SHA256SUMS.txt
+          generate_release_notes: true

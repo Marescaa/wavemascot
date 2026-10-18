@@ -1,0 +1,31 @@
+name: Proponer una idea
+description: Una función nueva o una mejora para la mascota.
+labels: ["mejora"]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qué te gustaría resolver
+      description: Contá el caso de uso: qué te pasa hoy y por qué te vendría bien.
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Cómo te lo imaginás
+      description: Cómo debería verse o funcionar. Si es un estado, accesorio o animación nueva, un boceto ayuda.
+    validations:
+      required: true
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas que pensaste
+  - type: checkboxes
+    id: principios
+    attributes:
+      label: Antes de enviar
+      options:
+        - label: La idea funciona sin conexión a internet y sin enviar datos fuera del equipo.
+          required: true
+        - label: No requiere logos, imágenes ni otros assets de Anthropic o de terceros sin licencia compatible.
+          required: true

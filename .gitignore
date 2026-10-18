@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Build (build.ps1 / PyInstaller)
+build/
+dist/
+*.spec
+
+# Varios
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

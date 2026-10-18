@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Preguntas y ayuda
+    url: https://github.com/Marescaa/wavemascot/discussions/categories/q-a
+    about: ¿Dudas sobre cómo instalarla o configurarla? Preguntá en Discussions.
+  - name: Ideas y charla
+    url: https://github.com/Marescaa/wavemascot/discussions
+    about: Propuestas, vestuarios nuevos, configuraciones para compartir.
