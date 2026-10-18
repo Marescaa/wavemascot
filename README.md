@@ -54,9 +54,9 @@ escritorio).
 3. Listo: la próxima vez que Claude Code termine, aparece la mascota. Si ya tenías Claude Code abierto, no hace falta
    reiniciarlo.
 
-> El `.exe` no está firmado (los certificados cuestan dinero), así que Windows SmartScreen puede mostrar «Windows
-> protegió su PC». Elegí **Más información → Ejecutar de todas formas**, o usá la opción B si preferís instalar
-> desde el código. Podés verificar el archivo con el `SHA256SUMS.txt` del release.
+> Windows SmartScreen puede mostrar «Windows protegió su PC». Elegí **Más información → Ejecutar de todas formas**,
+> o usá la opción B si preferís instalar desde el código. Podés verificar el archivo con el `SHA256SUMS.txt` del
+> release.
 
 ### Opción B: desde el código fuente (Python 3.10 o superior)
 
@@ -71,23 +71,25 @@ escritorio).
 `install.ps1` instala PyQt6 y Pillow solo si faltan. Opciones: `-Python <ruta a python.exe>`, `-Destino <carpeta>`,
 `-SinInicio` (sin ícono al iniciar Windows).
 
-### Qué cambia la instalación
+### Qué hace el instalador en tu PC
 
-| Qué | Dónde |
-|---|---|
-| Los archivos del programa | `%LOCALAPPDATA%\Programs\WaveMascot` |
-| Seis hooks (`Stop`, `Notification`, `UserPromptSubmit`, `SubagentStop`, `StopFailure`, `PermissionRequest`) | `~/.claude/settings.json`. Se **agregan** a los que ya tengas, sin tocarlos, y antes se guarda un backup `settings.json.bak-<fecha>` |
-| El comando `/wavemascot` (abre los ajustes) | `~/.claude/commands/wavemascot.md` (si ya tenés un `/wavemascot` propio, no se toca) |
-| El ícono junto al reloj al iniciar Windows | Acceso directo en la carpeta Inicio |
-| Tu configuración y el registro | `~/.wavemascot/` (se crea al usarla) |
+- **Copia el programa** a `%LOCALAPPDATA%\Programs\WaveMascot`.
+- **Conecta a Wave con Claude Code**: agrega unas líneas (los *hooks*) a `~/.claude/settings.json` para que Claude
+  Code la llame cuando termina o necesita algo. Lo que ya tenías en ese archivo no se toca, y antes de cambiarlo se
+  guarda una copia de seguridad.
+- **Crea el comando `/wavemascot`**, que abre los ajustes desde Claude Code.
+- **Pone el ícono de Wave junto al reloj** cada vez que prendés la compu.
 
-Si tenías hooks de una versión anterior de la mascota, se reemplazan (para no tener avisos duplicados) y vuelven a
-su lugar si desinstalás.
+No pide permisos de administrador, y si la desinstalás, todo vuelve a quedar como estaba.
 
 ## Configuración
 
 Abrí los ajustes con un click en el **ícono junto al reloj** o con **`/wavemascot`** en Claude Code. Los cambios se
 guardan solos y valen desde el próximo aviso; la vista previa muestra cómo va a quedar.
+
+<p align="center">
+  <img src="docs/ajustes.png" alt="Ventana de ajustes de WaveMascot: pestaña Vestuario con la vista previa del aviso" width="760">
+</p>
 
 | Pestaña | Qué se ajusta |
 |---|---|
