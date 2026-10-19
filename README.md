@@ -86,17 +86,39 @@ You need [Claude Code](https://docs.claude.com/en/docs/claude-code) (CLI, extens
 
 #### Option A: the app (recommended, no Python needed)
 
-1. Download the one for your Mac (Apple menu → **About This Mac**):
-   - **Chip: Apple M1, M2, M3, M4…** → **[`WaveMascot-Mac-AppleSilicon.dmg`](../../releases/latest/download/WaveMascot-Mac-AppleSilicon.dmg)**
-   - **Processor: Intel** → **[`WaveMascot-Mac-Intel.dmg`](../../releases/latest/download/WaveMascot-Mac-Intel.dmg)**
-2. Open the `.dmg` and drag **WaveMascot** onto **Applications**.
-3. Open WaveMascot from Applications and click **Yes**. Its icon shows up in the menu bar, and the next time Claude Code
-   finishes, the mascot appears. If Claude Code was already open, there's no need to restart it.
+You need macOS 13 (Ventura) or newer, on any Mac.
 
-> The app isn't notarized by Apple (that needs a paid developer account), so the first time macOS says it can't verify
-> it. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to WaveMascot (on
-> macOS 14 or older you can also right-click the app → **Open**). It's only needed once. You can verify the file with
-> the release's `SHA256SUMS.txt`, or use option B.
+1. **Download the file for your Mac.** To know which one: Apple menu → **About This Mac**.
+   - It says **Chip: Apple M1, M2, M3, M4…** → **[`WaveMascot-Mac-AppleSilicon.dmg`](../../releases/latest/download/WaveMascot-Mac-AppleSilicon.dmg)**
+   - It says **Processor: Intel** → **[`WaveMascot-Mac-Intel.dmg`](../../releases/latest/download/WaveMascot-Mac-Intel.dmg)**
+2. **Open the `.dmg`** (double-click it in Downloads). A window shows WaveMascot and the Applications folder:
+   **drag WaveMascot onto Applications**. You can then eject the WaveMascot disk in the Finder sidebar.
+3. **Open WaveMascot** from Applications (or with Spotlight: <kbd>⌘</kbd> <kbd>Space</kbd>, type *WaveMascot*).
+   The first time, macOS blocks it because the app isn't notarized by Apple (that needs a paid developer account):
+   - **macOS 15 (Sequoia) or newer**: a window says *"Apple could not verify 'WaveMascot' is free of malware…"*.
+     Click **Done**, open **System Settings → Privacy & Security**, scroll down to **Security** and click
+     **Open Anyway** next to *"WaveMascot was blocked…"*. Confirm with **Open Anyway** and your password or Touch ID.
+   - **macOS 13 or 14**: right-click (or <kbd>Control</kbd>-click) WaveMascot in Applications → **Open**, and
+     **Open** again.
+
+   It's only needed once; updates and the hooks don't ask again.
+4. WaveMascot asks **"Install WaveMascot?"**: click **Yes**. It connects to Claude Code and tells you what it did.
+5. Done: Wave's icon appears in the **menu bar** (top right). Click it → **Test notice** to see it. From now on it shows
+   up whenever Claude Code finishes or needs something, in the terminal, VS Code or the Claude app. If Claude Code was
+   already open, there's no need to restart it. To see it in Spanish or Portuguese, open the settings and pick the
+   flag.
+
+Good to know:
+
+- **It doesn't ask for any permission** (no Accessibility, no Screen Recording, no notifications).
+- If you open it straight from the `.dmg` without dragging it, it copies itself to Applications.
+- **Settings**: menu bar icon → **Open settings**, `/wavemascot` in Claude Code, or open WaveMascot again from
+  Applications.
+- **Update**: download the new `.dmg`, drag WaveMascot onto Applications (**Replace**) and open it once.
+- macOS shows *"Background Items Added"* the first time: that's the menu bar icon opening at login. You can turn it
+  off in WaveMascot's settings or in **System Settings → General → Login Items**.
+- To check the download: `shasum -a 256 ~/Downloads/WaveMascot-Mac-*.dmg` must match the release's
+  `SHA256SUMS.txt`.
 
 #### Option B: from source (Python 3.10 or newer)
 
@@ -169,7 +191,11 @@ are kept; to delete them too: `uninstall.ps1 -DeleteSettings` or `uninstall.sh -
   screen, do not disturb, focused terminal, event turned off...). Wave's icon → *Test notice* forces one.
 - **The hooks don't run**: check with `/hooks` in Claude Code that the mascot's hooks are there.
 - **Allow/Deny**: in the desktop app its own dialog still appears; the first answer wins.
-- **Mac: "WaveMascot can't be opened" or "Apple could not verify…"**: see the note in [Install → Mac](#mac).
+- **Mac: "WaveMascot can't be opened" or "Apple could not verify…"**: see step 3 of [Install → Mac](#mac).
+- **Mac: I don't see the icon in the menu bar**: on Macs with a notch, icons that don't fit are hidden; close a few
+  other menu bar apps or open the settings with `/wavemascot`. If you quit it, open WaveMascot from Applications.
+- **Mac: two notices**: turn off the notifications of your terminal or of the Claude app in **System Settings →
+  Notifications**, so only Wave tells you.
 
 ## Questions, ideas and reports
 

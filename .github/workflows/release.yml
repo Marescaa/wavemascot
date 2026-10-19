@@ -86,3 +86,20 @@ jobs:
             dist/WaveMascot-Mac-Intel.dmg
             dist/SHA256SUMS.txt
           generate_release_notes: true
+          body: |
+            ## Download
+
+            | Your computer | File |
+            |---|---|
+            | Windows 10 or 11 | [`WaveMascot-Setup.exe`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/WaveMascot-Setup.exe) |
+            | Mac with an Apple chip (M1, M2, M3, M4…) | [`WaveMascot-Mac-AppleSilicon.dmg`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/WaveMascot-Mac-AppleSilicon.dmg) |
+            | Mac with an Intel processor | [`WaveMascot-Mac-Intel.dmg`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/WaveMascot-Mac-Intel.dmg) |
+
+            **Windows**: open the `.exe` and click **Yes**.
+            **Mac** (macOS 13 or newer): open the `.dmg`, drag **WaveMascot** onto **Applications** and open it. The first
+            time, allow it in **System Settings → Privacy & Security → Open Anyway**, then click **Yes**.
+
+            Step by step: [English](https://github.com/${{ github.repository }}#install) ·
+            [Español](https://github.com/${{ github.repository }}/blob/main/README.es.md#instalación) ·
+            [Português](https://github.com/${{ github.repository }}/blob/main/README.pt.md#instalação).
+            Check the files with `SHA256SUMS.txt`.

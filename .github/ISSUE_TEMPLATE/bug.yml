@@ -30,7 +30,7 @@ body:
     id: version
     attributes:
       label: WaveMascot version
-      placeholder: "1.1.0"
+      placeholder: "1.2.0"
     validations:
       required: true
   - type: dropdown
@@ -38,8 +38,10 @@ body:
     attributes:
       label: How you installed it
       options:
-        - .exe installer
-        - install.ps1 (source)
+        - Windows .exe installer
+        - Windows install.ps1 (source)
+        - Mac app (.dmg)
+        - Mac install.sh (source)
         - By hand
     validations:
       required: true
@@ -54,8 +56,9 @@ body:
   - type: input
     id: windows
     attributes:
-      label: Windows version
-      placeholder: "Windows 11 23H2"
+      label: System
+      description: Windows or macOS version (on Mac, also Apple chip or Intel).
+      placeholder: "Windows 11 23H2 / macOS 15.3, Apple M2"
   - type: dropdown
     id: claude
     attributes:
@@ -71,7 +74,7 @@ body:
     id: log
     attributes:
       label: Log
-      description: The last lines of `%USERPROFILE%\.wavemascot\mascota.log` (without private data).
+      description: The last lines of `~/.wavemascot/mascota.log` (on Windows, `%USERPROFILE%\.wavemascot\mascota.log`), without private data.
       render: text
   - type: textarea
     id: extra
