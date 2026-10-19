@@ -3,6 +3,26 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [semantic versioning](https://semver.org/).
 
+## [1.2.0] - 2026-10-19
+
+### Added
+
+- **macOS** (13 Ventura or newer, Apple Silicon and Intel). The same mascot, notices, companion mode, settings and
+  languages as on Windows:
+  - `WaveMascot-Mac-AppleSilicon.dmg` and `WaveMascot-Mac-Intel.dmg` in every release. Opening the app the first time
+    installs it (and copies it to Applications if it was opened from the `.dmg`); opening it again shows the settings.
+  - Wave's icon lives in the menu bar (with **Uninstall WaveMascot…**), opens at login with a LaunchAgent and has no
+    Dock icon; the settings window does, like any window.
+  - The notice shows up on the monitor of the Claude Code window, skips full-screen apps and the focused terminal
+    (Terminal, iTerm2, VS Code, the Claude app…), and **Go to terminal** brings it to the front.
+  - The mascot floats over every desktop (Space) without stealing focus from the terminal when you click it.
+  - Text uses the macOS system font at the same pixel size as on Windows.
+  - Hooks do nothing (instead of failing) if the app is dragged to the Trash without uninstalling.
+  - `install.sh` / `uninstall.sh` to install from source (with its own Python virtual environment).
+- `build-mac.sh` builds the app and the `.dmg`; the release workflow builds the Windows installer and both Mac `.dmg`
+  files, with one `SHA256SUMS.txt` for all of them.
+- Tests run on Windows and macOS on every push to `main` and on pull requests.
+
 ## [1.1.0] - 2026-10-18
 
 ### Added

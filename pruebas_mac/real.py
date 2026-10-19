@@ -161,6 +161,17 @@ def mover(x: float, y: float) -> None:
     CG.CGWarpMouseCursorPosition(Punto(x, y))
 
 
+CG.CGEventCreateKeyboardEvent.restype = ctypes.c_void_p
+CG.CGEventCreateKeyboardEvent.argtypes = (ctypes.c_void_p, ctypes.c_uint16, ctypes.c_bool)
+
+
+def tecla(codigo: int) -> None:
+    """Una tecla (códigos de macOS: 36 Return, 53 Escape, 2 D)."""
+    for abajo in (True, False):
+        CG.CGEventPost(0, CG.CGEventCreateKeyboardEvent(None, codigo, abajo))
+        time.sleep(0.06)
+
+
 def click(x: float, y: float) -> None:
     mover(x, y)
     time.sleep(0.15)
@@ -266,7 +277,14 @@ def avisos() -> None:
     codigo, salida, error, segundos = disparar("Stop", last_assistant_message=None)
     paso("hook Stop sale con 0 y rápido", codigo == 0 and segundos < 3, f"{segundos:.2f} s, salida={salida!r} "
                                                                        f"error={error[:200]!r}")
-    time.sleep(1.4)
+    inicio, visible = time.time() - segundos, None
+    while time.time() - inicio < 10 and visible is None:
+        try:
+            visible = consultar() and time.time() - inicio
+        except OSError:
+            time.sleep(0.1)
+    anotar(f"la ventana del aviso responde a los {visible or 0:.1f} s del evento")
+    time.sleep(1.0)
     captura("02-aviso-listo")
     try:
         estado = consultar()
@@ -293,10 +311,17 @@ def avisos() -> None:
     desde = largo_log()
     proceso, inicio = disparar("PermissionRequest", esperar=False, tool_name="Bash",
                                tool_input={"command": "npm install --save-dev vitest"})
-    time.sleep(2)
-    captura("04-permiso-botones")
     try:
-        estado = consultar()
+        estado, fin = {}, time.time() + 12
+        while time.time() < fin and not (estado.get("estado") == "permiso" and estado.get("botones")):
+            time.sleep(0.2)
+            try:
+                estado = consultar()
+            except OSError:
+                pass
+        anotar(f"el cartel con botones se ve a los {time.time() - inicio:.1f} s del evento")
+        time.sleep(0.6)
+        captura("04-permiso-botones")
         (RES / "04-estado.json").write_text(json.dumps(estado, indent=2), encoding="utf-8")
         botones = estado.get("botones") or {}
         paso("botones Permitir/Denegar", "permitir" in botones and "denegar" in botones, json.dumps(botones))
@@ -342,7 +367,7 @@ def compania() -> None:
         paso("compañera abierta", estado.get("modo") == "compania", json.dumps(estado))
         x, y = estado["posicion"]
         w, h = estado["tamano"]
-        mover(x + w - 60, y + h - 30)  # el mouse encima: crece
+        mover(x + w - 98, y + h - 32)  # el mouse sobre la mascota chiquita: crece
         time.sleep(1.5)
         captura("06b-compania-mouse-encima")
         estado = consultar()
@@ -430,9 +455,6 @@ def terminal() -> None:
     despues = en_python("import ventanas; print(ventanas._pid_al_frente())")
     paso("'Ir a la terminal' la trae al frente", despues == terminal_pid,
          f"terminal={terminal_pid} antes={antes} enfocar={ok} después={despues}")
-    anfitriona = correr(["/bin/sh", "-c", f"cd /tmp && {PY} -c 'import sys; sys.path.insert(0, {str(RAIZ)!r}); "
-                         f"import ventanas; print(ventanas.ventana_anfitriona())'"]).stdout.strip()
-    anotar(f"anfitriona desde el runner (sin ventana, esperado 0): {anfitriona}")
     correr(["/usr/bin/osascript", "-e", 'tell application "Terminal" to quit'])
     time.sleep(2)
 
@@ -454,10 +476,40 @@ def pantalla_completa() -> None:
     time.sleep(3)
 
 
+def menu_de_la_barra() -> bool:
+    """Abre el menú del ícono de la barra de menús con un click, como una persona."""
+    bandeja = procesos("WaveMascot bandeja")
+    if not bandeja:
+        return False
+    pid = bandeja[0].split()[0]
+    datos = json.loads(en_python(f"import ventanas, json; print(json.dumps([v for v in ventanas._ventanas_mac() "
+                                 f"if v[0] == {pid}]))") or "[]")
+    item = next((v for v in datos if v[1] == 25), None)  # kCGStatusWindowLevel
+    anotar(f"ventanas del ícono: {datos}")
+    if not item:
+        return False
+    click(item[2] + item[4] / 2, item[3] + item[5] / 2)
+    time.sleep(1.5)
+    return True
+
+
 def desinstalar() -> None:
-    anotar("== Desinstalar ==")
-    r = correr([str(EXE), "desinstalar", "--silencioso"], timeout=120)
-    anotar(r.stdout.strip())
+    anotar("== Desinstalar desde el menú de la barra ==")
+    if paso("menú del ícono de la barra de menús", menu_de_la_barra()):
+        captura("15-menu-barra")
+        tecla(2)  # "D": el menú salta a "Desinstalar WaveMascot…"
+        time.sleep(0.5)
+        captura("15b-menu-desinstalar")
+        tecla(36)
+    else:
+        subprocess.Popen(["/bin/sh", "-c", '"$@" &', "sh", str(EXE), "desinstalar"])
+    time.sleep(5)
+    captura("16-pregunta-desinstalar")
+    paso("pregunta antes de desinstalar", bool(procesos("osascript")))
+    tecla(36)  # Return: "Sí"
+    time.sleep(10)
+    captura("17-desinstalada-listo")
+    tecla(36)  # cierra el "Listo."
     time.sleep(5)
     original = json.loads((RES / "settings-original.json").read_text(encoding="utf-8"))
     actual = json.loads(SETTINGS.read_text(encoding="utf-8"))
@@ -470,8 +522,35 @@ def desinstalar() -> None:
     captura("14-desinstalada")
 
 
+def fuente() -> None:
+    anotar("== Desde el código: install.sh / uninstall.sh ==")
+    original = json.loads((RES / "settings-original.json").read_text(encoding="utf-8"))
+    destino = HOME / "Library" / "Application Support" / "WaveMascot"
+    r = correr(["/bin/bash", str(RAIZ / "install.sh")], timeout=900)
+    anotar(r.stdout.strip()[-800:])
+    paso("install.sh", r.returncode == 0 and (destino / "venv" / "bin" / "python").exists(), r.stderr.strip()[-500:])
+    comando = comando_hook("Stop")
+    anotar(f"hook: {comando}")
+    paso("el hook apunta al código", "mascota.py" in comando and comando.endswith("|| true"))
+    time.sleep(5)
+    paso("ícono de la barra de menús (desde el código) corriendo", bool(procesos("bandeja.py")))
+    desde = largo_log()
+    codigo, _, error, segundos = disparar("Stop")
+    time.sleep(1.5)
+    captura("18-aviso-desde-el-codigo")
+    paso("aviso desde el código", codigo == 0 and "evento=Stop" in log_nuevo(desde), f"{segundos:.2f} s {error[:200]}")
+    time.sleep(6)
+    r = correr(["/bin/bash", str(destino / "uninstall.sh")], timeout=300)
+    anotar(r.stdout.strip()[-800:])
+    time.sleep(3)
+    actual = json.loads(SETTINGS.read_text(encoding="utf-8"))
+    paso("uninstall.sh deja todo como estaba", r.returncode == 0 and not destino.exists() and actual == original,
+         f"{r.stderr.strip()[-400:]} {json.dumps(actual)[:200]}")
+    paso("no quedan procesos (código)", not procesos("bandeja.py") and not procesos("mascota.py"))
+
+
 def main() -> int:
-    for etapa in (informacion, instalar, avisos, compania, ajustes, terminal, pantalla_completa, desinstalar):
+    for etapa in (informacion, instalar, avisos, compania, ajustes, terminal, pantalla_completa, desinstalar, fuente):
         try:
             etapa()
         except Exception:

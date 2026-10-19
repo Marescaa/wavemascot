@@ -660,8 +660,9 @@ class Candado:
     def tomar_archivo(self) -> bool:
         import fcntl
 
-        try:
-            fd = os.open(Path(tempfile.gettempdir()) / f"{CANAL}.lock", os.O_RDWR | os.O_CREAT, 0o600)
+        try:  # junto a la config: los procesos que abre launchd pueden no tener la misma carpeta temporal
+            CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+            fd = os.open(CONFIG_DIR / "mascota.lock", os.O_RDWR | os.O_CREAT, 0o600)
         except OSError:
             return True  # sin candado no se puede coordinar: mostrar igual
         try:

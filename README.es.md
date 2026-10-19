@@ -6,13 +6,16 @@
   <img src="docs/demo.gif" alt="La mascota en sus distintos estados" width="224">
 </p>
 
-**Wave** es una mascota de escritorio en pixel art para Windows que te avisa cuando **Claude Code** termina, necesita
-tu permiso o se queda sin uso disponible, en lugar de la notificación de Windows. Aparece desde el borde de la
-pantalla, te dice de qué chat y proyecto viene el aviso, y se va sola.
+**Wave** es una mascota de escritorio en pixel art para Windows y macOS que te avisa cuando **Claude Code** termina,
+necesita tu permiso o se queda sin uso disponible, en lugar de la notificación del sistema. Aparece desde el borde de
+la pantalla, te dice de qué chat y proyecto viene el aviso, y se va sola.
 
 <p align="center">
   <a href="../../releases/latest/download/WaveMascot-Setup.exe"><b>⬇ Descargar para Windows</b></a>
-  &nbsp;·&nbsp; <a href="#instalación">Instalación</a>
+  &nbsp;·&nbsp; <a href="../../releases/latest/download/WaveMascot-Mac-AppleSilicon.dmg"><b>⬇ Mac (chip Apple)</b></a>
+  &nbsp;·&nbsp; <a href="../../releases/latest/download/WaveMascot-Mac-Intel.dmg"><b>⬇ Mac (Intel)</b></a>
+  <br>
+  <a href="#instalación">Instalación</a>
   &nbsp;·&nbsp; <a href="../../discussions">Preguntas e ideas</a>
   &nbsp;·&nbsp; <a href="../../issues/new/choose">Reportar un problema</a>
 </p>
@@ -33,9 +36,9 @@ pantalla, te dice de qué chat y proyecto viene el aviso, y se va sola.
 - **Muestra el contexto justo**: título del chat, proyecto, cuánto tardó y un resumen corto de la respuesta.
   Con **varias sesiones a la vez**, cada aviso dice de qué proyecto viene y los avisos se encolan en vez de pisarse.
 - **No molesta**: horario de no molestar, nada en pantalla completa, nada si ya estás mirando la terminal, umbral de
-  duración mínima y silencio rápido desde el ícono junto al reloj.
-- **Modo compañera**: en lugar de aparecer y desaparecer, se queda chiquita sobre la barra de tareas, pasea un poco
-  y se duerme cuando te quedás sin uso hasta que se renueve.
+  duración mínima y silencio rápido desde su ícono (junto al reloj en Windows, en la barra de menús en Mac).
+- **Modo compañera**: en lugar de aparecer y desaparecer, se queda chiquita sobre la barra de tareas (o el Dock),
+  pasea un poco y se duerme cuando te quedás sin uso hasta que se renueve.
 - **Personalizable**: colores, sombreros, ropa y accesorios, tu propia imagen (PNG/GIF), tamaño, esquina, temas
   oscuro/claro/acento y sonido por evento.
 - **En tu idioma**: inglés, español y portugués. Viene en inglés; se cambia con la banderita de arriba de los ajustes.
@@ -45,10 +48,12 @@ pantalla, te dice de qué chat y proyecto viene el aviso, y se va sola.
 
 ## Instalación
 
-Requisitos: Windows 10 u 11 y [Claude Code](https://docs.claude.com/en/docs/claude-code) (CLI, extensión o app de
-escritorio).
+Necesitás [Claude Code](https://docs.claude.com/en/docs/claude-code) (CLI, extensión o app de escritorio) y Windows
+10 u 11, o macOS 13 (Ventura) o más nuevo.
 
-### Opción A: instalador (recomendada, no necesita Python)
+### Windows
+
+#### Opción A: instalador (recomendada, no necesita Python)
 
 1. **[Descargá `WaveMascot-Setup.exe`](../../releases/latest/download/WaveMascot-Setup.exe)** (siempre la
    última versión; también está en [Releases](../../releases/latest)).
@@ -60,7 +65,7 @@ escritorio).
 > o usá la opción B si preferís instalar desde el código. Podés verificar el archivo con el `SHA256SUMS.txt` del
 > release.
 
-### Opción B: desde el código fuente (Python 3.10 o superior)
+#### Opción B: desde el código fuente (Python 3.10 o superior)
 
 1. Descargá el código: [ZIP](../../archive/refs/heads/main.zip) (descomprimilo) o
    `git clone https://github.com/Marescaa/wavemascot.git`.
@@ -73,22 +78,54 @@ escritorio).
 `install.ps1` instala PyQt6 y Pillow solo si faltan. Opciones: `-Python <ruta a python.exe>`, `-Destino <carpeta>`,
 `-SinInicio` (sin ícono al iniciar Windows).
 
-### Qué hace el instalador en tu PC
+### Mac
 
-- **Copia el programa** a `%LOCALAPPDATA%\Programs\WaveMascot`.
+#### Opción A: la app (recomendada, no necesita Python)
+
+1. Descargá la de tu Mac (menú Apple → **Acerca de esta Mac**):
+   - **Chip: Apple M1, M2, M3, M4…** → **[`WaveMascot-Mac-AppleSilicon.dmg`](../../releases/latest/download/WaveMascot-Mac-AppleSilicon.dmg)**
+   - **Procesador: Intel** → **[`WaveMascot-Mac-Intel.dmg`](../../releases/latest/download/WaveMascot-Mac-Intel.dmg)**
+2. Abrí el `.dmg` y arrastrá **WaveMascot** a **Aplicaciones**.
+3. Abrí WaveMascot desde Aplicaciones y tocá **Sí**. Su ícono aparece en la barra de menús y, la próxima vez que
+   Claude Code termine, aparece la mascota. Si ya tenías Claude Code abierto, no hace falta reiniciarlo. Para verla
+   en español, abrí los ajustes y elegí la banderita.
+
+> La app no está notarizada por Apple (eso requiere una cuenta paga de desarrollador), así que la primera vez macOS
+> dice que no puede verificarla. Abrí **Ajustes del Sistema → Privacidad y seguridad**, bajá y tocá **Abrir de todos
+> modos** al lado de WaveMascot (en macOS 14 o anterior también sirve click derecho en la app → **Abrir**). Hace falta
+> una sola vez. Podés verificar el archivo con el `SHA256SUMS.txt` del release, o usar la opción B.
+
+#### Opción B: desde el código fuente (Python 3.10 o superior)
+
+```bash
+git clone https://github.com/Marescaa/wavemascot.git
+cd wavemascot
+./install.sh
+```
+
+`install.sh` crea su propio entorno de Python con PyQt6 y Pillow (tu Python no se toca). Opciones:
+`--python <ruta a python3>`, `--destination <carpeta>`, `--no-startup` (sin ícono en la barra de menús al iniciar
+sesión).
+
+### Qué hace el instalador en tu compu
+
+- **Copia el programa** a `%LOCALAPPDATA%\Programs\WaveMascot` (Windows) o deja la app en **Aplicaciones** (Mac; si
+  la abrís directo desde el `.dmg`, se copia sola ahí).
 - **Conecta a Wave con Claude Code**: agrega unas líneas (los *hooks*) a `~/.claude/settings.json` para que Claude
   Code la llame cuando termina o necesita algo. Lo que ya tenías en ese archivo no se toca, y antes de cambiarlo se
   guarda una copia de seguridad.
 - **Crea el comando `/wavemascot`**, que abre los ajustes desde Claude Code.
-- **Pone el ícono de Wave junto al reloj** cada vez que prendés la compu.
+- **Pone el ícono de Wave junto al reloj** (Windows) o **en la barra de menús** (Mac, como ítem de inicio) cada vez
+  que prendés la compu.
 
 No pide permisos de administrador, y si la desinstalás, todo vuelve a quedar como estaba.
 
 ## Configuración
 
-Abrí los ajustes con un click en el **ícono junto al reloj** o con **`/wavemascot`** en Claude Code. Los cambios se
-guardan solos y valen desde el próximo aviso; la vista previa muestra cómo va a quedar. La **banderita** de arriba a
-la derecha cambia el idioma.
+Abrí los ajustes con un click en el **ícono de Wave** (junto al reloj en Windows, en la barra de menús en Mac), con
+**`/wavemascot`** en Claude Code o, en Mac, abriendo WaveMascot desde Aplicaciones. Los cambios se guardan solos y
+valen desde el próximo aviso; la vista previa muestra cómo va a quedar. La **banderita** de arriba a la derecha cambia
+el idioma.
 
 <p align="center">
   <img src="docs/ajustes.es.png" alt="Ventana de ajustes de WaveMascot: pestaña Vestuario con la vista previa del aviso y la banderita de idioma" width="760">
@@ -100,33 +137,38 @@ la derecha cambia el idioma.
 | Comportamiento | Modo aviso o compañera (paseos, animaciones en reposo, mirada), qué eventos avisan, no molestar (horario, pantalla completa, terminal enfocada), duración mínima, Permitir/Denegar desde la mascota |
 | Mascota | Color, tamaño e imagen propia |
 | Vestuario | Cabeza, ropa y accesorios (o al azar) |
-| Sonido y estilo | Volumen, sonido de cada evento, tema oscuro / claro / acento, ícono junto al reloj |
+| Sonido y estilo | Volumen, sonido de cada evento, tema oscuro / claro / acento, ícono junto al reloj / en la barra de menús |
 
 Todo queda en `~/.wavemascot/config.json`. Si el archivo no existe o tiene un error, la mascota usa los valores
-por defecto. Desde el ícono junto al reloj también podés silenciar los avisos por una hora o hasta reactivarlos.
+por defecto. Desde el ícono de Wave también podés silenciar los avisos por una hora o hasta reactivarlos.
 
-> Para que la mascota reemplace la notificación de Windows, desactivá las notificaciones propias de Claude Code
+> Para que la mascota reemplace la notificación del sistema, desactivá las notificaciones propias de Claude Code
 > (en la configuración de la app de escritorio o de tu terminal), así no te llegan dos avisos.
 
 ## Desinstalación
 
-- **Instalada con el `.exe`**: menú Inicio → *WaveMascot* → **Desinstalar WaveMascot**.
-- **Instalada con `install.ps1`** (o cualquiera de las dos):
+- **Windows, instalada con el `.exe`**: menú Inicio → *WaveMascot* → **Desinstalar WaveMascot**.
+- **Windows, instalada con `install.ps1`** (o cualquiera de las dos):
 
   ```powershell
   powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
   ```
 
+- **Mac**: ícono de Wave en la barra de menús → **Desinstalar WaveMascot…** (o `./uninstall.sh`, de cualquiera de las
+  dos formas). Si solo arrastrás la app a la papelera, Claude Code sigue andando normal: sus hooks no hacen nada
+  mientras la app no esté.
+
 La desinstalación cierra la mascota, quita **solo sus hooks** de `~/.claude/settings.json` (con backup previo; los
-tuyos quedan exactamente como estaban), borra `/wavemascot`, los accesos directos y la carpeta del programa. Tu
-configuración en `~/.wavemascot` se conserva; para borrarla también: `uninstall.ps1 -BorrarConfig`.
+tuyos quedan exactamente como estaban), borra `/wavemascot`, los accesos directos y el programa. Tu configuración en
+`~/.wavemascot` se conserva; para borrarla también: `uninstall.ps1 -BorrarConfig` o `uninstall.sh --delete-settings`.
 
 ## Problemas frecuentes
 
 - **No aparece**: mirá `~/.wavemascot/mascota.log`; cada evento dice si se avisó o por qué no (pantalla completa,
-  no molestar, terminal enfocada, evento apagado...). Con el ícono junto al reloj → *Probar aviso* se fuerza uno.
+  no molestar, terminal enfocada, evento apagado...). Con el ícono de Wave → *Probar aviso* se fuerza uno.
 - **Los hooks no corren**: revisá en Claude Code con `/hooks` que estén los de la mascota.
 - **Permitir/Denegar**: en la app de escritorio el diálogo propio sigue apareciendo; vale la primera respuesta.
+- **Mac: «No se puede abrir WaveMascot» o «Apple no pudo verificar…»**: mirá la nota en [Instalación → Mac](#mac).
 
 ## Preguntas, ideas y reportes
 
@@ -142,26 +184,29 @@ pruebas (`python -m unittest discover tests`).
 ## Desarrollo
 
 ```powershell
-python -m unittest discover tests          # pruebas del instalador (merge de hooks) y de las traducciones
-powershell -ExecutionPolicy Bypass -File .\build.ps1   # arma dist\WaveMascot-Setup.exe
+python -m unittest discover tests          # pruebas del instalador (merge de hooks), traducciones y sistemas
+powershell -ExecutionPolicy Bypass -File .\build.ps1   # arma dist\WaveMascot-Setup.exe (en Windows)
+./build-mac.sh                             # arma dist/WaveMascot-Mac-<chip>.dmg (en una Mac)
 ```
 
-Al pushear un tag `v*` (por ejemplo `v1.1.0`), GitHub Actions construye el instalador y lo adjunta al release.
+Al pushear un tag `v*` (por ejemplo `v1.2.0`), GitHub Actions construye el instalador de Windows y los dos `.dmg` de
+Mac y los adjunta al release. Cada push a `main` corre las pruebas en Windows y en macOS.
 
 | Archivo | Qué es |
 |---|---|
 | `mascota.py` | El hook y la ventana de la mascota |
 | `ajustes.py` | El centro de ajustes |
-| `bandeja.py` | El ícono junto al reloj |
-| `sprites.py` | El pixel art y los sonidos (todo generado por código) |
+| `bandeja.py` | El ícono junto al reloj / en la barra de menús |
+| `sprites.py` | El pixel art, los íconos y los sonidos (todo generado por código) |
 | `idiomas.py` | Los textos en inglés, español y portugués |
-| `ventanas.py` | Ventanas de Windows: foco, pantalla completa, monitores |
-| `instalador.py` | Instalar / desinstalar (merge de hooks con backup); también es el instalador `.exe` |
-| `principal.py` | Punto de entrada de `WaveMascot.exe` |
+| `ventanas.py` | Ventanas de Windows y macOS: terminal anfitriona, foco, pantalla completa, monitores |
+| `instalador.py` | Instalar / desinstalar (merge de hooks con backup); también es el instalador `.exe` y el primer arranque de la app de Mac |
+| `principal.py` | Punto de entrada de `WaveMascot.exe` y `WaveMascot.app` |
 
 **Sumar un idioma**: agregalo a `IDIOMAS` en `idiomas.py` con una traducción por texto; `tests/test_idiomas.py` avisa
 si falta alguna.
 
 ## Licencia
 
-[MIT](LICENSE). El `.exe` incluye PyQt6 (GPL v3) y otras bibliotecas; ver [THIRD_PARTY.md](THIRD_PARTY.md).
+[MIT](LICENSE). El `.exe` y la app de Mac incluyen PyQt6 (GPL v3) y otras bibliotecas; ver
+[THIRD_PARTY.md](THIRD_PARTY.md).

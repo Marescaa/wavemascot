@@ -70,17 +70,23 @@ for licencia in "$base_python/LICENSE.txt" "$base_python"/lib/python3*/LICENSE.t
 done
 
 # Info.plist: versión, sin ícono en el Dock (vive en la barra de menús; los ajustes lo muestran al
-# abrirse) y la versión mínima de macOS que piden Python, Qt y Pillow.
-"$py" - "$app/Contents/Info.plist" "$version" "$sitio" <<'PY'
-import glob, os, plistlib, re, sys, sysconfig
+# abrirse) y la versión mínima de macOS: la más alta que piden los binarios incluidos (Python, Qt, Pillow).
+"$py" - "$app/Contents/Info.plist" "$version" "$app" <<'PY'
+import os, plistlib, re, subprocess, sys
 
-ruta, version, sitio = sys.argv[1:]
-minimas = [sysconfig.get_platform().split("-")[1]]
-for wheel in glob.glob(os.path.join(sitio, "*.dist-info", "WHEEL")):
-    for linea in open(wheel, encoding="utf-8"):
-        etiqueta = re.match(r"Tag: .*macosx_(\d+)_(\d+)_", linea)
-        if etiqueta:
-            minimas.append(f"{etiqueta.group(1)}.{etiqueta.group(2)}")
+ruta, version, app = sys.argv[1:]
+MACH_O = {b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe"}
+minimas = ["10.13"]
+for carpeta, _, archivos in os.walk(app):
+    for nombre in archivos:
+        archivo = os.path.join(carpeta, nombre)
+        if os.path.islink(archivo):
+            continue
+        with open(archivo, "rb") as f:
+            if f.read(4) not in MACH_O:
+                continue
+        salida = subprocess.run(["otool", "-l", archivo], capture_output=True, text=True).stdout
+        minimas += re.findall(r"^\s*(?:minos|version) (\d+\.\d+)", salida, re.M)
 minima = max(minimas, key=lambda v: tuple(int(x) for x in v.split(".")))
 with open(ruta, "rb") as f:
     datos = plistlib.load(f)
