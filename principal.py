@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Punto de entrada de WaveMascot.exe (el build de PyInstaller).
+"""Punto de entrada de WaveMascot.exe y WaveMascot.app (el build de PyInstaller).
 
 Un solo ejecutable hace de todo según el primer argumento:
 
@@ -8,6 +8,9 @@ Un solo ejecutable hace de todo según el primer argumento:
     WaveMascot.exe ajustes            centro de ajustes
     WaveMascot.exe bandeja            ícono junto al reloj
     WaveMascot.exe desinstalar        desinstalador
+
+En macOS, abrir WaveMascot.app (sin argumentos) instala la primera vez y después abre los
+ajustes; "WaveMascot.app/Contents/MacOS/WaveMascot instalar --silencioso" instala sin preguntar.
 """
 
 from __future__ import annotations
@@ -18,10 +21,14 @@ import traceback
 
 import mascota as m
 
-PROGRAMAS = ("mascota", "ajustes", "bandeja", "desinstalar")
+PROGRAMAS = ("mascota", "ajustes", "bandeja", "desinstalar") + (("instalar",) if m.MAC else ())
 
 
 def main() -> int:
+    argumentos = [a for a in sys.argv[1:] if not a.startswith("-psn_")]  # macOS viejo agrega -psn_...
+    if m.MAC and m.CONGELADO and not argumentos:  # doble click en WaveMascot.app
+        import instalador
+        return instalador.abrir_app()
     programa = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] in PROGRAMAS else "mascota"
     if len(sys.argv) > 1 and sys.argv[1] == programa:
         del sys.argv[1]  # cada módulo ve sus argumentos como si lo hubieran llamado directo
@@ -34,9 +41,9 @@ def main() -> int:
     if programa == "bandeja":
         import bandeja
         return bandeja.main()
-    if programa == "desinstalar":
+    if programa in ("desinstalar", "instalar"):
         import instalador
-        return instalador.main(["desinstalar", *sys.argv[1:]])
+        return instalador.main([programa, *sys.argv[1:]])
     return m.main()
 
 

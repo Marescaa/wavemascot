@@ -779,6 +779,18 @@ def icono_bandeja(color="terracota", escala=1):
     return img.resize((16 * escala, 16 * escala), Image.NEAREST)
 
 
+def icono_app(lado: int):
+    """El ícono de WaveMascot.app (macOS): la misma mascota, con el margen de los íconos de Mac
+    (el dibujo ocupa ~81 % del lado) y agrandada sin suavizar."""
+    from PIL import Image
+
+    escala = max(1, round(lado * 0.8125 / 16))
+    mascota = icono_bandeja(escala=escala)
+    lienzo = Image.new("RGBA", (lado, lado), (0, 0, 0, 0))
+    lienzo.paste(mascota, ((lado - mascota.width) // 2, (lado - mascota.height) // 2))
+    return lienzo
+
+
 # --- sonidos -------------------------------------------------------------------
 
 TASA = 22050
@@ -876,7 +888,8 @@ def main():
     for clave, (_, generar) in SONIDOS.items():
         guardar_wav(generar(), assets / "sonidos" / f"{clave}.wav")
     icono_bandeja(escala=3).save(assets / "icono.ico", sizes=[(16, 16), (32, 32), (48, 48)])
-    print("assets/sonidos/*.wav y assets/icono.ico regenerados")
+    icono_app(1024).save(assets / "icono.icns", append_images=[icono_app(n) for n in (32, 64, 128, 256, 512)])
+    print("assets/sonidos/*.wav, assets/icono.ico y assets/icono.icns regenerados")
     for estado in ESTADOS:
         print(gif(ASPECTO_DEFECTO, estado))
 

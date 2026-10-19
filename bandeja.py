@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Ícono de la mascota junto al reloj.
+"""Ícono de la mascota junto al reloj (en macOS, en la barra de menús).
 
 Click: abre los ajustes. Click derecho: probar un aviso, silenciar los avisos un rato,
 elegir si arranca con Windows o salir. Lo abre el acceso directo de la carpeta Inicio
-de Windows.
+de Windows. En macOS el click abre el menú (como todos los íconos de la barra), arranca
+al iniciar sesión con un LaunchAgent y el menú suma "Desinstalar".
 
 Uso:  pythonw bandeja.py
 """
@@ -24,6 +25,7 @@ sys.path.insert(0, str(DIR))
 import idiomas  # noqa: E402
 import mascota as m  # noqa: E402
 import sprites  # noqa: E402
+import ventanas  # noqa: E402
 from idiomas import t  # noqa: E402
 
 from PyQt6.QtCore import QFileSystemWatcher, QSize, QTimer  # noqa: E402
@@ -33,6 +35,9 @@ from PyQt6.QtWidgets import QApplication, QMenu, QSystemTrayIcon  # noqa: E402
 
 ACCESO_INICIO = (Path(os.environ.get("APPDATA", Path.home())) / "Microsoft" / "Windows" / "Start Menu"
                  / "Programs" / "Startup" / "WaveMascot.lnk")
+if m.MAC:  # macOS: un LaunchAgent que abre el ícono al iniciar sesión
+    import instalador  # noqa: E402
+    ACCESO_INICIO = instalador.acceso_inicio()
 CANAL_BANDEJA = m.CANAL + "-bandeja"
 INDEFINIDO = 4_102_444_800  # 1/1/2100: "hasta que lo reactive"
 
@@ -45,6 +50,12 @@ def activar_inicio_automatico(activar: bool) -> None:
     """Crea o borra el acceso directo de la carpeta Inicio que abre este ícono."""
     if not activar:
         ACCESO_INICIO.unlink(missing_ok=True)
+        return
+    if m.MAC:
+        app = m.bundle_app()
+        partes = ([str(app / "Contents" / "MacOS" / "WaveMascot"), "bandeja"] if app
+                  else [sys.executable, str(DIR / "bandeja.py")])
+        instalador.crear_agente_inicio(ACCESO_INICIO, partes)
         return
     exe = Path(sys.executable).with_name("pythonw.exe")
     ACCESO_INICIO.parent.mkdir(parents=True, exist_ok=True)
@@ -71,9 +82,10 @@ def abrir_compania() -> None:
     m.lanzar_desacoplado([str(DIR / "mascota.py"), "--compania"])  # si ya está abierta, no se duplica
 
 
-def icono_mascota(color: str) -> QIcon:
+def icono_mascota(color: str, grande: bool = False) -> QIcon:
+    """grande: también en tamaños de Dock (macOS), sin suavizar el pixel art."""
     icono = QIcon()
-    for escala in (1, 2, 3):
+    for escala in (1, 2, 3) + ((8, 16, 32) if grande else ()):
         pixmap = QPixmap()
         pixmap.loadFromData(png(sprites.icono_bandeja(color, escala)))
         icono.addPixmap(pixmap)
@@ -112,6 +124,10 @@ class Bandeja(QSystemTrayIcon):
         self.accion_inicio.setCheckable(True)
         self.accion_inicio.toggled.connect(self.cambiar_inicio)
         menu.addSeparator()
+        self.accion_desinstalar = None
+        if m.MAC:  # en macOS no hay menú Inicio: se desinstala desde acá
+            self.accion_desinstalar = menu.addAction("")
+            self.accion_desinstalar.triggered.connect(self.desinstalar)
         self.accion_salir = menu.addAction("")
         self.accion_salir.triggered.connect(QApplication.quit)
         menu.aboutToShow.connect(self.actualizar)
@@ -136,6 +152,9 @@ class Bandeja(QSystemTrayIcon):
                               (self.accion_compania, "Modo compañera (fija en pantalla)"),
                               (self.accion_inicio, "Abrir al iniciar Windows"), (self.accion_salir, "Salir")):
             accion.setText(t(texto))
+        if m.MAC:
+            self.accion_inicio.setText(t("Abrir al iniciar sesión"))
+            self.accion_desinstalar.setText(t("Desinstalar {nombre}…", nombre="WaveMascot"))
         silenciada = m.silenciada(config)
         if config["aspecto"]["color"] != self.color:
             self.color = config["aspecto"]["color"]
@@ -161,6 +180,8 @@ class Bandeja(QSystemTrayIcon):
             accion.blockSignals(False)
 
     def al_activar(self, motivo) -> None:
+        if m.MAC:  # en la barra de menús el click ya abre el menú, que empieza con "Abrir ajustes"
+            return
         if motivo in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
             self.abrir_ajustes()
 
@@ -196,19 +217,31 @@ class Bandeja(QSystemTrayIcon):
             m.log(f"[bandeja] no se pudo cambiar el inicio automático: {e}")
         self.actualizar()
 
+    def desinstalar(self) -> None:
+        """macOS: el desinstalador pregunta antes; si se confirma, cierra también este ícono."""
+        if m.CONGELADO:
+            m.lanzar_desacoplado(["desinstalar"], suelto=True)
+        else:
+            m.lanzar_desacoplado([str(DIR / "instalador.py"), "desinstalar", "--dialogos"], suelto=True)
+
 
 def main() -> int:
     # Un error se registra en el log; no cierra el ícono (PyQt6 aborta ante errores no atrapados).
     sys.excepthook = lambda tipo, valor, tb: m.log("[bandeja] error:\n" + "".join(
         traceback.format_exception(tipo, valor, tb)))
+    if m.MAC:  # solo el ícono de la barra de menús, sin ícono en el Dock
+        os.environ["QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM"] = "1"
     app = QApplication(sys.argv[:1])
     app.setQuitOnLastWindowClosed(False)
+    ventanas.app_de_fondo()
     s = QLocalSocket()
     s.connectToServer(CANAL_BANDEJA)
     if s.waitForConnected(300):
         return 0  # ya hay un ícono
     servidor = QLocalServer()
-    servidor.listen(CANAL_BANDEJA)
+    m.escuchar(servidor, CANAL_BANDEJA)
+    # macOS: abrir WaveMascot.app con el ícono ya corriendo le avisa a este proceso (se abren los ajustes).
+    ventanas.al_reabrir(m.reabrir_app)
     for _ in range(30):  # al iniciar Windows la barra de tareas puede tardar en estar lista
         if QSystemTrayIcon.isSystemTrayAvailable():
             break

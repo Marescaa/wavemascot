@@ -67,6 +67,8 @@ TEXTOS: dict[str, dict[str, str]] = {
     "Modo compañera (fija en pantalla)": {"en": "Companion mode (stays on screen)",
                                           "pt": "Modo companheira (fica na tela)"},
     "Abrir al iniciar Windows": {"en": "Open when Windows starts", "pt": "Abrir ao iniciar o Windows"},
+    "Abrir al iniciar sesión": {"en": "Open at login", "pt": "Abrir ao iniciar a sessão"},  # macOS
+    "Desinstalar {nombre}…": {"en": "Uninstall {nombre}…", "pt": "Desinstalar {nombre}…"},
     "Salir": {"en": "Quit", "pt": "Sair"},
     "avisos activos": {"en": "notices on", "pt": "avisos ativos"},
     "avisos silenciados": {"en": "notices muted", "pt": "avisos silenciados"},
@@ -155,6 +157,14 @@ TEXTOS: dict[str, dict[str, str]] = {
               "wherever you like), grows to let you know and falls asleep when you run out of usage.",
         "pt": "Aviso: aparece pela borda e vai embora sozinha. Companheira: vive sobre a barra de tarefas (arraste "
               "para onde quiser), cresce para avisar e dorme quando o limite de uso acaba."},
+    "Aviso: aparece desde el borde y se va sola. Compañera: vive sobre el Dock (arrastrala a donde quieras), "
+    "crece para avisarte y se duerme si se termina el límite de uso.": {
+        "en": "Notice: slides in from the edge and leaves on its own. Companion: lives on the Dock (drag it "
+              "wherever you like), grows to let you know and falls asleep when you run out of usage.",
+        "pt": "Aviso: aparece pela borda e vai embora sozinha. Companheira: vive sobre o Dock (arraste para onde "
+              "quiser), cresce para avisar e dorme quando o limite de uso acaba."},
+    "Esperar chiquita, parada sobre el Dock": {"en": "Wait small, standing on the Dock",
+                                               "pt": "Esperar pequena, em pé sobre o Dock"},
     "Esperar chiquita, parada sobre la barra de tareas": {"en": "Wait small, standing on the taskbar",
                                                           "pt": "Esperar pequena, em pé sobre a barra de tarefas"},
     "Dar una caminatita de vez en cuando": {"en": "Go for a little walk now and then",
@@ -219,6 +229,13 @@ TEXTOS: dict[str, dict[str, str]] = {
         "en": "The notice and this window. Accent paints the notice with each state's color.",
         "pt": "O aviso e esta janela. Destaque pinta o aviso com a cor de cada estado."},
     "Ícono junto al reloj": {"en": "Tray icon", "pt": "Ícone ao lado do relógio"},
+    "Ícono en la barra de menús": {"en": "Menu bar icon", "pt": "Ícone na barra de menus"},
+    "Click en el ícono de la mascota (en la barra de menús) para volver a estos ajustes, silenciar los avisos o "
+    "cambiar de modo.": {
+        "en": "Click the mascot icon (in the menu bar) to come back to these settings, mute notices or switch "
+              "modes.",
+        "pt": "Clique no ícone do mascote (na barra de menus) para voltar a estas configurações, silenciar os "
+              "avisos ou mudar de modo."},
     "Click en el ícono de la mascota (junto al reloj) para volver a estos ajustes; click derecho para silenciar "
     "o cambiar de modo.": {
         "en": "Click the mascot icon (next to the clock) to come back to these settings; right-click to mute or "
@@ -311,6 +328,8 @@ TEXTOS: dict[str, dict[str, str]] = {
     "ya existe un /wavemascot tuyo en {ruta}: no lo toco": {
         "en": "you already have your own /wavemascot in {ruta}: leaving it alone",
         "pt": "você já tem um /wavemascot seu em {ruta}: não vou mexer nele"},
+    "ícono en la barra de menús al iniciar sesión": {"en": "menu bar icon at login",
+                                                     "pt": "ícone na barra de menus ao iniciar a sessão"},
     "ícono junto al reloj al iniciar Windows": {"en": "tray icon when Windows starts",
                                                 "pt": "ícone ao lado do relógio ao iniciar o Windows"},
     "accesos en el menú Inicio: {carpeta}": {"en": "Start menu shortcuts: {carpeta}",
@@ -327,6 +346,7 @@ TEXTOS: dict[str, dict[str, str]] = {
     "repuesto el acceso directo que había antes: {nombre}": {"en": "restored the shortcut that was there before: {nombre}",
                                                              "pt": "restaurado o atalho que existia antes: {nombre}"},
     "accesos directos borrados": {"en": "shortcuts deleted", "pt": "atalhos apagados"},
+    "acceso de inicio borrado": {"en": "login item removed", "pt": "item de início removido"},
     "configuración borrada (~/.wavemascot)": {"en": "settings deleted (~/.wavemascot)",
                                               "pt": "configurações apagadas (~/.wavemascot)"},
     "tu configuración queda en ~/.wavemascot (borrala a mano si no la querés)": {
@@ -338,6 +358,16 @@ TEXTOS: dict[str, dict[str, str]] = {
     "la carpeta {destino} se borra en unos segundos": {"en": "{destino} will be deleted in a few seconds",
                                                        "pt": "a pasta {destino} será apagada em alguns segundos"},
     "carpeta {destino} borrada": {"en": "{destino} deleted", "pt": "pasta {destino} apagada"},
+    "No pude reemplazar {destino} ({error}). Arrastrá {nombre} a Aplicaciones desde el Finder y abrila desde "
+    "ahí.": {
+        "en": "Couldn't replace {destino} ({error}). Drag {nombre} to Applications in the Finder and open it from "
+              "there.",
+        "pt": "Não foi possível substituir {destino} ({error}). Arraste o {nombre} para Aplicativos no Finder e "
+              "abra-o de lá."},
+    "desde el código fuente se instala con install.sh": {"en": "from source, install it with install.sh",
+                                                         "pt": "a partir do código-fonte, instale com install.sh"},
+    "Sí": {"en": "Yes", "pt": "Sim"},
+    "No": {"en": "No", "pt": "Não"},
     "al instalador le falta app.zip (se arma con build.ps1)": {
         "en": "the installer is missing app.zip (it's built with build.ps1)",
         "pt": "falta o app.zip no instalador (ele é gerado com build.ps1)"},

@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import mascota as m  # noqa: E402
 import idiomas  # noqa: E402
 import sprites  # noqa: E402
+import ventanas  # noqa: E402
 from idiomas import t  # noqa: E402
 
 if __name__ == "__main__" and "--ventana" not in sys.argv[1:]:
@@ -137,6 +138,10 @@ QMenu::item { padding: 6px 18px 6px 10px; border-radius: 6px; }
 QMenu::item:selected { background: %(acento)s; color: #1C1513; }
 QMenu::icon { padding-left: 6px; }
 """  # se completa con C (ver aplicar_tema)
+if m.MAC:
+    # La letra del sistema y los mismos píxeles que en Windows (macOS cuenta 72 puntos por pulgada, no 96).
+    ESTILO = re.sub(r"(\d+)pt\b", lambda x: f"{round(int(x.group(1)) * 96 / 72)}px",
+                    ESTILO.replace('font-family: "Segoe UI"; ', ""))
 
 
 def aplicar_tema(tema: str) -> None:
@@ -304,6 +309,8 @@ def traer_al_frente(ventana: QWidget) -> None:
     ventana.show()
     ventana.raise_()
     ventana.activateWindow()
+    if m.MAC:
+        ventanas.activar_esta_app()
     if os.name != "nt":
         return
     import ctypes
@@ -624,7 +631,7 @@ class Ajustes(QWidget):
         self.config = m.cargar_config()
         idiomas.usar(self.config["idioma"])  # antes de cualquier texto
         self.setWindowTitle(t("Ajustes de WaveMascot"))
-        self.setWindowIcon(bandeja.icono_mascota("terracota"))
+        self.setWindowIcon(bandeja.icono_mascota("terracota", grande=m.MAC))
         self.estado_vista = "listo"
         self.sonidos = m.Sonidos(self)
         self.timer_guardar = QTimer(self, singleShot=True, interval=300, timeout=self.guardar)
@@ -648,6 +655,8 @@ class Ajustes(QWidget):
         raiz.addLayout(cuerpo, 1)
         raiz.addLayout(self.pie())
         QShortcut(QKeySequence("Esc"), self, activated=self.close)
+        if m.MAC:
+            QShortcut(QKeySequence("Ctrl+W"), self, activated=self.close)  # Qt lo muestra como ⌘W
 
         self.cargar_en_controles()
         self.estado_guardado.setText(t("Los cambios se guardan solos"))
@@ -754,11 +763,15 @@ class Ajustes(QWidget):
         caja.addWidget(seccion("Modo"))
         self.botones_modo, segmentos = segmentado({"aviso": "Aviso", "compania": "Compañera"}, self.cambiar_modo, self)
         caja.addLayout(segmentos)
-        caja.addWidget(ayuda("Aviso: aparece desde el borde y se va sola. Compañera: vive sobre la barra de "
+        caja.addWidget(ayuda("Aviso: aparece desde el borde y se va sola. Compañera: vive sobre el Dock "
+                             "(arrastrala a donde quieras), crece para avisarte y se duerme si se termina el "
+                             "límite de uso." if m.MAC else
+                             "Aviso: aparece desde el borde y se va sola. Compañera: vive sobre la barra de "
                              "tareas (arrastrala a donde quieras), crece para avisarte y se duerme si se "
                              "termina el límite de uso."))
         self.vida = {}
-        for clave, texto in (("chiquita", "Esperar chiquita, parada sobre la barra de tareas"),
+        for clave, texto in (("chiquita", "Esperar chiquita, parada sobre el Dock" if m.MAC else
+                              "Esperar chiquita, parada sobre la barra de tareas"),
                              ("pasear", "Dar una caminatita de vez en cuando"),
                              ("idle", "Animaciones de reposo al azar"), ("mirada", "Los ojos siguen al cursor")):
             interruptor, fila_vida = opcion(texto, lambda v, c=clave: self.cambiar_grupo("vida", c, v))
@@ -868,10 +881,13 @@ class Ajustes(QWidget):
         caja.addWidget(ayuda("El cartel del aviso y esta ventana. Acento pinta el cartel con el color de cada estado."))
 
         caja.addSpacing(10)
-        caja.addWidget(seccion("Ícono junto al reloj"))
-        self.inicio, fila_inicio = opcion("Abrir al iniciar Windows", self.cambiar_inicio)
+        caja.addWidget(seccion("Ícono en la barra de menús" if m.MAC else "Ícono junto al reloj"))
+        self.inicio, fila_inicio = opcion("Abrir al iniciar sesión" if m.MAC else "Abrir al iniciar Windows",
+                                          self.cambiar_inicio)
         caja.addLayout(fila_inicio)
-        caja.addWidget(ayuda("Click en el ícono de la mascota (junto al reloj) para volver a estos ajustes; "
+        caja.addWidget(ayuda("Click en el ícono de la mascota (en la barra de menús) para volver a estos "
+                             "ajustes, silenciar los avisos o cambiar de modo." if m.MAC else
+                             "Click en el ícono de la mascota (junto al reloj) para volver a estos ajustes; "
                              "click derecho para silenciar o cambiar de modo."))
         caja.addStretch(1)
         return pagina
@@ -1255,7 +1271,8 @@ class Ajustes(QWidget):
 
 
 def identidad_en_barra() -> None:
-    """Sin esto Windows agrupa la ventana con pythonw.exe y la barra de tareas muestra el ícono de Python."""
+    """Sin esto Windows agrupa la ventana con pythonw.exe y la barra de tareas muestra el ícono de Python.
+    (En macOS la ventana aparece en el Dock con el ícono de la mascota: ver ejecutar_ventana.)"""
     if os.name == "nt":
         try:
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("WaveMascot.Ajustes")
@@ -1269,7 +1286,8 @@ def ejecutar_ventana() -> int:
         traceback.format_exception(tipo, valor, tb)))
     identidad_en_barra()  # antes de crear cualquier ventana
     app = QApplication(sys.argv[:1])
-    app.setWindowIcon(bandeja.icono_mascota("terracota"))  # también para los diálogos
+    app.setWindowIcon(bandeja.icono_mascota("terracota", grande=m.MAC))  # también para los diálogos (y el Dock)
+    ventanas.app_con_ventana()  # macOS: la app empaquetada arranca sin Dock (LSUIElement); los ajustes lo usan
     app.setStyle("Fusion")
     config = m.cargar_config()
     aplicar_tema(config["tema"])
@@ -1284,7 +1302,7 @@ def ejecutar_ventana() -> int:
         s.waitForBytesWritten(300)
         return 0
     servidor = QLocalServer()
-    servidor.listen(CANAL_AJUSTES)
+    m.escuchar(servidor, CANAL_AJUSTES)
 
     actual = {}
 
@@ -1304,6 +1322,7 @@ def ejecutar_ventana() -> int:
             anterior.deleteLater()
 
     servidor.newConnection.connect(lambda: (servidor.nextPendingConnection(), traer_al_frente(actual["ventana"])))
+    ventanas.al_reabrir(lambda: traer_al_frente(actual["ventana"]))  # macOS: click en el Dock o abrir la app
     abrir()
     m.log("[ajustes] ventana abierta")
     return app.exec()

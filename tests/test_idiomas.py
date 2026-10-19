@@ -35,6 +35,13 @@ def nombre_funcion(nodo: ast.Call) -> str:
     return f.id if isinstance(f, ast.Name) else f.attr if isinstance(f, ast.Attribute) else ""
 
 
+def constantes(nodo) -> list[str]:
+    """El texto de un literal, o los dos de un "texto de macOS if MAC else texto de Windows"."""
+    if isinstance(nodo, ast.IfExp):
+        return constantes(nodo.body) + constantes(nodo.orelse)
+    return [nodo.value] if isinstance(nodo, ast.Constant) and isinstance(nodo.value, str) else []
+
+
 def usados() -> tuple[set[str], list[str]]:
     """(textos que se traducen, problemas: f-strings pasados a t())."""
     textos, problemas = set(), []
@@ -43,8 +50,8 @@ def usados() -> tuple[set[str], list[str]]:
         for nodo in ast.walk(arbol):
             if isinstance(nodo, ast.Call) and nodo.args and nombre_funcion(nodo) in TRADUCEN:
                 arg = nodo.args[0]
-                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-                    textos.add(arg.value)
+                if constantes(arg):
+                    textos.update(constantes(arg))
                 elif isinstance(arg, ast.JoinedStr):
                     problemas.append(f"{archivo}:{nodo.lineno}: f-string en {nombre_funcion(nodo)}(); usá campos {{}}")
             if isinstance(nodo, ast.Call) and nombre_funcion(nodo) == "segmentado" and isinstance(nodo.args[0], ast.Dict):
@@ -70,8 +77,8 @@ def textos_de_bucle(nodo: ast.For) -> set[str]:
     for elemento in iterable.elts:
         if isinstance(elemento, ast.Tuple) and len(elemento.elts) == len(variables):
             for variable, valor in zip(variables, elemento.elts):
-                if variable in traducidas and isinstance(valor, ast.Constant) and isinstance(valor.value, str):
-                    textos.add(valor.value)
+                if variable in traducidas:
+                    textos.update(constantes(valor))
     return textos
 
 

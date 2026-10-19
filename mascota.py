@@ -27,6 +27,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -38,8 +39,9 @@ import sprites
 import ventanas
 from idiomas import t
 
-__version__ = "1.1.0"
-CONGELADO = getattr(sys, "frozen", False)  # corriendo como WaveMascot.exe (PyInstaller)
+__version__ = "1.2.0"
+CONGELADO = getattr(sys, "frozen", False)  # corriendo como WaveMascot.exe o WaveMascot.app (PyInstaller)
+MAC = ventanas.ES_MAC
 DIR = Path(__file__).resolve().parent
 # Empaquetado, los assets viven en la carpeta interna de PyInstaller.
 ASSETS = Path(getattr(sys, "_MEIPASS", DIR)) / "assets"
@@ -560,14 +562,37 @@ def titulo_del_chat(evento: dict) -> str:
     return ""
 
 
-def lanzar_desacoplado(cmd: list[str]) -> None:
+def bundle_app() -> Path | None:
+    """macOS empaquetada: la carpeta WaveMascot.app desde la que corre este proceso."""
+    if not (MAC and CONGELADO):
+        return None
+    return next((p for p in Path(sys.executable).resolve().parents if p.suffix == ".app"), None)
+
+
+def reabrir_app() -> None:
+    """macOS: abrieron WaveMascot.app estando ya abierta (ver ventanas.al_reabrir). La app vuelve a pasar
+    por la apertura normal, que abre los ajustes o, si arrastraste una versión nueva, la actualiza.
+    Desde el código fuente se abren los ajustes."""
+    app = bundle_app()
+    if not app:
+        lanzar_desacoplado([str(DIR / "ajustes.py")])
+        return
+    subprocess.Popen(["/usr/bin/open", "-n", "-a", str(app)], start_new_session=True, stdin=subprocess.DEVNULL,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def lanzar_desacoplado(cmd: list[str], suelto: bool = False) -> None:
     """Lanza un proceso sin consola que sobrevive y no retiene a quien lo llamó.
 
     cmd empieza con el script (p. ej. ".../ajustes.py"); empaquetado como .exe se traduce
-    a "WaveMascot.exe ajustes ..." (ver principal.py)."""
+    a "WaveMascot.exe ajustes ..." (ver principal.py). suelto=True (macOS): el proceso queda
+    sin padre, así el desinstalador puede cerrar al ícono que lo abrió."""
     exe = Path(sys.executable)
+    programa = Path(cmd[0]).stem
+    if MAC and programa == "ajustes" and "--ventana" not in cmd:
+        cmd = [*cmd, "--ventana"]  # en macOS no hace falta el paso intermedio del lanzador
     if CONGELADO:
-        cmd = [str(exe), Path(cmd[0]).stem, *cmd[1:]]
+        cmd = [str(exe), programa, *cmd[1:]]
     else:
         if os.name == "nt" and exe.name.lower() == "python.exe" and exe.with_name("pythonw.exe").exists():
             exe = exe.with_name("pythonw.exe")  # sin ventana de consola
@@ -576,7 +601,18 @@ def lanzar_desacoplado(cmd: list[str]) -> None:
     opciones = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL, cwd=str(Path(sys.executable).parent if CONGELADO else DIR),
                     close_fds=True)
+    app = bundle_app()
+    if app and programa == "ajustes":
+        # Abierta por LaunchServices, la ventana de ajustes aparece adelante y con foco (como en Windows).
+        try:
+            subprocess.Popen(["/usr/bin/open", "-n", "-a", str(app), "--args", *cmd[1:]], start_new_session=True,
+                             **opciones)
+            return
+        except OSError:
+            pass
     if os.name != "nt":
+        if suelto:
+            cmd = ["/bin/sh", "-c", '"$@" &', "sh", *cmd]
         subprocess.Popen(cmd, start_new_session=True, **opciones)
         return
     base = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
@@ -589,11 +625,13 @@ def lanzar_desacoplado(cmd: list[str]) -> None:
 # --- instancia única -----------------------------------------------------------
 
 class Candado:
-    """Mutex con nombre: lo tiene la mascota que está en pantalla."""
+    """Mutex con nombre (en macOS, un archivo con flock): lo tiene la mascota que está en pantalla.
+    Si esa mascota se cierra de golpe, el sistema lo suelta solo."""
 
     def __init__(self):
         self.handle = None
         self.k32 = None
+        self.archivo = None
         if os.name == "nt":
             import ctypes
             from ctypes import wintypes
@@ -606,6 +644,8 @@ class Candado:
             self.k32.CloseHandle.argtypes = (wintypes.HANDLE,)
 
     def tomar(self) -> bool:
+        if os.name != "nt":
+            return self.tomar_archivo()
         if self.k32 is None:
             return True
         h = self.k32.CreateMutexW(None, False, "Local\\" + CANAL)
@@ -617,14 +657,57 @@ class Candado:
         self.k32.CloseHandle(h)
         return False
 
+    def tomar_archivo(self) -> bool:
+        import fcntl
+
+        try:
+            fd = os.open(Path(tempfile.gettempdir()) / f"{CANAL}.lock", os.O_RDWR | os.O_CREAT, 0o600)
+        except OSError:
+            return True  # sin candado no se puede coordinar: mostrar igual
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            os.close(fd)
+            return False
+        self.archivo = fd
+        return True
+
     def soltar(self) -> None:
+        if self.archivo is not None:
+            os.close(self.archivo)  # cerrar el archivo suelta el flock
+            self.archivo = None
         if self.handle:
             self.k32.ReleaseMutex(self.handle)
             self.k32.CloseHandle(self.handle)
             self.handle = None
 
 
+def escuchar(servidor, canal: str) -> bool:
+    """QLocalServer.listen; en macOS, si quedó el archivo de un proceso que se cerró de golpe, se lo saca.
+    Solo se llama después de comprobar que nadie responde en ese canal."""
+    from PyQt6.QtNetwork import QLocalServer
+
+    if servidor.listen(canal):
+        return True
+    QLocalServer.removeServer(canal)
+    return servidor.listen(canal)
+
+
 # --- piezas de dibujo y sonido (también las usa la vista previa de ajustes.py) ----
+
+def fuente(puntos: int, peso=None):
+    """Segoe UI en Windows. En macOS, la letra del sistema con los mismos píxeles: macOS cuenta
+    72 puntos por pulgada y Windows 96, así el cartel y los ajustes quedan del mismo tamaño."""
+    from PyQt6.QtGui import QFont, QFontDatabase
+
+    if not MAC:
+        return QFont("Segoe UI", puntos) if peso is None else QFont("Segoe UI", puntos, peso)
+    letra = QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont)
+    letra.setPixelSize(round(puntos * 96 / 72))
+    if peso is not None:
+        letra.setWeight(peso)
+    return letra
+
 
 def sprite_de_reserva(tamano: int, dpr: float):
     from PyQt6.QtCore import QRectF, Qt
@@ -710,10 +793,10 @@ class Cartel:
     def __init__(self):
         from PyQt6.QtGui import QFont
 
-        self.fuente = QFont("Segoe UI", 10, QFont.Weight.DemiBold)
-        self.fuente_resumen = QFont("Segoe UI", 8)
-        self.fuente_meta = QFont("Segoe UI", 7)
-        self.fuente_boton = QFont("Segoe UI", 8, QFont.Weight.DemiBold)
+        self.fuente = fuente(10, QFont.Weight.DemiBold)
+        self.fuente_resumen = fuente(8)
+        self.fuente_meta = fuente(7)
+        self.fuente_boton = fuente(8, QFont.Weight.DemiBold)
         self.mensaje = self.resumen = self.meta = ""
         self.botones: list[str] = []
         self.zonas: dict[str, object] = {}  # botón -> rectángulo en coordenadas del widget
@@ -877,10 +960,15 @@ def pantalla_para(ventana: int = 0, punto=None):
     pedido o la del mouse; y como último recurso, la principal (sirve con varios monitores)."""
     from PyQt6.QtGui import QCursor, QGuiApplication
 
+    from PyQt6.QtCore import QPoint
+
     nombre = ventanas.monitor_de_ventana(ventana) if ventana else ""
     for pantalla in QGuiApplication.screens():
         if nombre and pantalla.name() == nombre:
             return pantalla
+    centro = ventanas.centro_de_ventana(ventana) if ventana else None  # macOS: por la posición
+    if centro and QGuiApplication.screenAt(QPoint(*centro)):
+        return QGuiApplication.screenAt(QPoint(*centro))
     if punto is not None and QGuiApplication.screenAt(punto):
         return QGuiApplication.screenAt(punto)
     return QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
@@ -936,6 +1024,8 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
                              | Qt.WindowType.NoDropShadowWindowHint)
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+            if MAC:  # las ventanas Tool de macOS se esconden si la app no está activa (y esta nunca lo está)
+                self.setAttribute(Qt.WidgetAttribute.WA_MacAlwaysShowToolWindow)
             self.setWindowTitle("WaveMascot")
             self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -1423,7 +1513,7 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
                 return
             try:
                 from multiprocessing.connection import Client
-                self.conexion_permiso = Client(self.respuesta, family="AF_PIPE", authkey=CLAVE_PERMISO)
+                self.conexion_permiso = Client(self.respuesta, authkey=CLAVE_PERMISO)  # pipe o socket, según la dirección
                 self.conexion_permiso.send({"mostrado": True})
             except OSError as e:
                 log(f"permiso: el hook ya no estaba esperando ({e})")
@@ -1483,10 +1573,12 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             except ValueError:
                 return
             if d.get("accion") == "consultar":  # para el ícono de la bandeja (y las pruebas)
+                botones = {clave: [self.x() + round(z.center().x()), self.y() + round(z.center().y())]
+                           for clave, z in self.cartel.zonas.items()}  # centro de cada botón, en la pantalla
                 estado = {"estado": self.estado, "mirada": self.mirada, "extra": self.extra, "modo": self.base.get("modo"),
                           "cartel": self.mostrar_cartel, "posicion": [self.x(), self.y()], "tema": self.cartel.tema,
                           "salida": round(self.salida, 2), "espejo": self.espejo, "caminando": self.caminando,
-                          "despertar": self.despertar}
+                          "despertar": self.despertar, "tamano": [self.width(), self.height()], "botones": botones}
                 s.write((json.dumps(estado) + "\n").encode("utf-8"))
                 s.flush()
                 return
@@ -1544,6 +1636,11 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             else:
                 self.salir(rapido=True)
 
+        def showEvent(self, evento) -> None:
+            super().showEvent(evento)
+            if MAC:
+                ventanas.ventana_flotante(int(self.winId()))
+
         def enterEvent(self, evento) -> None:
             self.pausada = True
             self.terminar_paseo()
@@ -1597,8 +1694,12 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
                 self.cartel.pintar(p, self.cartel_cx, self.etiqueta_y, self.acento, self.restante / self.total)
             p.end()
 
+    if MAC:  # sin ícono en el Dock: la mascota vive en la pantalla y en la barra de menús
+        os.environ["QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM"] = "1"
     app = QApplication(sys.argv[:1])
     app.setQuitOnLastWindowClosed(False)
+    ventanas.app_de_fondo()
+    ventanas.al_reabrir(reabrir_app)
     candado = Candado()
     duena = False
     for _ in range(20):
@@ -1707,13 +1808,21 @@ def lanzar_ventana(aviso: dict) -> None:
                         "--aviso=" + json.dumps(aviso, ensure_ascii=False)])
 
 
+def direccion_permiso() -> str:
+    """Dónde espera el hook PermissionRequest la respuesta: un pipe con nombre en Windows; en macOS un
+    socket en la carpeta temporal del usuario (corto: macOS no acepta rutas de más de 104 caracteres)."""
+    if os.name == "nt":
+        return rf"\\.\pipe\{CANAL}-permiso-{os.getpid()}"
+    return str(Path(tempfile.gettempdir()) / f"wavemascot-permiso-{os.getpid()}")
+
+
 def responder_permiso(aviso: dict, espera: int) -> None:
     """PermissionRequest: muestra Permitir/Denegar y espera tu click para devolverle la decisión
     a Claude Code. Si no elegís a tiempo no se devuelve nada y decide el diálogo de siempre."""
     from multiprocessing.connection import Listener
 
-    direccion = rf"\\.\pipe\{CANAL}-permiso-{os.getpid()}"
-    oyente = Listener(direccion, family="AF_PIPE", authkey=CLAVE_PERMISO)
+    direccion = direccion_permiso()
+    oyente = Listener(direccion, authkey=CLAVE_PERMISO)
     aviso.update(respuesta=direccion, duracion=espera)
     lanzar_ventana(aviso)
     resultado: dict = {}
@@ -1736,6 +1845,11 @@ def responder_permiso(aviso: dict, espera: int) -> None:
     hilo.join(8)  # si en 8 s la mascota no mostró el cartel, no se la espera: decide la terminal
     if resultado.get("mostrado"):
         hilo.join(espera + 5)
+    if os.name != "nt":
+        try:
+            os.unlink(direccion)  # el socket del permiso (os._exit no deja que lo borre multiprocessing)
+        except OSError:
+            pass
     decision = resultado.get("decision")
     if decision not in ("allow", "deny"):
         log("permiso: sin respuesta en la mascota, decide la terminal")

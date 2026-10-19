@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import plistlib
+import shlex
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -185,6 +188,7 @@ class Instalador(unittest.TestCase):
         self.desinstalar()
         self.assertEqual(comando.read_text(encoding="utf-8"), "mi comando")
 
+    @unittest.skipUnless(os.name == "nt", "rutas de Windows")
     def test_comando_con_espacios_lleva_comillas(self):
         texto = instalador.linea_de_comando([r"C:\Program Files\Python\pythonw.exe", r"C:\x\mascota.py"],
                                             "--estado", "listo")
@@ -196,6 +200,95 @@ class Instalador(unittest.TestCase):
         instalador.configurar("fuente", repo, self.claude, sin_inicio=True)
         instalador.desinstalar(repo, self.claude)
         self.assertTrue(repo.exists())
+
+
+
+class InstaladorMac(Instalador):
+    """Lo mismo para WaveMascot.app (macOS). Corre en cualquier sistema: solo cambian rutas y archivos."""
+
+    def setUp(self):
+        super().setUp()
+        self.mac = mock.patch.object(instalador, "MAC", True)
+        self.mac.start()
+        self.app = Path(self.tmp.name) / "Applications" / "WaveMascot.app"
+        self.crear_app(self.app)
+
+    def tearDown(self):
+        self.mac.stop()
+        super().tearDown()
+
+    @staticmethod
+    def crear_app(app: Path) -> None:
+        (app / "Contents" / "MacOS").mkdir(parents=True)
+        (app / "Contents" / "MacOS" / "WaveMascot").write_text("")
+
+    def instalar_app(self, app=None, sin_inicio=False):
+        return instalador.configurar("exe", app or self.app, self.claude, sin_inicio=sin_inicio)
+
+    def test_hooks_de_la_app_no_fallan_si_la_borran(self):
+        self.escribir(AJENOS)
+        self.instalar_app()
+        hooks = self.nuestros(self.leer(), "Stop")
+        self.assertEqual(len(hooks), 1)
+        comando = hooks[0]["command"]
+        exe = (self.app.resolve() / "Contents" / "MacOS" / "WaveMascot").as_posix()
+        self.assertTrue(comando.startswith(f"[ -e {shlex.quote(exe)} ] && "), comando)
+        self.assertTrue(comando.endswith("--estado listo || true"), comando)
+
+    def test_agente_de_inicio_manifiesto_y_desinstalar(self):
+        self.escribir(AJENOS)
+        self.instalar_app()
+        agente = Path(self.tmp.name) / "Library" / "LaunchAgents" / f"{instalador.BUNDLE_ID}.plist"
+        datos = plistlib.loads(agente.read_bytes())
+        self.assertEqual(datos["Label"], instalador.BUNDLE_ID)
+        self.assertEqual(datos["ProgramArguments"][1:], ["bandeja"])
+        self.assertEqual(Path(datos["ProgramArguments"][0]), self.app.resolve() / "Contents" / "MacOS" / "WaveMascot")
+        manifiesto = Path(self.tmp.name) / ".wavemascot" / "instalacion.json"
+        self.assertTrue(manifiesto.exists())  # fuera de la app: modificarla por dentro rompería su firma
+        self.assertEqual(list(self.app.rglob("instalacion.json")), [])
+        with mock.patch.object(instalador.subprocess, "run") as correr:
+            instalador.desinstalar(self.app, self.claude)
+        self.assertEqual(self.leer(), AJENOS)
+        self.assertFalse(agente.exists())
+        self.assertFalse(manifiesto.exists())
+        self.assertFalse(self.app.exists())
+        self.assertIn("launchctl", " ".join(correr.call_args[0][0]))
+
+    def test_app_movida_de_lugar_no_repone_sus_hooks_viejos(self):
+        self.escribir(AJENOS)
+        self.instalar_app()
+        nueva = Path(self.tmp.name) / "Users" / "x" / "Applications" / "WaveMascot.app"
+        self.crear_app(nueva)
+        self.instalar_app(nueva)
+        texto = json.dumps(self.leer())
+        self.assertNotIn(self.app.resolve().as_posix(), texto)
+        self.assertEqual(len(self.nuestros(self.leer(), "Stop")), 1)
+        with mock.patch.object(instalador.subprocess, "run"):
+            instalador.desinstalar(nueva, self.claude)
+        self.assertEqual(self.leer(), AJENOS)  # sin hooks que apunten a la app que ya no está
+
+    def test_no_borra_una_app_que_no_instalo(self):
+        otra = Path(self.tmp.name) / "Otra" / "WaveMascot.app"
+        self.crear_app(otra)
+        self.instalar_app()  # el manifiesto de ~/.wavemascot es de self.app
+        with mock.patch.object(instalador.subprocess, "run"):
+            informe = instalador.desinstalar(otra, self.claude)
+        self.assertTrue(otra.exists())
+        self.assertTrue(any("no la creó" in linea or "didn't create" in linea for linea in informe))
+
+    @unittest.skipIf(os.name == "nt", "usa sh")
+    def test_hook_con_espacios_corre_en_sh(self):
+        app = Path(self.tmp.name) / "Con espacios" / "WaveMascot.app"
+        self.crear_app(app)
+        exe = app / "Contents" / "MacOS" / "WaveMascot"
+        exe.write_text('#!/bin/sh\necho "corrio $*"\n')
+        exe.chmod(0o755)
+        comando = instalador.comando_hook("exe", app, "listo")
+        r = subprocess.run(["/bin/sh", "-c", comando], capture_output=True, text=True)
+        self.assertEqual((r.returncode, r.stdout.strip()), (0, "corrio --estado listo"))
+        exe.unlink()  # la app ya no está: el hook no hace nada y no falla
+        r = subprocess.run(["/bin/sh", "-c", comando], capture_output=True, text=True)
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
 
 
 if __name__ == "__main__":

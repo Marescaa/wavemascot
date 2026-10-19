@@ -1,6 +1,7 @@
 name: Release
 
-# Al pushear un tag v* (por ejemplo v1.0.0): pruebas, build del instalador .exe y release con el .exe adjunto.
+# Al pushear un tag v* (por ejemplo v1.2.0): pruebas, build del instalador .exe (Windows) y de los .dmg
+# (Mac con Apple Silicon y con Intel), y release con todo adjunto.
 on:
   push:
     tags: ["v*"]
@@ -9,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,10 +34,55 @@ jobs:
         shell: pwsh
         run: ./build.ps1 -Python python
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/WaveMascot-Setup.exe
+
+  mac:
+    strategy:
+      matrix:
+        runner: [macos-15, macos-15-intel]  # Apple Silicon e Intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Pruebas
+        run: python -m unittest discover tests -v
+
+      - name: Build de la app y el .dmg
+        run: PYTHON=python ./build-mac.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.runner }}
+          path: dist/*.dmg
+
+  release:
+    needs: [windows, mac]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: SHA256SUMS.txt
+        run: |
+          cd dist
+          sha256sum WaveMascot-Setup.exe WaveMascot-Mac-*.dmg > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/WaveMascot-Setup.exe
+            dist/WaveMascot-Mac-AppleSilicon.dmg
+            dist/WaveMascot-Mac-Intel.dmg
             dist/SHA256SUMS.txt
           generate_release_notes: true

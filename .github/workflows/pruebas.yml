@@ -1,0 +1,23 @@
+name: Pruebas
+
+# En cada push a main y en cada pull request: las pruebas en Windows y en macOS.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruebas:
+    strategy:
+      matrix:
+        runner: [windows-latest, macos-15]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Pruebas
+        run: python -m unittest discover tests -v
