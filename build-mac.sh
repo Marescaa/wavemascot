@@ -86,7 +86,12 @@ for carpeta, _, archivos in os.walk(app):
             if f.read(4) not in MACH_O:
                 continue
         salida = subprocess.run(["otool", "-l", archivo], capture_output=True, text=True).stdout
-        minimas += re.findall(r"^\s*(?:minos|version) (\d+\.\d+)", salida, re.M)
+        # Solo LC_BUILD_VERSION (minos) y LC_VERSION_MIN_MACOSX (version); otros comandos también dicen "version".
+        for comando in salida.split("Load command")[1:]:
+            if "cmd LC_BUILD_VERSION" in comando:
+                minimas += re.findall(r"^\s*minos (\d+\.\d+)", comando, re.M)
+            elif "cmd LC_VERSION_MIN_MACOSX" in comando:
+                minimas += re.findall(r"^\s*version (\d+\.\d+)", comando, re.M)
 minima = max(minimas, key=lambda v: tuple(int(x) for x in v.split(".")))
 with open(ruta, "rb") as f:
     datos = plistlib.load(f)
@@ -100,6 +105,7 @@ datos.update({
 with open(ruta, "wb") as f:
     plistlib.dump(datos, f)
 print(f"macOS {minima} o más nuevo")
+assert 10 <= int(minima.split(".")[0]) <= 30, f"versión mínima rara: {minima}"
 PY
 
 # 2) Firma: ad hoc (gratis; macOS pide confirmar la primera vez) o con un Developer ID.

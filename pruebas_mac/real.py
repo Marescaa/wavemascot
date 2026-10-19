@@ -320,7 +320,8 @@ def avisos() -> None:
             except OSError:
                 pass
         anotar(f"el cartel con botones se ve a los {time.time() - inicio:.1f} s del evento")
-        time.sleep(0.6)
+        time.sleep(1.2)  # que termine de entrar deslizándose: recién ahí los botones están en su lugar
+        estado = consultar()
         captura("04-permiso-botones")
         (RES / "04-estado.json").write_text(json.dumps(estado, indent=2), encoding="utf-8")
         botones = estado.get("botones") or {}
@@ -371,9 +372,27 @@ def compania() -> None:
         time.sleep(1.5)
         captura("06b-compania-mouse-encima")
         estado = consultar()
-        paso("al pasar el mouse crece (enterEvent con la app inactiva)", estado.get("salida", 0) > 0.5,
-             json.dumps(estado))
+        paso("al pasar el mouse crece (con la app inactiva)", estado.get("salida", 0) > 0.5, json.dumps(estado))
         mover(200, 300)
+        time.sleep(2.5)
+        estado = consultar()
+        paso("al sacar el mouse vuelve a quedar chiquita", estado.get("salida", 1) < 0.5, json.dumps(estado))
+        # Arrastrarla 300 px a la izquierda: se queda ahí y lo recuerda en la config.
+        x0, y0 = x + w - 98, y + h - 40
+        mover(x0, y0)
+        time.sleep(0.5)
+        CG.CGEventPost(0, CG.CGEventCreateMouseEvent(None, 1, Punto(x0, y0), 0))
+        for paso_x in range(1, 31):
+            time.sleep(0.03)
+            CG.CGEventPost(0, CG.CGEventCreateMouseEvent(None, 6, Punto(x0 - paso_x * 10, y0), 0))  # dragged
+        CG.CGEventPost(0, CG.CGEventCreateMouseEvent(None, 2, Punto(x0 - 300, y0), 0))
+        time.sleep(1.5)
+        captura("06c-compania-arrastrada")
+        guardada = json.loads(CONFIG.read_text(encoding="utf-8")).get("posicion")
+        paso("arrastrar a la compañera la mueve y lo recuerda", bool(guardada) and abs(guardada[0] - (x - 300)) < 40,
+             f"antes x={x}, guardada={guardada}")
+        mover(200, 300)
+        config(posicion=None)
     except (OSError, KeyError, ValueError) as e:
         paso("compañera abierta", False, repr(e))
     disparar("UserPromptSubmit", prompt="Escribí los tests del carrito")
@@ -526,9 +545,17 @@ def fuente() -> None:
     anotar("== Desde el código: install.sh / uninstall.sh ==")
     original = json.loads((RES / "settings-original.json").read_text(encoding="utf-8"))
     destino = HOME / "Library" / "Application Support" / "WaveMascot"
-    r = correr(["/bin/bash", str(RAIZ / "install.sh")], timeout=900)
-    anotar(r.stdout.strip()[-800:])
-    paso("install.sh", r.returncode == 0 and (destino / "venv" / "bin" / "python").exists(), r.stderr.strip()[-500:])
+    inicio = time.time()
+    with open(RES / "install-sh.txt", "w") as salida:  # con -x: si se traba, se ve dónde
+        p = subprocess.Popen(["/bin/bash", "-x", str(RAIZ / "install.sh")], stdout=salida, stderr=subprocess.STDOUT,
+                             stdin=subprocess.DEVNULL)
+        try:
+            codigo = p.wait(480)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            codigo = -1
+    paso("install.sh", codigo == 0 and (destino / "venv" / "bin" / "python").exists(),
+         f"{time.time() - inicio:.0f} s; " + (RES / "install-sh.txt").read_text(errors="replace")[-700:])
     comando = comando_hook("Stop")
     anotar(f"hook: {comando}")
     paso("el hook apunta al código", "mascota.py" in comando and comando.endswith("|| true"))

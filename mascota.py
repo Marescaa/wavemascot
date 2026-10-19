@@ -1077,6 +1077,10 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             self.anim_rebote = QVariantAnimation(self, startValue=0.0, endValue=1.0, duration=420)
             self.anim_rebote.valueChanged.connect(lambda v: (setattr(self, "rebote", v), self.update()))
             self.timer_mirada = QTimer(self, interval=90, timeout=self.seguir_cursor)
+            # macOS: Qt no avisa cuándo entra o sale el mouse si la app no está activa (y la mascota nunca
+            # lo está, para no sacarle el foco a la terminal): se mira dónde está el cursor.
+            self.encima = False
+            self.timer_encima = QTimer(self, interval=80, timeout=self.revisar_encima)
             self.timer_extra = QTimer(self, singleShot=True, timeout=self.extra_al_azar)
             self.timer_pensando = QTimer(self, singleShot=True, interval=600_000,
                                          timeout=lambda: self.estado == "pensando" and self.cambiar_estado("idle"))
@@ -1212,7 +1216,7 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             self.anim_salida.start()
 
         def esconder_si_corresponde(self) -> None:
-            if self.chiquita() and not self.mostrar_cartel and not self.underMouse() and self.agarre is None:
+            if self.chiquita() and not self.mostrar_cartel and not self.mouse_encima() and self.agarre is None:
                 self.mover_salida(0.0)
 
         def pose(self) -> tuple[float, float, float]:
@@ -1283,7 +1287,7 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
 
         def empezar_paseo(self) -> None:
             ocupada = (self.estado != "idle" or self.extra or self.salida > 0.01 or self.agarre is not None
-                       or self.underMouse() or self.mostrar_cartel or self.oculta_por_pantalla)
+                       or self.mouse_encima() or self.mostrar_cartel or self.oculta_por_pantalla)
             if ocupada:
                 self.programar_extra()
                 return
@@ -1641,6 +1645,32 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             super().showEvent(evento)
             if MAC:
                 ventanas.ventana_flotante(int(self.winId()))
+                self.timer_encima.start()
+
+        def mouse_encima(self) -> bool:
+            return self.encima if MAC else self.underMouse()
+
+        def zona_visible(self, punto) -> bool:
+            """¿El punto (de la ventana) cae sobre la mascota o el cartel? Lo transparente no cuenta,
+            igual que en Windows, donde el mouse atraviesa las partes sin dibujar."""
+            from PyQt6.QtCore import QRectF
+
+            cx, escala, _ = self.pose()
+            w, h = self.sprite_w * escala, self.sprite_h * escala
+            base, apoyo = (self.pies_y, self.PIES) if self.compania else (self.sprite_y + self.sprite_h, 1.0)
+            cuerpo = QRectF(cx - w / 2, base - h * apoyo, w, h).adjusted(w * 0.2, h * 0.3, -w * 0.2, 0)
+            if cuerpo.contains(punto):
+                return True
+            cartel = QRectF(self.cartel_cx - self.cartel.ancho / 2, self.etiqueta_y, self.cartel.ancho, self.cartel.alto)
+            return self.mostrar_cartel and cartel.contains(punto)
+
+        def revisar_encima(self) -> None:
+            if not self.isVisible() or self.t < 1.0:
+                return
+            adentro = self.zona_visible(QPointF(self.mapFromGlobal(QCursor.pos())))
+            if adentro != self.encima:
+                self.encima = adentro
+                (self.enterEvent if adentro else self.leaveEvent)(None)
 
         def enterEvent(self, evento) -> None:
             self.pausada = True
