@@ -1050,7 +1050,8 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             self.mirada, self.extra = (0, 0), None
             self.respuesta, self.ventana_terminal = None, 0
             self.agarre = self.inicio_agarre = None
-            self.arrastrada = False
+            self.arrastrada = False   # ya la moviste alguna vez (se queda donde la dejaste)
+            self.arrastrando = False  # el clic actual se convirtió en arrastre
             # Compañera en segundo plano: chiquita, parada sobre la barra de tareas (salida 0), o
             # grande cuando avisa algo o le pasás el mouse (salida 1). Mira hacia donde camina (espejo).
             self.salida, self.espejo = 1.0, False
@@ -1602,22 +1603,25 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             self.terminar_paseo()
             self.inicio_agarre = evento.globalPosition().toPoint()
             self.agarre = self.inicio_agarre - self.pos()
+            self.arrastrando = False
 
         def mouseMoveEvent(self, evento) -> None:
             if self.agarre is None or not evento.buttons() & Qt.MouseButton.LeftButton:
                 return
-            if not self.arrastrada and (evento.globalPosition().toPoint() - self.inicio_agarre).manhattanLength() < 6:
+            if not self.arrastrando and (evento.globalPosition().toPoint() - self.inicio_agarre).manhattanLength() < 6:
                 return
-            if not self.arrastrada:
+            if not self.arrastrando:
                 self.mover_salida(1.0)  # mientras la llevás, se ve entera
-            self.arrastrada, self.deslizar = True, False
+            self.arrastrando = self.arrastrada = True
+            self.deslizar = False
             self.move(evento.globalPosition().toPoint() - self.agarre)
 
         def mouseReleaseEvent(self, evento) -> None:
             if self.agarre is None:
                 return
             self.agarre = None
-            if self.arrastrada:
+            if self.arrastrando:  # fue un arrastre, no un clic: no toca botones ni cierra
+                self.arrastrando = False
                 if self.compania:  # la compañera recuerda a qué altura la dejaste (y se pega al borde)
                     self.arrastrada = False
                     area = (QGuiApplication.screenAt(self.geometry().center()) or self.pantalla()).availableGeometry()
