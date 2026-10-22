@@ -7,6 +7,19 @@ and the project uses [semantic versioning](https://semver.org/).
 
 ### Added
 
+- **Mascot styles (beta)**: Classic, Sakura, Ninja and Robot, in the **Mascot** tab. A style changes the mascot's
+  face and how it shows up, celebrates and leaves; the settings window only takes its colors.
+  - **Sakura**: big shiny eyes with lashes, a cherry blossom on the antenna, a heart-shaped shine and a flower clip.
+    Floats in on a gust of petals and celebrates with hearts.
+  - **Ninja**: mask with a red headband and determined brows, plus a skin tone of your choice. Rolls in hidden in a
+    smoke cloud that bursts into a guard pose, and throws a shuriken when a task is done.
+  - **Robot**: visor with light-up eyes, speaker mouth and bolts. Flies in on rocket boots, lands and boots up, and
+    takes off when it leaves.
+  - Every style still slides in from the edge; Classic looks and moves exactly as before.
+  - Each style keeps its own color, and the outfit works with all of them. Five new colors (Shadow, Steel, Crimson,
+    Forest, Night); the swatches are now sorted by hue, with the neutrals on their own row.
+  - The settings preview now shows the whole notice: it slides in, shows the card for the chosen duration and leaves.
+
 - **Notifications on your phone through Telegram**, with Wave animated (a GIF of each state), from the official bot
   **@WaveNotificationBot**. New **Phone** tab in the settings: tap **Connect Telegram**, Telegram opens with a one-time
   code and you tap **Start**. Nothing to create or paste.

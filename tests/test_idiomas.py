@@ -26,7 +26,8 @@ TABLAS = [
     ("ajustes.py", "NOMBRES_TAMANO", None), ("ajustes.py", "AUTOMATICO", None), ("ajustes.py", "EJEMPLO", None),
     ("ajustes.py", "RESUMEN_EJEMPLO", None), ("mascota.py", "ESTADOS", "mensaje"), ("mascota.py", "BOTONES", None),
     ("sprites.py", "COLORES", 0), ("sprites.py", "CABEZAS", None), ("sprites.py", "ROPAS", None),
-    ("sprites.py", "ACCESORIOS", None), ("sprites.py", "SONIDOS", 0),
+    ("sprites.py", "ACCESORIOS", None), ("sprites.py", "SONIDOS", 0), ("sprites.py", "ESTILOS", None),
+    ("sprites.py", "PIELES", 0),
 ]
 CAMPOS = re.compile(r"\{(\w*)\}")
 

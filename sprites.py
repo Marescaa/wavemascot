@@ -1,4 +1,4 @@
-"""Dibujo de la mascota en pixel art: color, cabeza, ropa y accesorio.
+"""Dibujo de la mascota en pixel art: estilo, color, cabeza, ropa y accesorio.
 
 mascota.py y ajustes.py lo usan para generar (y guardar en caché) los GIF del aspecto
 elegido. Ejecutado directamente regenera los sonidos y el ícono:
@@ -18,7 +18,7 @@ import struct
 import wave
 from pathlib import Path
 
-VERSION = 1  # subirla cuando cambie el dibujo, para invalidar la caché
+VERSION = 2  # subirla cuando cambie el dibujo, para invalidar la caché
 CACHE = Path.home() / ".wavemascot" / "cache"
 LADO = 56
 ESCALA = 4  # debe coincidir con PIXEL_ASSET en mascota.py
@@ -49,10 +49,13 @@ PALETA = [
     (38, 70, 138),    # azul oscuro
     (204, 150, 40),   # oro oscuro
     (54, 48, 60),     # sombrero oscuro
+    (240, 204, 170),  # piel (la cara del ninja; la reemplaza el tono elegido)
+    (94, 234, 255),   # luz de los ojos del robot
+    (255, 150, 40),   # fuego de los cohetes
 ]
 (TRANSP, CONT, CUERPO, SOMBRA, BRILLO, CREMA, RUBOR, CHISPA, BLANCO, AZUL, VERDE, VIOLETA,
  ROJO, NUBE, NUBE_OSC, CHISPA_OFF, HOJA, HOJA_OFF, ROJO_OSC, AZUL_ROPA, AZUL_OSC, ORO_OSC,
- OSCURO) = range(len(PALETA))
+ OSCURO, PIEL, LED, FUEGO) = range(len(PALETA))
 
 # Opciones del vestuario: id -> nombre visible.
 COLORES = {  # nombre, cuerpo, sombra, brillo
@@ -64,7 +67,29 @@ COLORES = {  # nombre, cuerpo, sombra, brillo
     "celeste": ("Celeste", (104, 186, 238), (62, 140, 200), (176, 224, 255)),
     "amarillo": ("Amarillo", (242, 200, 84), (206, 158, 40), (255, 232, 158)),
     "grafito": ("Grafito", (138, 140, 152), (100, 102, 114), (190, 192, 202)),
+    "sombra": ("Sombra", (58, 60, 72), (36, 38, 46), (90, 94, 108)),
+    "acero": ("Acero", (150, 160, 174), (106, 116, 130), (198, 206, 216)),
+    "carmesi": ("Carmesí", (200, 62, 70), (152, 38, 48), (236, 116, 118)),
+    "bosque": ("Bosque", (96, 142, 100), (64, 104, 72), (146, 188, 146)),
+    "noche": ("Noche", (72, 92, 148), (50, 64, 112), (118, 140, 196)),
 }
+# Orden de las muestras en ajustes: por tono, y los neutros aparte (None = salto de línea).
+ORDEN_COLORES = ["carmesi", "terracota", "naranja", "amarillo", "bosque", "menta", "celeste", "noche", "lavanda",
+                 "rosa", None, "grafito", "acero", "sombra"]
+# Estilos: cambian la cara de la mascota y cómo aparece, festeja y se va. Cada uno guarda su color.
+ESTILOS = {"clasico": "Clásico", "sakura": "Sakura", "ninja": "Ninja", "robot": "Robot"}
+COLOR_SUGERIDO = {"clasico": "terracota", "sakura": "rosa", "ninja": "sombra", "robot": "acero"}
+PIELES = {"clara": ("Clara", (240, 204, 170)), "triguena": ("Trigueña", (222, 176, 134)),
+          "morena": ("Morena", (176, 124, 88)), "oscura": ("Oscura", (118, 80, 56))}
+# Colores propios de cada estilo: contorno, borde claro de afuera (CREMA) y rubor.
+PALETA_ESTILO = {
+    "clasico": {},
+    "sakura": {CONT: (74, 30, 56), CREMA: (255, 236, 244), RUBOR: (255, 128, 166)},
+    "ninja": {CONT: (6, 6, 8), CREMA: (118, 122, 138)},
+    "robot": {CONT: (18, 22, 30), CREMA: (214, 224, 234)},
+}
+CON_ENTRADA = ("sakura", "ninja", "robot")  # el Clásico entra y sale solo deslizándose
+CUADROS_DESLIZ = 8  # cuadros de la entrada (los primeros) y de la salida (los últimos) que van deslizándose
 CABEZAS = {"chispa": "Chispa", "hoja": "Brote", "luna": "Luna", "orejas": "Orejas",
            "gorro": "Gorro", "galera": "Galera", "corona": "Corona", "gorra": "Gorra", "nada": "Nada"}
 ROPAS = {"nada": "Nada", "remera": "Remera", "bufanda": "Bufanda", "mono": "Moño", "corbata": "Corbata",
@@ -72,7 +97,8 @@ ROPAS = {"nada": "Nada", "remera": "Remera", "bufanda": "Bufanda", "mono": "Moñ
 ACCESORIOS = {"nada": "Nada", "anteojos": "Anteojos", "lentes": "Lentes de sol", "auriculares": "Auriculares",
               "flor": "Flor"}
 OPCIONES = {"color": COLORES, "cabeza": CABEZAS, "ropa": ROPAS, "accesorio": ACCESORIOS}
-ASPECTO_DEFECTO = {"color": "terracota", "cabeza": "chispa", "ropa": "nada", "accesorio": "nada"}
+ASPECTO_DEFECTO = {"color": "terracota", "cabeza": "chispa", "ropa": "nada", "accesorio": "nada",
+                   "estilo": "clasico", "piel": "clara"}
 # Los skins de la versión anterior, para traducir configuraciones viejas.
 PRESETS = {
     "clasico": ASPECTO_DEFECTO,
@@ -101,19 +127,40 @@ ALTO_SOMBRERO = {"galera": 4, "gorro": 3, "corona": 2}
 
 
 def normalizar(aspecto) -> dict:
-    """Completa el aspecto con los valores por defecto y descarta opciones desconocidas."""
+    """Completa el aspecto con los valores por defecto y descarta opciones desconocidas.
+
+    "colores" guarda el color de cada estilo; "color" es siempre el del estilo elegido."""
     aspecto = aspecto if isinstance(aspecto, dict) else {}
-    return {clave: aspecto.get(clave) if aspecto.get(clave) in opciones else ASPECTO_DEFECTO[clave]
-            for clave, opciones in OPCIONES.items()}
+    a = {clave: aspecto.get(clave) if aspecto.get(clave) in opciones else ASPECTO_DEFECTO[clave]
+         for clave, opciones in OPCIONES.items()}
+    estilo = aspecto.get("estilo") if aspecto.get("estilo") in ESTILOS else "clasico"
+    guardados = aspecto.get("colores") if isinstance(aspecto.get("colores"), dict) else {}
+    colores = {e: guardados[e] if guardados.get(e) in COLORES else COLOR_SUGERIDO[e] for e in ESTILOS}
+    if aspecto.get("color") in COLORES:
+        colores[estilo] = aspecto["color"]
+    a.update(estilo=estilo, color=colores[estilo], colores=colores,
+             piel=aspecto.get("piel") if aspecto.get("piel") in PIELES else "clara")
+    return a
+
+
+def con_estilo(aspecto, estilo: str) -> dict:
+    """El aspecto con otro estilo (y el color que ese estilo tiene guardado)."""
+    a = normalizar(aspecto)
+    return {**a, "estilo": estilo, "color": a["colores"][estilo]}
+
+
+def lienzo(aspecto, lado=LADO) -> "Lienzo":
+    return Lienzo(aspecto["color"], lado, aspecto.get("estilo", "clasico"), aspecto.get("piel", "clara"))
 
 
 class Lienzo:
-    def __init__(self, color="terracota", lado=LADO):
+    def __init__(self, color="terracota", lado=LADO, estilo="clasico", piel="clara"):
         from PIL import Image, ImageDraw
 
         self.img = Image.new("P", (lado, lado), TRANSP)
         _, cuerpo, sombra, brillo = COLORES.get(color, COLORES["terracota"])
-        colores = {CUERPO: cuerpo, SOMBRA: sombra, BRILLO: brillo}
+        colores = {**PALETA_ESTILO.get(estilo, {}), CUERPO: cuerpo, SOMBRA: sombra, BRILLO: brillo,
+                   PIEL: PIELES.get(piel, PIELES["clara"])[1]}
         plana = [c for i, rgb in enumerate(PALETA) for c in colores.get(i, rgb)]
         self.img.putpalette(plana + [0] * (768 - len(plana)))
         self.img.info["transparency"] = TRANSP
@@ -390,15 +437,170 @@ def accesorio(lz, tipo, c):
         lz.px(x, y, CHISPA)
 
 
+# --- caras y detalles de cada estilo ------------------------------------------
+
+FLOR_SAKURA = [(-1, -2), (1, -2), (-2, -1), (-1, -1), (0, -1), (1, -1), (2, -1), (-1, 0), (1, 0),
+               (-2, 1), (-1, 1), (1, 1), (2, 1), (-1, 2), (1, 2)]
+CORAZON = [(1, 0), (3, 0), (0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (1, 2), (2, 2), (3, 2), (2, 3)]
+HEBILLA = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]
+
+
+def espejo_x(puntos, cx):
+    """Espejo para figuras de ancho par centradas entre cx - 1 y cx."""
+    return [(2 * cx - 1 - x, y) for x, y in puntos]
+
+
+def ojo_sakura(tipo, c, e):
+    """Sakura: ojos grandes, brillantes y con pestañas."""
+    if tipo in ("abierto", "grande"):
+        return rect(c - 1, e - 2, c + 1, e + 1) + [(c - 2, e - 2), (c - 3, e - 3)], [(c - 1, e - 2), (c - 1, e - 1), (c + 1, e + 1)]
+    if tipo == "feliz":
+        return ojo(tipo, c, e)[0] + [(c - 3, e)], []
+    return ojo(tipo, c, e)
+
+
+def antena_sakura(lz, tipo, c, inclinacion, chispa, color_chispa):
+    """En Sakura la chispa de la antena es una flor de cerezo."""
+    if tipo != "chispa":
+        antena(lz, tipo, c, inclinacion, chispa, color_chispa)
+        return
+    cx, arriba = c.cx, c.arriba
+    if inclinacion == "caida":
+        lz.pxs([(cx, arriba - 1), (cx - 1, arriba - 2), (cx - 2, arriba - 2)], CONT)
+        lz.figura([(cx - 4 + x, arriba - 2 + y) for x, y in FORMAS_CHISPA["chica"]], RUBOR)
+        lz.px(cx - 4, arriba - 2, CHISPA_OFF)
+        return
+    lz.pxs([(cx, arriba - 1), (cx + inclinacion, arriba - 2)], CONT)
+    x0, y0 = cx + inclinacion, arriba - 5
+    lz.figura([(x0 + x, y0 + y) for x, y in FLOR_SAKURA] + [(x0, y0)], RUBOR)
+    lz.px(x0, y0, CHISPA if color_chispa == CHISPA else BLANCO)
+    if chispa == "mas":  # destello de la flor
+        lz.px(x0 - 1, y0 - 1, CREMA)
+
+
+def detalles_sakura(lz, c, aspecto):
+    """Brillo del cuerpo con forma de corazón y hebilla de flor al costado de la cabeza."""
+    x0, y0 = c.izq + 3, c.arriba + 3
+    for x in range(x0, x0 + 7):
+        for y in range(y0 - 1, y0 + 4):
+            if lz.img.getpixel((x, y)) == BRILLO:
+                lz.px(x, y, CUERPO)
+    for a, b in CORAZON:  # solo sobre el cuerpo, nunca encima de una prenda
+        if lz.img.getpixel((x0 + a, y0 + b)) in (CUERPO, BRILLO):
+            lz.px(x0 + a, y0 + b, BRILLO)
+    if aspecto.get("accesorio") != "flor":
+        hx, hy = c.der - 3, c.arriba + 3
+        lz.figura([(hx + a, hy + b) for a, b in HEBILLA], BLANCO)
+        lz.px(hx, hy, RUBOR)
+
+
+def cara_ninja(lz, c, tipo, mirada, fase):
+    """Máscara con una franja de piel donde se ven los ojos (con cejas decididas) y vincha roja."""
+    y0, y1 = c.ey - 2, c.ey + 3
+    for y in range(y0, y1 + 1):
+        lz.pxs([(x, y) for x in range(c.izq, c.der + 1) if c.adentro(x, y, 2.0)], PIEL)
+    for y in (y0 - 1, y1 + 1):
+        lz.pxs([(x, y) for x in range(c.izq, c.der + 1) if c.adentro(x, y, 2.0)], CONT)
+    mx, my = mirada
+    for lado in (-1, 1):
+        cx = (c.ex + mx) if lado < 0 else (2 * c.cx - c.ex + mx)
+        e = c.ey + my
+
+        def pon(pts, color):
+            lz.pxs(pts if lado < 0 else espejo_x(pts, cx), color)
+        if tipo == "feliz":
+            pon([(cx - 2, e + 1), (cx - 1, e), (cx, e), (cx + 1, e + 1)], CONT)
+        elif tipo == "cerrado":
+            pon([(cx - 2, e + 1), (cx - 1, e + 1), (cx, e + 1), (cx + 1, e + 1)], CONT)
+        elif tipo == "triste":
+            pon(rect(cx - 1, e, cx, e + 1), CONT)
+            pon([(cx - 2, e - 1), (cx - 1, e - 2), (cx, e - 2), (cx + 1, e - 2)], CONT)
+            lz.px(cx - 1 if lado < 0 else cx, e, BLANCO)
+        else:
+            alto = 3 if tipo == "grande" else 2
+            pon(rect(cx - 1, e, cx, e + alto - 1), CONT)
+            lz.px(cx - 1 if lado < 0 else cx, e, BLANCO)
+            pon([(cx - 2, e - 1), (cx - 1, e - 2), (cx, e - 2), (cx + 1, e - 2)] if tipo == "grande" else
+                [(cx - 2, e - 2), (cx - 1, e - 2), (cx, e - 1), (cx + 1, e - 1)], CONT)
+    vincha(lz, c, fase)
+
+
+def vincha(lz, c, fase):
+    y = c.ey - 5
+    for yy, color in ((y, ROJO), (y + 1, ROJO_OSC)):
+        lz.pxs([(x, yy) for x in range(c.izq, c.der + 1) if c.adentro(x, yy, 0.6)], color)
+    ola = math.sin(fase * 1.3)
+    nx = c.der - 1
+    colas = [(nx + 1 + i, y + dy0 + round(i * 0.45 + ola * (i / 3.5)) - (1 if k == 0 else 0))
+             for k, dy0 in enumerate((0, 2)) for i in range(1, 8)]
+    lz.figura(colas, ROJO)
+    lz.figura(rect(nx - 1, y - 1, nx + 1, y + 1), ROJO)
+    lz.px(nx, y, ROJO_OSC)
+
+
+def cara_robot(lz, c, tipo, boca_tipo, mirada):
+    """Visor con ojos de luz, boca de parlante y tornillos a los costados."""
+    x0, x1 = c.ex - 4, 2 * c.cx - c.ex + 4
+    y0, y1 = c.ey - 2, c.ey + 2
+    lz.figura([p for p in rect(x0, y0, x1, y1) if p not in ((x0, y0), (x1, y0), (x0, y1), (x1, y1))], OSCURO)
+    lz.pxs([(x0 + 1, y0), (x0 + 2, y0)], NUBE_OSC)  # reflejo del vidrio
+    mx, my = mirada
+    for lado in (-1, 1):
+        cx = (c.ex + mx) if lado < 0 else (2 * c.cx - c.ex + mx)
+        e = c.ey + my
+
+        def pon(pts, color):
+            lz.pxs(pts if lado < 0 else espejo_x(pts, cx), color)
+        if tipo == "feliz":
+            pon([(cx - 2, e + 1), (cx - 1, e), (cx, e), (cx + 1, e + 1)], LED)
+        elif tipo == "cerrado":
+            pon([(cx - 1, e + 1), (cx, e + 1)], NUBE_OSC)
+        elif tipo == "triste":
+            pon([(cx - 1, e + 1), (cx, e + 1), (cx - 2, e), (cx + 1, e - 1)], LED)
+        elif tipo == "grande":
+            pon(rect(cx - 1, e - 1, cx, e + 1), LED)
+        elif tipo != "apagado":
+            pon(rect(cx - 1, e - 1, cx, e), LED)
+    m, y = c.cx, c.ey + 5
+    if boca_tipo == "abierta":
+        lz.figura(rect(m - 1, y, m + 1, y), LED)
+    elif boca_tipo == "o":
+        lz.figura([(m, y)], LED)
+    elif boca_tipo == "triste":
+        lz.pxs([(m - 3, y + 1)] + [(x, y) for x in range(m - 2, m + 3)] + [(m + 3, y + 1)], CONT)
+    elif boca_tipo == "plana":
+        lz.pxs([(x, y) for x in range(m - 2, m + 3)], CONT)
+    else:  # sonrisa: rejilla de parlante
+        lz.pxs([(m - 3, y - 1)] + [(x, y) for x in range(m - 2, m + 3)] + [(m + 3, y - 1)], CONT)
+        lz.pxs([(m - 1, y + 1), (m + 1, y + 1)], CONT)
+    for lado in (-1, 1):  # tornillos
+        x = c.izq + 2 if lado < 0 else c.der - 2
+        yy = round(c.centro_y + 4)
+        if c.adentro(x, yy, 1.0):
+            lz.px(x, yy, NUBE)
+            lz.px(x + 1 if lado < 0 else x - 1, yy + 1, CONT)
+
+
 def mascota(lz, aspecto, *, dy=0, ancho=25, alto=21, ojos="abierto", boca_tipo="sonrisa",
             brazos=("abajo", "abajo"), inclinacion=0, chispa="mas", color_chispa=CHISPA,
-            rubor=True, lagrima=None, en_aire=False, mirada=(0, 0), dx=0, pies=None):
-    """Dibuja la mascota con su vestuario y devuelve su geometría para ubicar efectos.
+            rubor=True, lagrima=None, en_aire=False, mirada=(0, 0), dx=0, pies=None, fase=0):
+    """Dibuja la mascota con su estilo y su vestuario, y devuelve su geometría para ubicar efectos.
 
     mirada (-1..1, -1..1) corre los ojos un pixel hacia donde mira.
-    pies (izq, der): altura de cada pie respecto del suelo (negativo = levantado), para caminar."""
+    pies (izq, der): altura de cada pie respecto del suelo (negativo = levantado), para caminar.
+    fase: cuadro de la animación, para lo que se mueve solo (las colas de la vincha del ninja)."""
     c = Cuerpo(dy, ancho, alto, dx)
     cabeza, ropa = aspecto["cabeza"], aspecto["ropa"]
+    estilo = aspecto.get("estilo", "clasico")
+    cara_propia = estilo in ("ninja", "robot")  # máscara o visor en vez de ojos y boca
+    if cara_propia:
+        rubor = False
+
+    def adornos_cabeza():
+        if cabeza in ("chispa", "hoja", "luna"):
+            (antena_sakura if estilo == "sakura" else antena)(lz, cabeza, c, inclinacion, chispa, color_chispa)
+        elif cabeza in ("gorro", "galera", "corona", "gorra"):
+            sombrero(lz, cabeza, c)
 
     if ropa == "capa":
         capa(lz, c, en_aire)
@@ -421,21 +623,21 @@ def mascota(lz, aspecto, *, dy=0, ancho=25, alto=21, ojos="abierto", boca_tipo="
         remera(lz, c)
     elif ropa == "bufanda":
         bufanda(lz, c)
-    if cabeza in ("chispa", "hoja", "luna"):
-        antena(lz, cabeza, c, inclinacion, chispa, color_chispa)
-    elif cabeza in ("gorro", "galera", "corona", "gorra"):
-        sombrero(lz, cabeza, c)
+    if estilo == "clasico":  # en los otros estilos los sombreros van después de la cara
+        adornos_cabeza()
 
     mx, my = mirada
-    oscuro, blanco = ojo(ojos, c.ex + mx, c.ey + my)
-    oscuro_der, blanco_der = ojo(ojos, c.ex - mx, c.ey + my)  # el espejo invierte x: se compensa
-    lz.pxs(oscuro + espejo(oscuro_der, c.cx), CONT)
-    lz.pxs(blanco + espejo(blanco_der, c.cx), BLANCO)
-    if cabeza == "orejas" and boca_tipo == "sonrisa":
-        boca_tipo = "gato"
-    oscuro, rosa = boca(boca_tipo, c.cx, c.ey + 4)
-    lz.pxs(oscuro, CONT)
-    lz.pxs(rosa, RUBOR)
+    if not cara_propia:
+        forma_ojo = ojo_sakura if estilo == "sakura" else ojo
+        oscuro, blanco = forma_ojo(ojos, c.ex + mx, c.ey + my)
+        oscuro_der, blanco_der = forma_ojo(ojos, c.ex - mx, c.ey + my)  # el espejo invierte x: se compensa
+        lz.pxs(oscuro + espejo(oscuro_der, c.cx), CONT)
+        lz.pxs(blanco + espejo(blanco_der, c.cx), BLANCO)
+        if cabeza == "orejas" and boca_tipo == "sonrisa":
+            boca_tipo = "gato"
+        oscuro, rosa = boca(boca_tipo, c.cx, c.ey + 4)
+        lz.pxs(oscuro, CONT)
+        lz.pxs(rosa, RUBOR)
     if rubor:
         mejilla = [(c.ex - 3, c.ey + 2), (c.ex - 2, c.ey + 2)]
         lz.pxs(mejilla + espejo(mejilla, c.cx), RUBOR)
@@ -446,6 +648,14 @@ def mascota(lz, aspecto, *, dy=0, ancho=25, alto=21, ojos="abierto", boca_tipo="
     if lagrima is not None:
         y = c.ey + 2 + lagrima
         lz.figura([(c.ex - 1, y), (c.ex - 1, y + 1)], AZUL, contorno=None)
+    if estilo == "ninja":
+        cara_ninja(lz, c, ojos, mirada, fase)
+    elif estilo == "robot":
+        cara_robot(lz, c, ojos, boca_tipo, mirada)
+    elif estilo == "sakura":
+        detalles_sakura(lz, c, aspecto)
+    if estilo != "clasico":
+        adornos_cabeza()
 
     if ropa == "mono":
         mono(lz, c)
@@ -552,11 +762,13 @@ def ayudante(lz, f, x0, dy):
 # --- estados -----------------------------------------------------------------
 
 def cuadros_listo(aspecto):
+    if aspecto.get("estilo") in LISTO_ESTILO:
+        return LISTO_ESTILO[aspecto["estilo"]](aspecto)
     salto = [(0, 27, 19), (-4, 23, 25), (-8, 25, 23), (-10, 25, 21), (-10, 25, 21),
              (-8, 25, 22), (-4, 25, 23), (0, 29, 18), (0, 27, 19), (0, 25, 21)]
     cuadros = []
     for f, (dy, ancho, alto) in enumerate(salto):
-        lz = Lienzo(aspecto["color"])
+        lz = lienzo(aspecto)
         en_aire = dy < 0
         mascota(lz, aspecto, dy=dy, ancho=ancho, alto=alto, ojos="feliz", en_aire=en_aire,
                 boca_tipo="abierta" if en_aire else "sonrisa",
@@ -575,7 +787,7 @@ def cuadros_permiso(aspecto):
     saltitos = [0, -1, -3, -1, 0, -1, -3, -1]
     cuadros = []
     for f, dy in enumerate(saltitos):
-        lz = Lienzo(aspecto["color"])
+        lz = lienzo(aspecto)
         ancho, alto = (27, 20) if dy == 0 else (25, 21)
         c = mascota(lz, aspecto, dy=dy, ancho=ancho, alto=alto, ojos="grande", boca_tipo="o",
                     brazos=("abajo", "ola1" if f % 2 == 0 else "ola2"),
@@ -593,7 +805,7 @@ def cuadros_error(aspecto):
     tope = SUELO - 2 - 21 + 1 - ALTO_SOMBRERO.get(aspecto["cabeza"], 0)
     cuadros = []
     for f, alto in enumerate(respiro):
-        lz = Lienzo(aspecto["color"])
+        lz = lienzo(aspecto)
         mascota(lz, aspecto, ancho=27, alto=alto, ojos="triste", boca_tipo="triste",
                 brazos=("abajo", "abajo"), inclinacion="caida", rubor=False,
                 lagrima=f if f < 6 else None)
@@ -608,7 +820,7 @@ def cuadros_pensando(aspecto, mirada=(1, -1)):
     respiro = [21, 21, 20, 20, 21, 21, 20, 20]
     cuadros = []
     for f, alto in enumerate(respiro):
-        lz = Lienzo(aspecto["color"])
+        lz = lienzo(aspecto)
         c = mascota(lz, aspecto, alto=alto, boca_tipo="plana", mirada=mirada, inclinacion=(0, 1, 0, -1)[f // 2 % 4],
                     chispa="mas" if f % 4 < 2 else "chica")
         pensamiento(lz, f, c.cx, SUELO - 2 - 21 + 1)
@@ -621,7 +833,7 @@ def cuadros_subagente(aspecto):
     saltos = [0, -2, -4, -2, 0, -2, -4, -2]
     cuadros = []
     for f, dy in enumerate(saltos):
-        lz = Lienzo(aspecto["color"])
+        lz = lienzo(aspecto)
         mascota(lz, aspecto, dx=-6, ojos="feliz" if f % 4 < 2 else "abierto", mirada=(1, 0),
                 inclinacion=(0, 1)[f % 2])
         ayudante(lz, f, CX + 9, dy)
@@ -634,7 +846,7 @@ def cuadros_limite(aspecto):
     respiro = [21, 21, 20, 20, 19, 19, 20, 20, 21, 21]
     cuadros = []
     for f, alto in enumerate(respiro):
-        lz = Lienzo(aspecto["color"])
+        lz = lienzo(aspecto)
         c = mascota(lz, aspecto, ancho=27, alto=alto, ojos="cerrado", boca_tipo="o" if 3 <= f <= 6 else "plana",
                     inclinacion="caida", rubor=False)
         zetas(lz, f, len(respiro), c.cx, SUELO - 2 - 21 + 1)
@@ -649,7 +861,7 @@ def cuadros_idle(aspecto, mirada=(0, 0)):
     respiro = [21] * 4 + [20] * 4 + [21] * 4 + [20] * 4
     cuadros = []
     for f, alto in enumerate(respiro):
-        lz = Lienzo(aspecto["color"])
+        lz = lienzo(aspecto)
         mascota(lz, aspecto, alto=alto, mirada=mirada, ojos="cerrado" if f == 13 else "abierto",
                 inclinacion=(0, 0, 1, 0, 0, 0, -1, 0)[f // 2])
         lz.borde_exterior(CREMA)
@@ -661,7 +873,7 @@ def cuadros_idle_mirar(aspecto):
     miradas = [(0, 0), (-1, 0), (-1, 0), (-1, 0), (0, 0), (1, 0), (1, 0), (1, 0), (0, 0), (0, -1), (0, -1), (0, 0)]
     cuadros = []
     for mirada in miradas:
-        lz = Lienzo(aspecto["color"])
+        lz = lienzo(aspecto)
         mascota(lz, aspecto, mirada=mirada, inclinacion=mirada[0])
         lz.borde_exterior(CREMA)
         cuadros.append(lz.img)
@@ -672,7 +884,7 @@ def cuadros_idle_saltito(aspecto):
     salto = [(0, 27, 19), (-3, 24, 23), (-5, 25, 21), (-3, 25, 22), (0, 27, 19), (0, 25, 21)]
     cuadros = []
     for f, (dy, ancho, alto) in enumerate(salto):
-        lz = Lienzo(aspecto["color"])
+        lz = lienzo(aspecto)
         mascota(lz, aspecto, dy=dy, ancho=ancho, alto=alto, ojos="feliz", en_aire=dy < 0,
                 brazos=("arriba", "arriba") if dy < 0 else ("abajo", "abajo"))
         lz.borde_exterior(CREMA)
@@ -687,7 +899,7 @@ def cuadros_idle_bostezo(aspecto):
              (21, "abajo", "sonrisa", "abierto")]
     cuadros = []
     for alto, brazos, boca_tipo, ojos in pasos:
-        lz = Lienzo(aspecto["color"])
+        lz = lienzo(aspecto)
         mascota(lz, aspecto, ancho=23 if alto == 23 else 25, alto=alto, brazos=(brazos, brazos),
                 boca_tipo=boca_tipo, ojos=ojos)
         lz.borde_exterior(CREMA)
@@ -698,7 +910,7 @@ def cuadros_idle_bostezo(aspecto):
 def cuadros_idle_saludo(aspecto):
     cuadros = []
     for f in range(8):
-        lz = Lienzo(aspecto["color"])
+        lz = lienzo(aspecto)
         mascota(lz, aspecto, ojos="feliz", brazos=("abajo", "ola1" if f % 2 == 0 else "ola2"),
                 inclinacion=(1, -1)[f % 2])
         lz.borde_exterior(CREMA)
@@ -711,7 +923,7 @@ def cuadros_caminar(aspecto):
     pasos = [((0, -2), -1), ((0, -1), 0), ((0, 0), 0), ((-2, 0), -1), ((-1, 0), 0), ((0, 0), 0)]
     cuadros = []
     for f, (pies, dy) in enumerate(pasos):
-        lz = Lienzo(aspecto["color"])
+        lz = lienzo(aspecto)
         mascota(lz, aspecto, dy=dy, pies=pies, mirada=(1, 0), inclinacion=(-1, 0, 0, -1, 0, 0)[f],
                 brazos=("lado", "abajo") if f < 3 else ("abajo", "lado"))
         lz.borde_exterior(CREMA)
@@ -719,10 +931,319 @@ def cuadros_caminar(aspecto):
     return cuadros, 110
 
 
+# --- efectos y animaciones de los estilos ------------------------------------
+# Entradas: los primeros CUADROS_DESLIZ cuadros se ven mientras la ventana se desliza desde el costado y
+# el resto ya quieta. Salidas: al revés, los últimos CUADROS_DESLIZ son el deslizamiento hacia afuera.
+# Están dibujadas llegando desde la derecha; en las esquinas izquierdas mascota.py las espeja.
+
+def mascara(img):
+    """Máscara (L) de lo dibujado en una imagen de la paleta."""
+    return indices(img).point(lambda i: 0 if i == TRANSP else 255)
+
+
+def indices(img):
+    """Los índices de la paleta de una imagen, como imagen L."""
+    from PIL import Image
+
+    return Image.frombytes("L", img.size, img.tobytes())
+
+
+def pegar(lz, img, detras=False):
+    """Pega lo dibujado en img sobre el lienzo; detras = solo donde el lienzo está vacío."""
+    from PIL import ImageChops
+
+    m = mascara(img)
+    if detras:
+        m = ImageChops.multiply(m, indices(lz.img).point(lambda i: 255 if i == TRANSP else 0))
+    lz.img.paste(img, (0, 0), m)
+
+
+def transformar(img, rot=0, cy=40):
+    """La mascota ya dibujada, inclinada rot grados alrededor de (CX, cy), sin suavizar."""
+    from PIL import Image
+
+    out = img.rotate(rot, resample=Image.NEAREST, center=(CX, cy), fillcolor=TRANSP)
+    out.info["transparency"] = TRANSP
+    return out
+
+
+def cuadro_estilo(aspecto, despues=None, inclinar=None, **kw):
+    """Un cuadro: la mascota (inclinada si hace falta), su borde claro y los efectos de despues(lz, c)."""
+    lz = lienzo(aspecto)
+    c = mascota(lz, aspecto, **kw)
+    if inclinar:
+        img = transformar(lz.img, *inclinar)
+        lz = lienzo(aspecto)
+        pegar(lz, img)
+    lz.borde_exterior(CREMA)
+    if despues:
+        despues(lz, c)
+    return lz.img
+
+
+def vacio(aspecto, efecto):
+    lz = lienzo(aspecto)
+    efecto(lz)
+    return lz.img
+
+
+def humo(lz, t, cx=28, cy=42, detras=False):
+    """Bomba de humo: t va de 0 (estalla) a 1 (se disipó)."""
+    capa = Lienzo()
+    azar = random.Random(3)
+    for i in range(9):
+        ang = i / 9 * 2 * math.pi + azar.random() * 0.5
+        dist = 4 + 13 * t
+        r = max(0, round((3 + azar.random() * 3) * (1.2 - t) + 2 * t * (1 - t) * 4))
+        x, y = cx + math.cos(ang) * dist, cy + math.sin(ang) * dist * 0.65 - 6 * t
+        if r <= 0:
+            continue
+        capa.elipse((x - r - 1, y - r - 1, x + r + 1, y + r + 1), NUBE_OSC)
+        capa.elipse((x - r, y - r, x + r, y + r), NUBE)
+        if r > 2:
+            capa.px(round(x - r / 2), round(y - r / 2), BLANCO)
+    if t < 0.35:
+        r = round(9 * (0.35 - t) / 0.35) + 2
+        capa.elipse((cx - r, cy - r, cx + r, cy + r), NUBE)
+        capa.elipse((cx - r // 2, cy - r // 2, cx + r // 2, cy + r // 2), BLANCO)
+    pegar(lz, capa.img, detras)
+
+
+def nube_rodante(lz, f, lado, cx=28, cy=41):
+    """El ninja escondido en una nube de humo que rueda; lado: hacia dónde quedan las líneas de velocidad."""
+    capa = Lienzo()
+    bultos = []
+    for k in range(7):
+        ang = k / 7 * 2 * math.pi - lado * f * 0.55
+        bultos.append((cx + math.cos(ang) * 9, cy + math.sin(ang) * 8, 4 + k % 2))
+    capa.elipse((cx - 10, cy - 9, cx + 10, cy + 9), NUBE_OSC)
+    for x, y, r in bultos:
+        capa.elipse((x - r - 1, y - r - 1, x + r + 1, y + r + 1), NUBE_OSC)
+    capa.elipse((cx - 9, cy - 8, cx + 9, cy + 8), NUBE)
+    for x, y, r in bultos:
+        capa.elipse((x - r, y - r, x + r, y + r), NUBE)
+        capa.px(round(x - 1), round(y - r + 1), BLANCO)
+    for k, yy in enumerate((cy - 6, cy, cy + 6)):  # líneas de velocidad
+        x0 = cx + lado * (15 + (f + k) % 3 * 2)
+        capa.pxs([(x0 + lado * i, yy) for i in range(5 - k % 2)], NUBE)
+    capa.pxs([(cx - 2, cy - 1), (cx - 1, cy - 1)], ROJO)  # se asoma un poquito la vincha
+    pegar(lz, capa.img)
+
+
+def shuriken(lz, x, y, f):
+    forma = ([(0, 0), (1, 0), (2, 0), (-1, 0), (-2, 0), (0, 1), (0, 2), (0, -1), (0, -2)] if f % 2 == 0 else
+             [(0, 0), (1, 1), (2, 2), (-1, -1), (-2, -2), (1, -1), (2, -2), (-1, 1), (-2, 2)])
+    lz.figura([(x + a, y + b) for a, b in forma], NUBE)
+    lz.px(x, y, CONT)
+
+
+def corazones(lz, f):
+    for i, x0 in enumerate((6, 45, 12, 40)):
+        y = 30 - ((f * 3 + i * 9) % 30)
+        x = x0 + round(math.sin(f / 2 + i) * 1.5)
+        lz.figura([(x + a, y + b) for a, b in CORAZON], RUBOR)
+
+
+def petalos(lz, f, n=10, semilla=5):
+    azar = random.Random(semilla)
+    for i in range(n):
+        x0, v = azar.randrange(0, 56), 2 + azar.random() * 2
+        y = round((azar.randrange(0, 56) + f * v) % 60 - 4)
+        x = round(x0 + math.sin(f / 2 + i) * 3)
+        lz.pxs([(x, y), (x + 1, y), (x, y + 1)] if (f + i) % 3 else [(x, y), (x + 1, y + 1)],
+               RUBOR if i % 2 else CREMA, detras=True)
+
+
+def estela_petalos(lz, f, lado):
+    """Ráfaga de pétalos detrás de Sakura mientras llega flotando (lado: hacia dónde queda la estela)."""
+    azar = random.Random(11)
+    for i in range(16):
+        x = CX + lado * (10 + azar.randrange(0, 18)) + lado * ((f * 2 + i) % 5)
+        y = 18 + azar.randrange(0, 32) + (f + i) % 3
+        lz.pxs([(x, y), (x + 1, y), (x, y + 1)] if (f + i) % 3 else [(x, y), (x + 1, y + 1)],
+               RUBOR if i % 2 else CREMA, detras=True)
+
+
+def tilde(lz, x, y, color):
+    puntos = [(0, 3), (1, 4), (2, 5), (3, 4), (4, 3), (5, 2), (6, 1), (7, 0)]
+    lz.figura([(x + a, y + b) for a, b in puntos] + [(x + a, y + b + 1) for a, b in puntos], color)
+
+
+def fuego(lz, c, f, largo):
+    """Llamas de los cohetes hacia abajo, bajo los pies del robot."""
+    for lado in (-1, 1):
+        x = c.cx + lado * 6
+        largo_pie = largo + (f + (lado > 0)) % 2
+        for i in range(largo_pie):
+            color = CHISPA if i < max(1, largo_pie // 3) else FUEGO if i < largo_pie - 1 else ROJO
+            lz.px(x, c.abajo + 2 + i, color)
+            if i < largo_pie - 1:
+                lz.px(x - 1, c.abajo + 2 + i, color)
+
+
+def fuego_lado(lz, c, f, lado, largo=11):
+    """Cohetes de los pies empujando hacia atrás mientras vuela (lado: hacia dónde sale el fuego)."""
+    for pie in (-1, 1):
+        x0, y0 = c.cx + pie * 6 + lado * 2, c.abajo
+        largo_pie = largo + (f + (pie > 0)) % 3 - 1 - (2 if pie == -lado else 0)
+        for i in range(largo_pie):
+            grosor = 3 if i < largo_pie * 0.45 else 2 if i < largo_pie - 2 else 1
+            color = BLANCO if i < 2 else CHISPA if i < largo_pie * 0.45 else FUEGO if i < largo_pie - 2 else ROJO
+            borde = {CHISPA: FUEGO, FUEGO: ROJO}.get(color, color)
+            x, yc = x0 + lado * i, y0 + i // 4
+            for k in range(grosor):
+                lz.px(x, yc - grosor // 2 + k, color if k == grosor // 2 or i < 2 else borde)
+    azar = random.Random(f)
+    for _ in range(4):  # chispas sueltas
+        lz.px(c.cx + lado * (12 + largo + azar.randrange(0, 6)), c.abajo + azar.randrange(-2, 4), CHISPA)
+
+
+def polvo(lz, t):
+    """Polvo que levanta el robot al aterrizar."""
+    for lado in (-1, 1):
+        for k in range(3):
+            x = CX + lado * (12 + t * 6 + k * 3)
+            r = max(0, round(2 - t * 2 + (k == 1)))
+            if r:
+                lz.elipse((x - r, SUELO - 1 - k - r, x + r, SUELO - 1 - k + r), NUBE)
+
+
+def cuerpo_en(dy=0, ancho=25, alto=21):
+    return Cuerpo(dy, ancho, alto)
+
+
+def cuadros_entrada(aspecto):
+    estilo, cs, ms = aspecto.get("estilo"), [], 65
+    if estilo == "ninja":
+        for i in range(CUADROS_DESLIZ):  # llega rodando escondido en una nube de humo
+            cs.append(vacio(aspecto, lambda lz, i=i: nube_rodante(lz, i, 1)))
+        for i, (t, detras) in enumerate([(.08, False), (.2, False), (.38, True), (.58, True), (.8, True), (1, True)]):
+            cs.append(cuadro_estilo(aspecto, ancho=26, alto=20, brazos=("lado", "abajo"), fase=i,
+                                    ojos="feliz" if i == 3 else "abierto",  # la nube estalla y queda en guardia
+                                    despues=lambda lz, c, t=t, detras=detras: humo(lz, t, 28, 42, detras)))
+    elif estilo == "robot":
+        for i in range(CUADROS_DESLIZ):  # vuela con los cohetes de los pies
+            dy = -5 + (0, -1, 0, 1)[i % 4]
+            cs.append(cuadro_estilo(aspecto, dy=dy, brazos=("lado", "lado"), en_aire=True, inclinar=(6, 44 + dy),
+                                    despues=lambda lz, c, dy=dy, i=i: fuego_lado(lz, cuerpo_en(dy), i, 1)))
+        for i, (dy, largo) in enumerate([(-3, 3), (-1, 2)]):  # baja
+            cs.append(cuadro_estilo(aspecto, dy=dy, brazos=("lado", "lado"), en_aire=True,
+                                    despues=lambda lz, c, i=i, largo=largo: fuego(lz, c, i, largo)))
+        cs.append(cuadro_estilo(aspecto, ancho=30, alto=17, ojos="cerrado", despues=lambda lz, c: polvo(lz, 0)))
+        cs.append(cuadro_estilo(aspecto, ancho=27, alto=19, ojos="apagado", despues=lambda lz, c: polvo(lz, 0.5)))
+        cs.append(cuadro_estilo(aspecto, ojos="apagado", despues=lambda lz, c: polvo(lz, 1)))
+        for ojos in ("abierto", "apagado", "feliz", "feliz"):  # se le prenden los ojos
+            cs.append(cuadro_estilo(aspecto, ojos=ojos))
+    elif estilo == "sakura":
+        ms = 70
+        for i in range(CUADROS_DESLIZ):  # llega flotando en una ráfaga de pétalos
+            dy = -7 + (0, -1, -1, 0)[i % 4]
+            cs.append(cuadro_estilo(aspecto, dy=dy, en_aire=True, ojos="feliz", brazos=("lado", "lado"),
+                                    despues=lambda lz, c, i=i: estela_petalos(lz, i, 1)))
+        for f, (dy, ancho, alto, brazos) in enumerate([(-4, 25, 21, ("lado", "lado")), (-1, 25, 21, ("lado", "lado")),
+                                                      (0, 28, 19, ("abajo", "abajo")), (0, 25, 21, ("abajo", "ola1")),
+                                                      (0, 25, 21, ("abajo", "ola2"))]):
+            cs.append(cuadro_estilo(aspecto, dy=dy, ancho=ancho, alto=alto, ojos="feliz", brazos=brazos, en_aire=dy < 0,
+                                    despues=lambda lz, c, f=f: petalos(lz, 8 + f, 8)))
+    else:
+        raise ValueError(f"el estilo {estilo!r} no tiene entrada propia")
+    return cs, ms
+
+
+def cuadros_salida(aspecto):
+    estilo, cs, ms = aspecto.get("estilo"), [], 65
+    if estilo == "ninja":
+        cs.append(cuadro_estilo(aspecto, ancho=26, alto=20, brazos=("lado", "abajo")))
+        cs.append(cuadro_estilo(aspecto, ancho=29, alto=18, brazos=("abajo", "abajo"), fase=1))
+        cs.append(cuadro_estilo(aspecto, ancho=29, alto=18, brazos=("abajo", "abajo"), fase=2,
+                                despues=lambda lz, c: humo(lz, .06, 28, 42)))
+        for i in range(CUADROS_DESLIZ):  # se envuelve en humo y se va rodando
+            cs.append(vacio(aspecto, lambda lz, i=i: nube_rodante(lz, i, -1)))
+    elif estilo == "robot":
+        cs.append(cuadro_estilo(aspecto, ojos="feliz", brazos=("abajo", "ola1")))
+        cs.append(cuadro_estilo(aspecto, ancho=29, alto=18, despues=lambda lz, c: fuego(lz, c, 0, 1)))
+        cs.append(cuadro_estilo(aspecto, ancho=29, alto=18, despues=lambda lz, c: fuego(lz, c, 1, 3)))
+        cs.append(cuadro_estilo(aspecto, dy=-3, brazos=("lado", "lado"), en_aire=True,
+                                despues=lambda lz, c: fuego(lz, c, 0, 4)))
+        for i in range(CUADROS_DESLIZ):  # despega y sale volando
+            dy = -5 + (0, -1, 0, 1)[i % 4]
+            cs.append(cuadro_estilo(aspecto, dy=dy, brazos=("lado", "lado"), en_aire=True, inclinar=(-6, 44 + dy),
+                                    despues=lambda lz, c, dy=dy, i=i: fuego_lado(lz, cuerpo_en(dy), i, -1)))
+    elif estilo == "sakura":
+        ms = 70
+        cs.append(cuadro_estilo(aspecto, ojos="feliz", brazos=("abajo", "ola1")))
+        cs.append(cuadro_estilo(aspecto, ojos="feliz", brazos=("abajo", "ola2")))
+        cs.append(cuadro_estilo(aspecto, ancho=28, alto=19, ojos="feliz", brazos=("abajo", "abajo")))
+        cs.append(cuadro_estilo(aspecto, dy=-4, en_aire=True, ojos="feliz", brazos=("lado", "lado"),
+                                despues=lambda lz, c: petalos(lz, 3, 6)))
+        for i in range(CUADROS_DESLIZ):  # se va flotando
+            dy = -7 + (0, -1, -1, 0)[i % 4]
+            cs.append(cuadro_estilo(aspecto, dy=dy, en_aire=True, ojos="feliz", brazos=("lado", "lado"),
+                                    despues=lambda lz, c, i=i: estela_petalos(lz, i, -1)))
+    else:
+        raise ValueError(f"el estilo {estilo!r} no tiene salida propia")
+    return cs, ms
+
+
+def cuadros_listo_ninja(aspecto):
+    """Se agacha, salta, tira un shuriken y vuelve a la guardia."""
+    pasos = [(0, 26, 20, "abierto", ("lado", "abajo")), (0, 30, 17, "abierto", ("abajo", "abajo")),
+             (-5, 24, 23, "feliz", ("arriba", "lado")), (-8, 25, 21, "feliz", ("arriba", "lado")),
+             (-5, 25, 21, "feliz", ("abajo", "lado")), (0, 30, 17, "abierto", ("abajo", "abajo")),
+             (0, 26, 20, "abierto", ("abajo", "lado")), (0, 26, 20, "abierto", ("abajo", "lado")),
+             (0, 26, 20, "feliz", ("abajo", "abajo")), (0, 26, 20, "feliz", ("abajo", "abajo")),
+             (0, 26, 20, "abierto", ("lado", "abajo")), (0, 26, 20, "abierto", ("lado", "abajo"))]
+    cs = [cuadro_estilo(aspecto, dy=dy, ancho=ancho, alto=alto, ojos=ojos, brazos=brazos, en_aire=dy < 0, fase=i,
+                        despues=lambda lz, c, i=i: shuriken(lz, 42 + (i - 6) * 4, 30 - (i - 6) * 2, i) if 6 <= i <= 10 else None)
+          for i, (dy, ancho, alto, ojos, brazos) in enumerate(pasos)]
+    return cs, 80
+
+
+def cuadros_listo_sakura(aspecto):
+    """Salta con corazones y pétalos."""
+    salto = [(0, 27, 19), (-4, 23, 25), (-8, 25, 23), (-10, 25, 21), (-8, 25, 22), (-4, 25, 23), (0, 29, 18),
+             (0, 27, 19), (0, 25, 21), (0, 25, 21)]
+    cs = [cuadro_estilo(aspecto, dy=dy, ancho=ancho, alto=alto, ojos="feliz", en_aire=dy < 0,
+                        boca_tipo="abierta" if dy < 0 else "sonrisa",
+                        brazos=("arriba", "arriba") if dy < 0 else ("lado", "lado"),
+                        despues=lambda lz, c, f=f: (corazones(lz, f), petalos(lz, f, 6)))
+          for f, (dy, ancho, alto) in enumerate(salto)]
+    return cs, 90
+
+
+def cuadros_listo_robot(aspecto):
+    """Salta con un empujoncito de los cohetes y aparece un tilde de luz."""
+    pasos = [(0, 25, 21, "abierto", ("abajo", "abajo"), 0), (0, 29, 18, "abierto", ("lado", "lado"), 0),
+             (-3, 24, 23, "feliz", ("arriba", "arriba"), 3), (-7, 25, 21, "feliz", ("arriba", "arriba"), 4),
+             (-9, 25, 21, "feliz", ("arriba", "arriba"), 3), (-6, 25, 21, "feliz", ("arriba", "arriba"), 2),
+             (-2, 25, 22, "feliz", ("lado", "lado"), 1), (0, 29, 18, "feliz", ("lado", "lado"), 0),
+             (0, 26, 20, "feliz", ("abajo", "lado"), 0), (0, 25, 21, "feliz", ("abajo", "ola1"), 0),
+             (0, 25, 21, "feliz", ("abajo", "ola2"), 0), (0, 25, 21, "abierto", ("abajo", "ola1"), 0)]
+
+    def efectos(lz, c, f, largo):
+        if largo:
+            fuego(lz, c, f, largo)
+        if f >= 2:
+            tilde(lz, 41, max(3, 13 - f * 2), LED)
+    cs = [cuadro_estilo(aspecto, dy=dy, ancho=ancho, alto=alto, ojos=ojos, brazos=brazos, en_aire=dy < 0,
+                        despues=lambda lz, c, f=f, largo=largo: efectos(lz, c, f, largo))
+          for f, (dy, ancho, alto, ojos, brazos, largo) in enumerate(pasos)]
+    return cs, 85
+
+
+LISTO_ESTILO = {"ninja": cuadros_listo_ninja, "sakura": cuadros_listo_sakura, "robot": cuadros_listo_robot}
+
+
+def tiene_entrada(aspecto) -> bool:
+    """Si el estilo aparece y se va con una animación propia (el Clásico solo se desliza)."""
+    return normalizar(aspecto)["estilo"] in CON_ENTRADA
+
+
 ESTADOS = {"listo": cuadros_listo, "permiso": cuadros_permiso, "error": cuadros_error, "caminar": cuadros_caminar,
            "pensando": cuadros_pensando, "subagente": cuadros_subagente, "limite": cuadros_limite,
            "idle": cuadros_idle, "idle_mirar": cuadros_idle_mirar, "idle_saltito": cuadros_idle_saltito,
-           "idle_bostezo": cuadros_idle_bostezo, "idle_saludo": cuadros_idle_saludo}
+           "idle_bostezo": cuadros_idle_bostezo, "idle_saludo": cuadros_idle_saludo,
+           "entrada": cuadros_entrada, "salida": cuadros_salida}
 IDLE_EXTRAS = ("idle_mirar", "idle_saltito", "idle_bostezo", "idle_saludo")
 CON_MIRADA = ("idle",)  # estados cuyos ojos pueden seguir al cursor
 
@@ -735,11 +1256,15 @@ def guardar_gif(cuadros, ms, ruta):
                     transparency=TRANSP, disposal=2, optimize=False)
 
 
+def carpeta_cache(a) -> str:
+    return f"v{VERSION}-{a['estilo']}-{a['color']}-{a['piel']}-{a['cabeza']}-{a['ropa']}-{a['accesorio']}"
+
+
 def gif(aspecto, estado, mirada=None) -> Path:
     """Ruta del GIF de ese aspecto y estado; lo dibuja la primera vez que se pide."""
     a = normalizar(aspecto)
     nombre = estado if mirada is None else f"{estado}_m{mirada[0] + 1}{mirada[1] + 1}"
-    ruta = CACHE / f"v{VERSION}-{a['color']}-{a['cabeza']}-{a['ropa']}-{a['accesorio']}" / f"{nombre}.gif"
+    ruta = CACHE / carpeta_cache(a) / f"{nombre}.gif"
     if not ruta.is_file():
         ruta.parent.mkdir(parents=True, exist_ok=True)
         cuadros, ms = ESTADOS[estado](a) if mirada is None else ESTADOS[estado](a, mirada)
@@ -756,7 +1281,7 @@ def gif_celular(aspecto, estado, fondo=(0x1C, 0x15, 0x13), escala=6) -> Path:
 
     a = normalizar(aspecto)
     color = "%02x%02x%02x" % tuple(fondo)
-    ruta = (CACHE / f"v{VERSION}-{a['color']}-{a['cabeza']}-{a['ropa']}-{a['accesorio']}"
+    ruta = (CACHE / carpeta_cache(a)
             / f"celular-{estado}-{color}-{escala}.gif")
     if not ruta.is_file():
         ruta.parent.mkdir(parents=True, exist_ok=True)
@@ -780,7 +1305,7 @@ def miniatura(aspecto, recorte=(4, 14, 52, 56), escala=2) -> bytes:
     from PIL import Image
 
     a = normalizar(aspecto)
-    lz = Lienzo(a["color"])
+    lz = lienzo(a)
     mascota(lz, a)
     lz.borde_exterior(CREMA)
     img = lz.img.crop(recorte).convert("RGBA")

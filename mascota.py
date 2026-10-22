@@ -827,6 +827,9 @@ def pintar_sombra(p, cx: float, base: float, ancho: float) -> None:
     p.restore()
 
 
+FONDO_CARTEL = {"clasico": (30, 22, 19), "sakura": (34, 22, 28), "ninja": (22, 22, 24), "robot": (18, 25, 32)}
+
+
 class Cartel:
     """Mide y dibuja el cartel debajo de la mascota: mensaje, resumen, datos y botones."""
 
@@ -844,6 +847,7 @@ class Cartel:
         self.botones: list[str] = []
         self.zonas: dict[str, object] = {}  # botón -> rectángulo en coordenadas del widget
         self.tema = "oscuro"
+        self.estilo = "clasico"  # en el tema oscuro, el fondo toma un tinte del estilo de la mascota
         self.ancho = self.alto = self.texto_h = self.resumen_h = self.meta_h = 0.0
 
     def medir(self, mensaje: str, resumen: str = "", meta: str = "", botones=()) -> None:
@@ -886,7 +890,8 @@ class Cartel:
             base = {"fondo": QColor(acento.red(), acento.green(), acento.blue(), 246), "texto": QColor(28, 21, 19),
                     "barra": QColor(28, 21, 19, 120), "borde": QColor(28, 21, 19, 60), "tinta": QColor(28, 21, 19)}
         else:
-            base = {"fondo": QColor(30, 22, 19, 236), "texto": QColor(255, 247, 240), "barra": acento,
+            base = {"fondo": QColor(*FONDO_CARTEL.get(self.estilo, FONDO_CARTEL["clasico"]), 236),
+                    "texto": QColor(255, 247, 240), "barra": acento,
                     "borde": QColor(acento.red(), acento.green(), acento.blue(), 110), "tinta": QColor(255, 247, 240)}
         base["suave"], base["tenue"], base["boton"] = (QColor(base["tinta"]), QColor(base["tinta"]),
                                                        QColor(base["tinta"]))
@@ -1117,6 +1122,17 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             self.anim = QVariantAnimation(self)
             self.anim.valueChanged.connect(self.al_mover)
             self.anim.finished.connect(self.al_terminar_anim)
+            # Estilos con entrada y salida propias (humo, cohetes, pétalos): cuadros que se ven mientras
+            # se desliza; al salir, el cartel se va primero (k_cartel) y después la mascota.
+            self.especial: list[tuple[QPixmap, int]] | None = None
+            self.fase_especial, self.cuadro_especial = "", 0
+            self.k_cartel = 1.0
+            self.anim_cartel = QVariantAnimation(self, startValue=1.0, endValue=0.0)
+            self.anim_cartel.setEasingCurve(QEasingCurve.Type.InCubic)
+            self.anim_cartel.valueChanged.connect(lambda v: (setattr(self, "k_cartel", float(v)), self.update()))
+            self.timer_salida = QTimer(self, singleShot=True)
+            self.timer_salida.timeout.connect(
+                lambda: self.animar(0.0, self.ms_desliz(self.especial[-sprites.CUADROS_DESLIZ:]) if self.especial else 480))
             self.anim_rebote = QVariantAnimation(self, startValue=0.0, endValue=1.0, duration=420)
             self.anim_rebote.valueChanged.connect(lambda v: (setattr(self, "rebote", v), self.update()))
             self.timer_mirada = QTimer(self, interval=90, timeout=self.seguir_cursor)
@@ -1162,6 +1178,7 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             self.base["aspecto"] = sprites.normalizar(self.base["aspecto"])
             self.compania = self.base["modo"] == "compania"
             self.cartel.tema = self.base["tema"] if self.base["tema"] in TEMAS else "oscuro"
+            self.cartel.estilo = self.base["aspecto"]["estilo"]
             self.respuesta = d.get("respuesta")
             self.ventana_terminal = int(d.get("ventana") or 0)
             self.dpr = self.pantalla().devicePixelRatio()  # cada monitor puede tener otra escala
@@ -1197,11 +1214,39 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             if not self.isVisible() and not self.oculta_por_pantalla:
                 self.show()
             self.saliendo = False
+            self.cancelar_salida_especial()
             if en_su_lugar:
                 self.anim_rebote.stop()
                 self.anim_rebote.start()
+            elif self.t <= 0.001 and self.con_entrada_propia():
+                self.empezar_especial("entrada")
+                self.animar(1.0, self.ms_desliz(self.especial[:sprites.CUADROS_DESLIZ]))
             else:
                 self.animar(1.0, 650)
+
+        def con_entrada_propia(self) -> bool:
+            """Aviso que entra desde el costado con un estilo que tiene entrada y salida propias."""
+            return (not self.compania and self.deslizar and not self.base.get("imagen")
+                    and sprites.tiene_entrada(self.base["aspecto"]))
+
+        def ms_desliz(self, cuadros: list) -> int:
+            """Duración de la línea de tiempo para que la mascota se deslice justo mientras pasan esos cuadros."""
+            return int(sum(ms for _, ms in cuadros) / (1 - self.RETRASO))
+
+        def empezar_especial(self, fase: str) -> None:
+            self.especial, self.fase_especial, self.cuadro_especial = self.cargar(fase), fase, -1
+            self.timer_cuadro.stop()
+            self.siguiente_cuadro()
+
+        def cancelar_salida_especial(self) -> None:
+            """Llegó otro aviso mientras se iba: vuelve con el cartel en su lugar."""
+            self.timer_salida.stop()
+            self.anim_cartel.stop()
+            self.k_cartel = 1.0
+            if self.fase_especial == "salida":
+                self.especial, self.fase_especial = None, ""
+                self.cuadro = -1
+                self.siguiente_cuadro()
 
         def cambiar_estado(self, estado: str) -> None:
             self.estado, self.extra = estado, None
@@ -1468,6 +1513,16 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
         # animaciones y temporizador
 
         def siguiente_cuadro(self) -> None:
+            if self.especial:
+                if self.cuadro_especial + 1 < len(self.especial):
+                    self.cuadro_especial += 1
+                    self.update()
+                    self.timer_cuadro.start(self.especial[self.cuadro_especial][1])
+                    return
+                if self.fase_especial == "salida":
+                    return  # queda en el último cuadro hasta que termina de irse
+                self.especial, self.fase_especial = None, ""  # terminó la entrada: sigue el estado
+                self.cuadro = -1
             if self.extra and self.cuadro + 1 >= len(self.cuadros):  # terminó el extra: vuelve al reposo
                 self.cambiar_estado("idle")
                 return
@@ -1527,6 +1582,14 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             if self.saliendo:
                 return
             self.saliendo = True
+            if not rapido and self.t >= 0.999 and self.con_entrada_propia():
+                # Se prepara quieta mientras el cartel se va, y después sale por el costado con su animación.
+                self.empezar_especial("salida")
+                quieta = sum(ms for _, ms in self.especial[:-sprites.CUADROS_DESLIZ]) or 1
+                self.anim_cartel.setDuration(quieta)
+                self.anim_cartel.start()
+                self.timer_salida.start(quieta)
+                return
             self.animar(0.0, 300 if rapido else 480)
 
         def terminar(self) -> None:
@@ -1741,7 +1804,7 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             if self.deslizar:
                 recorrido = self.width() * self.direccion  # desde afuera de la ventana
                 corrida_mascota = (1 - self.avance(0.0)) * recorrido
-                corrida_cartel = (1 - self.avance(self.RETRASO)) * recorrido
+                corrida_cartel = (1 - self.avance(self.RETRASO) * self.k_cartel) * recorrido
             else:  # lejos del borde: aparece y se va con un fundido
                 p.setOpacity(min(1.0, max(0.0, self.t)))
                 corrida_mascota = corrida_cartel = 0.0
@@ -1755,7 +1818,10 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             rebote = 1 + 0.12 * math.sin(math.pi * self.rebote) * (1 - self.rebote)
             p.translate(cx, base)
             espejo = -1 if self.espejo else 1
-            if self.chicos and self.salida < 0.02:  # quieta en el borde: cuadros chicos, nítidos
+            if self.especial:  # entrada o salida del estilo: dibujadas llegando desde la derecha
+                pm = self.especial[max(0, self.cuadro_especial) % len(self.especial)][0]
+                p.scale(-rebote if self.direccion < 0 else rebote, rebote)
+            elif self.chicos and self.salida < 0.02:  # quieta en el borde: cuadros chicos, nítidos
                 pm = self.chicos[self.cuadro % len(self.chicos)][0]
                 p.scale(espejo * rebote, rebote)
             else:

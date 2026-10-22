@@ -35,7 +35,7 @@ if __name__ == "__main__" and "--ventana" not in sys.argv[1:]:
     m.lanzar_desacoplado([str(Path(__file__).resolve()), "--ventana"])
     os._exit(0)
 
-from PyQt6.QtCore import (QElapsedTimer, QLibraryInfo, QPointF, QRectF, QSize, Qt, QTimer,  # noqa: E402
+from PyQt6.QtCore import (QEasingCurve, QElapsedTimer, QLibraryInfo, QPointF, QRectF, QSize, Qt, QTimer,  # noqa: E402
                           QTranslator, QUrl, pyqtSignal)
 from PyQt6.QtGui import (QColor, QDesktopServices, QIcon, QImageReader, QKeySequence, QLinearGradient, QPainter,  # noqa: E402
                          QPainterPath, QPalette, QPen, QPixmap, QShortcut)
@@ -77,11 +77,28 @@ RECORTES = {"cabeza": (12, 18, 44, 42), "ropa": (10, 30, 46, 55), "accesorio": (
 UI = (m.ASSETS / "ui").as_posix()  # flechas de las listas desplegables (una por tema)
 C_OSCURO = {"fondo": "#1C1513", "panel": "#251D1A", "campo": "#2F2623", "borde": "#43362F",
             "texto": "#F4EDE8", "suave": "#B3A39A", "acento": "#D97757", "acento2": "#E8906F",
-            "flecha": f"{UI}/flecha-oscuro.svg"}
+            "sobre": "#1C1513", "flecha": f"{UI}/flecha-oscuro.svg"}
 C_CLARO = {"fondo": "#F3EDE6", "panel": "#FFFBF7", "campo": "#EFE6DD", "borde": "#D9CBBE",
            "texto": "#2B1A14", "suave": "#7A675C", "acento": "#C8643F", "acento2": "#D97757",
-           "flecha": f"{UI}/flecha-claro.svg"}
-C = dict(C_OSCURO)  # colores en uso: el tema claro los reemplaza en el lugar
+           "sobre": "#1C1513", "flecha": f"{UI}/flecha-claro.svg"}
+CLAVES_PALETA = ("fondo", "panel", "campo", "borde", "texto", "suave", "acento", "acento2", "sobre")
+# Cada estilo cambia solo los colores de esta ventana (oscuro, claro); el Clásico es el de siempre.
+PALETAS = {
+    "clasico": (C_OSCURO, C_CLARO),
+    "sakura": (dict(zip(CLAVES_PALETA, ("#1E1418", "#281B21", "#33232B", "#4A3440", "#F8EAF0", "#BDA2AF", "#E8709F",
+                                       "#F090B6", "#1E1418")), flecha=C_OSCURO["flecha"]),
+               dict(zip(CLAVES_PALETA, ("#F7EEF2", "#FFFAFC", "#F1E4EA", "#E0CBD5", "#2E1823", "#7C5F6C", "#D4558A",
+                                       "#E8709F", "#1E1418")), flecha=C_CLARO["flecha"])),
+    "ninja": (dict(zip(CLAVES_PALETA, ("#141416", "#1B1B1E", "#252528", "#3A3A40", "#EFEFF1", "#A3A3AB", "#E0453F",
+                                      "#EA6863", "#141416")), flecha=C_OSCURO["flecha"]),
+              dict(zip(CLAVES_PALETA, ("#EFEFF1", "#FBFBFC", "#E6E6E9", "#D0D0D6", "#18181B", "#5F5F68", "#CC2F2A",
+                                      "#E0453F", "#FFFFFF")), flecha=C_CLARO["flecha"])),
+    "robot": (dict(zip(CLAVES_PALETA, ("#121820", "#18212A", "#212C37", "#344352", "#E7EEF4", "#9AA9B6", "#39B6D6",
+                                      "#5FC8E2", "#121820")), flecha=C_OSCURO["flecha"]),
+              dict(zip(CLAVES_PALETA, ("#EDF2F6", "#F9FBFD", "#E3EAF0", "#CCD7E0", "#142029", "#5B6B78", "#1F97B8",
+                                      "#39B6D6", "#121820")), flecha=C_CLARO["flecha"])),
+}
+C = dict(C_OSCURO)  # colores en uso: el tema y el estilo los reemplazan en el lugar
 ESTILO = """
 QWidget { color: %(texto)s; font-family: "Segoe UI"; font-size: 10pt; }
 QWidget#raiz { background: %(fondo)s; }
@@ -89,6 +106,8 @@ QLabel#titulo { font-size: 15pt; font-weight: 600; }
 QLabel#subtitulo, QLabel#ayuda, QLabel#estado, QLabel#valor { color: %(suave)s; }
 QLabel#ayuda { font-size: 9pt; }
 QLabel#seccion { color: %(suave)s; font-size: 8pt; font-weight: 700; }
+QLabel#beta { background: %(acento)s; color: %(sobre)s; font-size: 7pt; font-weight: 700; border-radius: 4px;
+              padding: 0 5px; }
 QLabel#codigo { color: %(acento)s; font-size: 22pt; font-weight: 700; }
 QTabWidget::pane { border: 1px solid %(borde)s; border-radius: 12px; background: %(panel)s; top: -1px; }
 QTabBar::tab { background: transparent; color: %(suave)s; padding: 8px 9px; border: none;
@@ -99,12 +118,12 @@ QPushButton { background: %(campo)s; border: 1px solid %(borde)s; border-radius:
 QPushButton:hover { border-color: %(acento)s; }
 QPushButton:pressed { background: %(borde)s; }
 QPushButton:disabled { color: #6E605A; border-color: %(borde)s; }
-QPushButton#primario { background: %(acento)s; border-color: %(acento)s; color: #1C1513; font-weight: 600; }
+QPushButton#primario { background: %(acento)s; border-color: %(acento)s; color: %(sobre)s; font-weight: 600; }
 QPushButton#primario:hover { background: %(acento2)s; border-color: %(acento2)s; }
 QPushButton#segmento { border-radius: 0; padding: 6px 0; min-width: 88px; }
 QPushButton#segmento[pos="ini"] { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
 QPushButton#segmento[pos="fin"] { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
-QPushButton#segmento:checked { background: %(acento)s; border-color: %(acento)s; color: #1C1513; font-weight: 600; }
+QPushButton#segmento:checked { background: %(acento)s; border-color: %(acento)s; color: %(sobre)s; font-weight: 600; }
 QLineEdit { background: %(campo)s; border: 1px solid %(borde)s; border-radius: 8px; padding: 6px 9px;
             selection-background-color: %(acento)s; }
 QLineEdit:focus { border-color: %(acento)s; }
@@ -134,7 +153,7 @@ QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: center r
 QComboBox::down-arrow { image: url(%(flecha)s); width: 12px; height: 8px; }
 QComboBox::down-arrow:on { top: 1px; }
 QComboBox QAbstractItemView { background: %(campo)s; border: 1px solid %(borde)s; padding: 4px; outline: none;
-                              selection-background-color: %(acento)s; selection-color: #1C1513; }
+                              selection-background-color: %(acento)s; selection-color: %(sobre)s; }
 QToolButton#idioma { background: %(campo)s; border: 1px solid %(borde)s; border-radius: 8px;
                      padding: 5px 26px 5px 9px; font-weight: 600; }
 QToolButton#idioma:hover, QToolButton#idioma:open { border-color: %(acento)s; }
@@ -142,7 +161,7 @@ QToolButton#idioma::menu-indicator { image: url(%(flecha)s); width: 12px; height
                                      subcontrol-origin: padding; subcontrol-position: center right; right: 9px; }
 QMenu { background: %(campo)s; border: 1px solid %(borde)s; padding: 4px; }
 QMenu::item { padding: 6px 18px 6px 10px; border-radius: 6px; }
-QMenu::item:selected { background: %(acento)s; color: #1C1513; }
+QMenu::item:selected { background: %(acento)s; color: %(sobre)s; }
 QMenu::icon { padding-left: 6px; }
 """  # se completa con C (ver aplicar_tema)
 if m.MAC:
@@ -151,10 +170,12 @@ if m.MAC:
                     ESTILO.replace('font-family: "Segoe UI"; ', ""))
 
 
-def aplicar_tema(tema: str) -> None:
-    """Tema de la ventana: el claro usa colores claros; oscuro y acento, los oscuros."""
+def aplicar_tema(tema: str, estilo: str = "clasico") -> None:
+    """Tema de la ventana: el claro usa colores claros; oscuro y acento, los oscuros. Cada estilo de
+    mascota tiene su propia versión de esos colores."""
+    oscuro, claro = PALETAS.get(estilo, PALETAS["clasico"])
     C.clear()
-    C.update(C_CLARO if tema == "claro" else C_OSCURO)
+    C.update(claro if tema == "claro" else oscuro)
     app = QApplication.instance()
     paleta = QPalette()
     for rol, color in ((QPalette.ColorRole.Window, C["fondo"]), (QPalette.ColorRole.WindowText, C["texto"]),
@@ -391,11 +412,15 @@ class Interruptor(QCheckBox):
 
 
 class MuestraColor(QAbstractButton):
-    """Un círculo de color para elegir el color de la mascota."""
+    """Un círculo de color para elegir el color de la mascota (o, con pieles=True, el tono de piel del ninja)."""
 
-    def __init__(self, color_id: str):
+    def __init__(self, color_id: str, pieles: bool = False):
         super().__init__()
-        nombre, cuerpo, sombra, _ = sprites.COLORES[color_id]
+        if pieles:
+            nombre, cuerpo = sprites.PIELES[color_id]
+            sombra = tuple(round(x * 0.78) for x in cuerpo)
+        else:
+            nombre, cuerpo, sombra, _ = sprites.COLORES[color_id]
         self.color_id, self.cuerpo, self.sombra = color_id, QColor(*cuerpo), QColor(*sombra)
         self.setCheckable(True)
         self.setToolTip(t(nombre))
@@ -565,41 +590,97 @@ class SelectorEsquina(QWidget):
             p.drawRoundedRect(QRectF(7, 1, 190, 112), 10, 10)
 
 
+def cuadro_en(cuadros: list, ms: float, repetir: bool = True):
+    """El cuadro que se ve a los ms de empezar una animación (la última imagen si no se repite)."""
+    total = sum(d for _, d in cuadros)
+    ms = ms % total if repetir else min(ms, total - 1)
+    for pm, d in cuadros:
+        if ms < d:
+            return pm
+        ms -= d
+    return cuadros[-1][0]
+
+
 class VistaPrevia(QWidget):
-    """Dibuja la mascota y el cartel tal como se ven en el aviso real."""
+    """Dibuja el aviso completo tal como se ve en la pantalla: la mascota entra desde el costado (con la
+    animación de su estilo, si tiene), avisa con el cartel durante la duración elegida, se va y vuelve."""
+
+    RETRASO = 0.18   # como en mascota.py: el cartel llega un poco después que la mascota
+    ENTRADA, SALIDA, PAUSA = 650, 480, 900  # ms del Clásico (solo se desliza) y de la pausa entre avisos
 
     def __init__(self):
         super().__init__()
         self.setMinimumSize(330, 410)
         self.cartel = m.Cartel()
         self.cuadros: list = []
-        self.cuadro, self.clave, self.estado, self.duracion = 0, None, "listo", 5.0
+        self.entrada = self.salida = None
+        self.clave, self.estado, self.duracion, self.fase = None, "listo", 5.0, "entrada"
+        self.curva = QEasingCurve(QEasingCurve.Type.OutBack)
+        self.curva.setOvershoot(1.2)
         self.reloj = QElapsedTimer()
         self.reloj.start()
-        self.timer_cuadro = QTimer(self, singleShot=True, timeout=self.siguiente_cuadro)
-        self.tic = QTimer(self, interval=40, timeout=self.update)
+        self.tic = QTimer(self, interval=30, timeout=self.update)
         self.tic.start()
 
     def mostrar(self, config: dict, estado: str, mensaje: str, resumen: str, meta: str, botones=()) -> None:
         dpr = self.devicePixelRatioF()
         clave = (json.dumps(config["aspecto"], sort_keys=True), config["imagen"], estado, config["tamano"], dpr)
-        if clave != self.clave:
+        if clave != self.clave:  # otra mascota u otro estado: el aviso vuelve a empezar
             self.clave = clave
-            self.cuadros = m.cargar_cuadros(config["aspecto"], config["imagen"], estado, config["tamano"], dpr)
-            self.cuadro = -1
-            self.siguiente_cuadro()
-        if config["duracion"] != self.duracion:
-            self.duracion = config["duracion"]
+            aspecto, imagen, tamano = config["aspecto"], config["imagen"], config["tamano"]
+            self.cuadros = m.cargar_cuadros(aspecto, imagen, estado, tamano, dpr)
+            propia = not imagen and sprites.tiene_entrada(aspecto)
+            self.entrada = m.cargar_cuadros(aspecto, imagen, "entrada", tamano, dpr) if propia else None
+            self.salida = m.cargar_cuadros(aspecto, imagen, "salida", tamano, dpr) if propia else None
+            self.fase = "entrada"
             self.reloj.restart()
+        self.duracion = config["duracion"]
         self.estado = estado
         self.cartel.tema = config["tema"]
+        self.cartel.estilo = config["aspecto"]["estilo"]
         self.cartel.medir(mensaje, resumen, meta, botones)
         self.update()
 
-    def siguiente_cuadro(self) -> None:
-        self.cuadro = (self.cuadro + 1) % len(self.cuadros)
-        self.update()
-        self.timer_cuadro.start(self.cuadros[self.cuadro][1])
+    def avance(self, t: float, retraso: float) -> float:
+        return self.curva.valueForProgress(min(1.0, max(0.0, (t - retraso) / (1 - self.RETRASO))))
+
+    def momento(self):
+        """(cuadro, línea de tiempo 0..1, cuánto queda del cartel 0..1, barra del cartel) según la fase."""
+        n = sprites.CUADROS_DESLIZ
+        dt = self.reloj.elapsed()
+        siguiente = None
+        pm, t, k, barra = None, 1.0, 1.0, 1.0
+        if self.fase == "entrada":
+            if self.entrada:
+                largo = sum(d for _, d in self.entrada[:n]) / (1 - self.RETRASO)
+                pm, t = cuadro_en(self.entrada, dt, repetir=False), min(1.0, dt / largo)
+                fin = max(largo, sum(d for _, d in self.entrada))
+            else:
+                pm, t, fin = cuadro_en(self.cuadros, dt), min(1.0, dt / self.ENTRADA), self.ENTRADA
+            siguiente = "estado" if dt >= fin else None
+        elif self.fase == "estado":
+            ms = max(1000, self.duracion * 1000)
+            pm, barra = cuadro_en(self.cuadros, dt), 1 - min(1.0, dt / ms)
+            siguiente = "salida" if dt >= ms else None
+        elif self.fase == "salida":
+            barra = 0.0
+            if self.salida:
+                quieta = sum(d for _, d in self.salida[:-n]) or 1
+                largo = sum(d for _, d in self.salida[-n:]) / (1 - self.RETRASO)
+                pm = cuadro_en(self.salida, dt, repetir=False)
+                k = 1 - min(1.0, dt / quieta) ** 3  # el cartel se va primero
+                t = 1 - min(1.0, max(0.0, (dt - quieta) / largo))
+                siguiente = "pausa" if dt >= quieta + largo else None
+            else:
+                pm, t = cuadro_en(self.cuadros, dt), 1 - min(1.0, dt / self.SALIDA)
+                siguiente = "pausa" if dt >= self.SALIDA else None
+        else:
+            t = 0.0
+            siguiente = "entrada" if dt >= self.PAUSA else None
+        if siguiente:
+            self.fase = siguiente
+            self.reloj.restart()
+        return pm, t, k, barra
 
     def paintEvent(self, evento) -> None:
         p = QPainter(self)
@@ -615,16 +696,21 @@ class VistaPrevia(QWidget):
         p.drawPath(forma)
         if not self.cuadros:
             return
-        pm = self.cuadros[self.cuadro][0]
+        pm, t, k, barra = self.momento()
+        if t <= 0 or pm is None:
+            return
         sw, sh = pm.width() / pm.devicePixelRatio(), pm.height() / pm.devicePixelRatio()
         arriba = r.top() + (r.height() - sh - 2 - self.cartel.alto) / 2
         cx = r.center().x()
+        recorrido = r.width()  # entra y sale por el costado derecho, como en la esquina por defecto
         p.setClipPath(forma)
+        p.save()
+        p.translate((1 - self.avance(t, 0.0)) * recorrido, 0)
         m.pintar_sombra(p, cx, arriba + sh, sw)
         p.drawPixmap(QPointF(cx - sw / 2, arriba), pm)
-        ms = max(1000, int(self.duracion * 1000))
-        self.cartel.pintar(p, cx, arriba + sh + 2, QColor(m.ESTADOS[self.estado]["acento"]),
-                           1 - (self.reloj.elapsed() % ms) / ms)
+        p.restore()
+        p.translate((1 - self.avance(t, self.RETRASO) * k) * recorrido, 0)
+        self.cartel.pintar(p, cx, arriba + sh + 2, QColor(m.ESTADOS[self.estado]["acento"]), barra)
 
 
 # --- ventana principal -------------------------------------------------------------
@@ -915,22 +1001,71 @@ class Ajustes(QWidget):
         caja.setContentsMargins(22, 18, 22, 18)
         caja.setSpacing(8)
 
-        caja.addWidget(seccion("Color"))
-        muestras = QHBoxLayout()
-        muestras.setSpacing(4)
+        titulo_estilo = QHBoxLayout()
+        titulo_estilo.setSpacing(6)
+        titulo_estilo.addWidget(seccion("Estilo"))
+        titulo_estilo.addWidget(QLabel(t("BETA"), objectName="beta"))
+        titulo_estilo.addStretch(1)
+        caja.addLayout(titulo_estilo)
+        self.galeria_estilos = Galeria(QSize(96, 84), ancho=118)
+        self.galeria_estilos.elegido.connect(self.cambiar_estilo)
+        caja.addWidget(self.galeria_estilos)
+        caja.addWidget(ayuda("Cambia la cara de la mascota y cómo aparece, festeja y se va. El vestuario se mantiene."))
+
+        caja.addSpacing(10)
+        titulo_color = QHBoxLayout()
+        titulo_color.setSpacing(6)
+        titulo_color.addWidget(seccion("Color"))
+        self.color_de = QLabel(objectName="ayuda")
+        titulo_color.addWidget(self.color_de)
+        titulo_color.addStretch(1)
+        caja.addLayout(titulo_color)
         self.grupo_color = QButtonGroup(self)
         self.muestras = {}
-        for color_id in sprites.COLORES:
-            muestra = MuestraColor(color_id)
-            muestra.clicked.connect(lambda _, c=color_id: self.cambiar_aspecto("color", c))
-            self.grupo_color.addButton(muestra)
-            self.muestras[color_id] = muestra
-            muestras.addWidget(muestra)
-        self.nombre_color = QLabel(objectName="valor")
-        muestras.addSpacing(10)
-        muestras.addWidget(self.nombre_color)
-        muestras.addStretch(1)
-        caja.addLayout(muestras)
+        filas_color = [[]]  # por tono, y los neutros en otra fila
+        for color_id in sprites.ORDEN_COLORES:
+            if color_id is None:
+                filas_color.append([])
+            else:
+                filas_color[-1].append(color_id)
+        for numero, colores in enumerate(filas_color):
+            muestras = QHBoxLayout()
+            muestras.setSpacing(4)
+            for color_id in colores:
+                muestra = MuestraColor(color_id)
+                muestra.clicked.connect(lambda _, c=color_id: self.cambiar_aspecto("color", c))
+                self.grupo_color.addButton(muestra)
+                self.muestras[color_id] = muestra
+                muestras.addWidget(muestra)
+            if numero == len(filas_color) - 1:
+                self.nombre_color = QLabel(objectName="valor")
+                muestras.addSpacing(10)
+                muestras.addWidget(self.nombre_color)
+            muestras.addStretch(1)
+            caja.addLayout(muestras)
+        caja.addWidget(ayuda("Cada estilo guarda su propio color: cambiar este no cambia el de los otros."))
+
+        self.bloque_piel = QWidget()  # solo el Ninja: la cara se le ve por la franja de la máscara
+        piel = QVBoxLayout(self.bloque_piel)
+        piel.setContentsMargins(0, 10, 0, 0)
+        piel.setSpacing(8)
+        piel.addWidget(seccion("Piel"))
+        fila_piel = QHBoxLayout()
+        fila_piel.setSpacing(4)
+        self.grupo_piel = QButtonGroup(self)
+        self.muestras_piel = {}
+        for piel_id in sprites.PIELES:
+            muestra = MuestraColor(piel_id, pieles=True)
+            muestra.clicked.connect(lambda _, c=piel_id: self.cambiar_aspecto("piel", c))
+            self.grupo_piel.addButton(muestra)
+            self.muestras_piel[piel_id] = muestra
+            fila_piel.addWidget(muestra)
+        self.nombre_piel = QLabel(objectName="valor")
+        fila_piel.addSpacing(10)
+        fila_piel.addWidget(self.nombre_piel)
+        fila_piel.addStretch(1)
+        piel.addLayout(fila_piel)
+        caja.addWidget(self.bloque_piel)
 
         caja.addSpacing(10)
         caja.addWidget(seccion("Tamaño"))
@@ -1153,10 +1288,16 @@ class Ajustes(QWidget):
         self.galeria_imagenes.cargar(imagenes, self.config["imagen"])
         self.quitar.setEnabled(usando_imagen)
         self.aviso_imagen.setVisible(usando_imagen)
-        self.grupo_color.setExclusive(False)  # un grupo exclusivo no deja des-elegir a todos
-        for color_id, muestra in self.muestras.items():
-            muestra.setChecked(color_id == aspecto["color"] and not usando_imagen)
-        self.grupo_color.setExclusive(True)
+        estilos = [(e, t(nombre), miniatura(sprites.con_estilo(aspecto, e), "entera", dpr))
+                   for e, nombre in sprites.ESTILOS.items()]
+        self.galeria_estilos.cargar(estilos, None if usando_imagen else aspecto["estilo"])
+        for grupo, muestras, elegido in ((self.grupo_color, self.muestras, aspecto["color"]),
+                                         (self.grupo_piel, self.muestras_piel, aspecto["piel"])):
+            grupo.setExclusive(False)  # un grupo exclusivo no deja des-elegir a todos
+            for clave, muestra in muestras.items():
+                muestra.setChecked(clave == elegido and not usando_imagen)
+            grupo.setExclusive(True)
+        self.bloque_piel.setVisible(aspecto["estilo"] == "ninja")
         icono = (miniatura_imagen(m.IMAGENES / self.config["imagen"], QSize(48, 42), dpr) if usando_imagen
                  else miniatura(aspecto, "entera", dpr, escala=1))
         self.icono_cabecera.setPixmap(icono)
@@ -1171,6 +1312,8 @@ class Ajustes(QWidget):
             control.setEnabled(c["sonido"])
         self.valor_tamano.setText(f"{t(NOMBRES_TAMANO.get(c['tamano'], ''))} · {m.LADO_ARTE * c['tamano']} px")
         self.nombre_color.setText("" if c["imagen"] else t(sprites.COLORES[c["aspecto"]["color"]][0]))
+        self.color_de.setText("· " + t("de {estilo}", estilo=t(sprites.ESTILOS[c["aspecto"]["estilo"]])))
+        self.nombre_piel.setText(t(sprites.PIELES[c["aspecto"]["piel"]][0]))
         self.probar.setText(t("Probar aviso «{estado}»", estado=t(NOMBRES_ESTADO[self.estado_vista])))
         self.valor_umbral.setText(t("Siempre") if not c["umbral_segundos"] else m.formato_duracion(c["umbral_segundos"]))
         self.valor_espera.setText(f"{c['espera_permiso']} s")
@@ -1245,7 +1388,7 @@ class Ajustes(QWidget):
         self.escuchar(estado)
 
     def cambiar_tema(self, tema: str) -> None:
-        aplicar_tema(tema)
+        aplicar_tema(tema, self.config["aspecto"]["estilo"])
         self.cambiar("tema", tema)
 
     def cambiar_modo(self, modo: str) -> None:
@@ -1255,9 +1398,19 @@ class Ajustes(QWidget):
             m.lanzar_desacoplado([str(m.DIR / "mascota.py"), "--compania"])
 
     def cambiar_aspecto(self, parte: str, opcion: str) -> None:
-        """Elegir un color o una prenda vuelve a la mascota dibujada si había una imagen propia."""
+        """Elegir un color o una prenda vuelve a la mascota dibujada si había una imagen propia.
+        El color queda guardado para el estilo elegido (normalizar lo copia a "colores")."""
         self.config["aspecto"][parte] = opcion
+        self.config["aspecto"] = sprites.normalizar(self.config["aspecto"])
         self.config["imagen"] = ""
+        self.cargar_galerias()
+        self.cambio()
+
+    def cambiar_estilo(self, estilo: str) -> None:
+        """Otro estilo: su cara, sus animaciones y su color guardado; la ventana toma sus colores."""
+        self.config["aspecto"] = sprites.con_estilo(self.config["aspecto"], estilo)
+        self.config["imagen"] = ""
+        aplicar_tema(self.config["tema"], estilo)
         self.cargar_galerias()
         self.cambio()
 
@@ -1284,12 +1437,15 @@ class Ajustes(QWidget):
     def al_azar(self) -> None:
         for parte, opciones in sprites.OPCIONES.items():
             self.config["aspecto"][parte] = random.choice(list(opciones))
+        self.config["aspecto"] = sprites.normalizar(self.config["aspecto"])  # el color, solo para este estilo
         self.config["imagen"] = ""
         self.cargar_galerias()
         self.cambio()
 
     def sacar_todo(self) -> None:
-        self.config["aspecto"] = {**sprites.ASPECTO_DEFECTO, "color": self.config["aspecto"]["color"]}
+        a = self.config["aspecto"]
+        self.config["aspecto"] = sprites.normalizar({**sprites.ASPECTO_DEFECTO, **{
+            clave: a[clave] for clave in ("color", "colores", "estilo", "piel")}})
         self.config["imagen"] = ""
         self.cargar_galerias()
         self.cambio()
@@ -1351,9 +1507,10 @@ class Ajustes(QWidget):
         idioma, cel = self.config["idioma"], self.config["celular"]
         self.config = json.loads(json.dumps(m.CONFIG_DEFECTO))  # copia profunda
         self.config["idioma"] = idioma  # el idioma elegido se queda
+        self.config["aspecto"] = sprites.normalizar(self.config["aspecto"])
         for clave in ("llave", "conectado", "nombre"):  # y Telegram sigue conectado
             self.config["celular"][clave] = cel[clave]
-        aplicar_tema(self.config["tema"])
+        aplicar_tema(self.config["tema"], self.config["aspecto"]["estilo"])
         self.cargar_en_controles()
         self.cambio()
 
@@ -1534,7 +1691,7 @@ def ejecutar_ventana() -> int:
     ventanas.app_con_ventana()  # macOS: la app empaquetada arranca sin Dock (LSUIElement); los ajustes lo usan
     app.setStyle("Fusion")
     config = m.cargar_config()
-    aplicar_tema(config["tema"])
+    aplicar_tema(config["tema"], config["aspecto"]["estilo"])
     traducir_qt(app, config["idioma"])
 
     # Una sola ventana de ajustes: si ya hay una abierta, se la trae al frente.
