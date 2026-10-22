@@ -13,15 +13,18 @@ import ctypes
 import json
 import os
 import random
+import threading
 import re
 import shutil
 import subprocess
 import sys
+import time
 import traceback
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import mascota as m  # noqa: E402
+import celular  # noqa: E402
 import idiomas  # noqa: E402
 import sprites  # noqa: E402
 import ventanas  # noqa: E402
@@ -33,8 +36,8 @@ if __name__ == "__main__" and "--ventana" not in sys.argv[1:]:
     os._exit(0)
 
 from PyQt6.QtCore import (QElapsedTimer, QLibraryInfo, QPointF, QRectF, QSize, Qt, QTimer,  # noqa: E402
-                          QTranslator, pyqtSignal)
-from PyQt6.QtGui import (QColor, QIcon, QImageReader, QKeySequence, QLinearGradient, QPainter,  # noqa: E402
+                          QTranslator, QUrl, pyqtSignal)
+from PyQt6.QtGui import (QColor, QDesktopServices, QIcon, QImageReader, QKeySequence, QLinearGradient, QPainter,  # noqa: E402
                          QPainterPath, QPalette, QPen, QPixmap, QShortcut)
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket  # noqa: E402
 from PyQt6.QtCore import QFileSystemWatcher, QTime  # noqa: E402
@@ -51,6 +54,9 @@ NOMBRES_ESTADO = {"listo": "Listo", "permiso": "Permiso", "pensando": "Pensando"
 NOMBRES_EVENTO = {"Stop": "Cuando termina", "Notification": "Cuando necesita algo (permisos, preguntas)",
                   "UserPromptSubmit": "Mientras piensa", "SubagentStop": "Cuando termina un subagente",
                   "StopFailure": "Límite de uso o error de la API"}
+NOMBRES_CELULAR = {"listo": "Cuando termina", "permiso": "Cuando necesita algo (permisos, preguntas)",
+                   "subagente": "Cuando termina un subagente", "limite": "Cuando llega al límite de uso",
+                   "error": "Cuando hay un error de la API"}
 NOMBRES_CONTENIDO = {"resumen": "Resumen del último mensaje", "duracion": "Duración de la tarea",
                      "proyecto": "Proyecto o carpeta", "chat": "Título del chat"}
 NOMBRES_ESQUINA = {"arriba-derecha": "Arriba a la derecha", "arriba-izquierda": "Arriba a la izquierda",
@@ -83,9 +89,10 @@ QLabel#titulo { font-size: 15pt; font-weight: 600; }
 QLabel#subtitulo, QLabel#ayuda, QLabel#estado, QLabel#valor { color: %(suave)s; }
 QLabel#ayuda { font-size: 9pt; }
 QLabel#seccion { color: %(suave)s; font-size: 8pt; font-weight: 700; }
+QLabel#codigo { color: %(acento)s; font-size: 22pt; font-weight: 700; }
 QTabWidget::pane { border: 1px solid %(borde)s; border-radius: 12px; background: %(panel)s; top: -1px; }
-QTabBar::tab { background: transparent; color: %(suave)s; padding: 8px 11px; border: none;
-               border-bottom: 2px solid transparent; margin-right: 4px; font-weight: 600; }
+QTabBar::tab { background: transparent; color: %(suave)s; padding: 8px 9px; border: none;
+               border-bottom: 2px solid transparent; margin-right: 3px; font-weight: 600; }
 QTabBar::tab:selected { color: %(texto)s; border-bottom: 2px solid %(acento)s; }
 QTabBar::tab:hover { color: %(texto)s; }
 QPushButton { background: %(campo)s; border: 1px solid %(borde)s; border-radius: 8px; padding: 7px 14px; }
@@ -624,6 +631,7 @@ class VistaPrevia(QWidget):
 
 class Ajustes(QWidget):
     idioma_cambiado = pyqtSignal(str)
+    respuesta_telegram = pyqtSignal(str, object)  # (qué se pidió, resultado o texto del error)
 
     def __init__(self):
         super().__init__()
@@ -635,6 +643,11 @@ class Ajustes(QWidget):
         self.estado_vista = "listo"
         self.sonidos = m.Sonidos(self)
         self.timer_guardar = QTimer(self, singleShot=True, interval=300, timeout=self.guardar)
+        # Conectar Telegram: el código que se le muestra a la persona y la consulta al servidor hasta que
+        # se lo manda al bot.
+        self.codigo, self.consultando, self.fin_codigo = "", False, 0.0
+        self.timer_estado = QTimer(self, interval=2500, timeout=self.consultar_estado)
+        self.respuesta_telegram.connect(self.al_responder_telegram)
 
         raiz = QVBoxLayout(self)
         raiz.setContentsMargins(22, 18, 22, 16)
@@ -645,7 +658,8 @@ class Ajustes(QWidget):
         self.pestanas = QTabWidget()
         for pagina, titulo in ((self.pestana_notificacion(), "Notificación"),
                                (self.pestana_comportamiento(), "Comportamiento"), (self.pestana_mascota(), "Mascota"),
-                               (self.pestana_vestuario(), "Vestuario"), (self.pestana_estilo(), "Sonido y estilo")):
+                               (self.pestana_vestuario(), "Vestuario"), (self.pestana_estilo(), "Sonido y estilo"),
+                               (self.pestana_celular(), "Celular")):
             area = QScrollArea(widgetResizable=True, frameShape=QFrame.Shape.NoFrame)
             area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             area.setWidget(pagina)  # si la pantalla es chica, la pestaña se desplaza en vez de cortarse
@@ -660,6 +674,9 @@ class Ajustes(QWidget):
 
         self.cargar_en_controles()
         self.estado_guardado.setText(t("Los cambios se guardan solos"))
+        if self.config["celular"]["llave"] and self.config["celular"]["conectado"]:
+            llave = self.config["celular"]["llave"]  # ¿sigue conectado? (pudo mandar /stop desde Telegram)
+            self.en_segundo_plano("inicial", lambda: celular.estado(llave))
         m.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         self.vigia = QFileSystemWatcher([str(m.CONFIG_DIR)], self)
         self.vigia.directoryChanged.connect(lambda _: QTimer.singleShot(300, self.sincronizar))
@@ -963,6 +980,84 @@ class Ajustes(QWidget):
         caja.addLayout(botones)
         return pagina
 
+    def pestana_celular(self) -> QWidget:
+        pagina = QWidget()
+        caja = QVBoxLayout(pagina)
+        caja.setContentsMargins(22, 18, 22, 18)
+        caja.setSpacing(6)
+
+        caja.addWidget(seccion("Telegram"))
+        caja.addWidget(ayuda("Te manda los avisos a Telegram, con Wave animada: te enterás aunque no estés en la "
+                             "compu. Te escribe el bot oficial, @WaveNotificationBot."))
+        self.cel_activo, fila_activo = opcion("Mandarme los avisos a Telegram",
+                                              lambda v: self.cambiar_grupo("celular", "activo", v))
+        caja.addLayout(fila_activo)
+        self.cel_estado = QLabel(objectName="valor", wordWrap=True)
+        caja.addWidget(self.cel_estado)
+
+        self.cel_desconectado = QWidget()
+        boton = fila(QPushButton(t("Conectar con Telegram"), objectName="primario", clicked=self.conectar_telegram))
+        boton.setContentsMargins(0, 4, 0, 0)
+        boton.addStretch(1)
+        self.cel_conectar = boton.itemAt(0).widget()
+        self.cel_desconectado.setLayout(boton)
+        caja.addWidget(self.cel_desconectado)
+
+        # Mientras espera: el código, el botón que abre el bot y cómo seguir.
+        self.cel_esperando = QWidget()
+        espera = QVBoxLayout(self.cel_esperando)
+        espera.setContentsMargins(0, 4, 0, 0)
+        espera.setSpacing(6)
+        espera.addWidget(QLabel(t("Tu código:")))
+        self.cel_codigo = QLabel(objectName="codigo")
+        self.cel_codigo.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        espera.addWidget(self.cel_codigo)
+        botones = fila(QPushButton(t("Abrir @WaveNotificationBot"), objectName="primario",
+                                   clicked=lambda: self.abrir_enlace(celular.enlace_bot(self.codigo))),
+                       QPushButton(t("Copiar código"), clicked=lambda: QApplication.clipboard().setText(self.codigo)),
+                       QPushButton(t("Cancelar"), clicked=self.cancelar_codigo), espacio=8)
+        botones.addStretch(1)
+        espera.addLayout(botones)
+        espera.addWidget(ayuda("Se abre Telegram con el código listo: tocá «Iniciar» y listo. También podés "
+                               "escribirle el código al bot. Vence en 15 minutos."))
+        caja.addWidget(self.cel_esperando)
+
+        self.cel_conectado = QWidget()
+        conectado = fila(QPushButton(t("Mandar un aviso de prueba"), clicked=self.probar_telegram),
+                         QPushButton(t("Desconectar"), clicked=self.desconectar_telegram), espacio=8)
+        conectado.setContentsMargins(0, 4, 0, 0)
+        conectado.addStretch(1)
+        self.cel_conectado.setLayout(conectado)
+        caja.addWidget(self.cel_conectado)
+
+        caja.addSpacing(10)
+        caja.addWidget(seccion("Cuándo"))
+        self.cel_ausente, fila_ausente = opcion("Solo si no estoy usando la compu",
+                                                lambda v: self.cambiar_grupo("celular", "solo_ausente", v))
+        caja.addLayout(fila_ausente)
+        self.cel_etiqueta_minutos = QLabel(t("Sin tocar el mouse ni el teclado por"))
+        self.cel_minutos = QSlider(Qt.Orientation.Horizontal, minimum=1, maximum=30, pageStep=5)
+        self.cel_valor_minutos = valor()
+        self.cel_minutos.valueChanged.connect(lambda v: self.cambiar_grupo("celular", "minutos", v))
+        caja.addLayout(fila(self.cel_etiqueta_minutos, self.cel_minutos, self.cel_valor_minutos))
+        caja.addWidget(ayuda("Si estás en la compu te avisa solo la mascota, así no te llega todo dos veces. "
+                             "El silencio y el «no molestar» también valen para Telegram."))
+
+        caja.addSpacing(10)
+        caja.addWidget(seccion("Qué avisos"))
+        self.cel_estados = {}
+        for estado, texto in NOMBRES_CELULAR.items():
+            interruptor, fila_estado = opcion(texto, lambda v, e=estado: self.cambiar_estado_celular(e, v))
+            self.cel_estados[estado] = interruptor
+            caja.addLayout(fila_estado)
+        self.cel_gif, fila_gif = opcion("Con Wave animada (GIF)", lambda v: self.cambiar_grupo("celular", "gif", v))
+        caja.addLayout(fila_gif)
+        caja.addSpacing(6)
+        caja.addWidget(ayuda("Los avisos pasan por el servidor de WaveMascot para llegar a Telegram; no se guardan. "
+                             "Para dejar de recibirlos: Desconectar, o mandale /stop al bot."))
+        caja.addStretch(1)
+        return pagina
+
     def panel_vista(self) -> QVBoxLayout:
         columna = QVBoxLayout()
         columna.setSpacing(10)
@@ -1000,6 +1095,8 @@ class Ajustes(QWidget):
         controles = [self.duracion, self.sonido, self.volumen, self.tamano, self.inicio, self.no_molestar,
                      self.desde, self.hasta, self.pantalla_completa, self.enfocada, self.umbral, self.permisos,
                      self.espera, self.enfocar, *self.textos.values(), *self.sonidos_evento.values(),
+                     self.cel_activo, self.cel_ausente, self.cel_minutos, self.cel_gif,
+                     *self.cel_estados.values(),
                      *(w for g in grupos.values() for w in g.values())]
         for control in controles:
             control.blockSignals(True)
@@ -1029,6 +1126,13 @@ class Ajustes(QWidget):
             combo.setCurrentIndex(max(0, combo.findData(c["sonidos"][estado])))
         self.botones_modo[c["modo"]].setChecked(True)
         self.botones_tema[c["tema"]].setChecked(True)
+        cel = c["celular"]
+        self.cel_activo.setChecked(cel["activo"])
+        self.cel_ausente.setChecked(cel["solo_ausente"])
+        self.cel_minutos.setValue(cel["minutos"])
+        self.cel_gif.setChecked(cel["gif"])
+        for estado, interruptor in self.cel_estados.items():
+            interruptor.setChecked(cel["estados"][estado])
         for control in controles:
             control.blockSignals(False)
         self.cargar_galerias()
@@ -1078,6 +1182,24 @@ class Ajustes(QWidget):
             interruptor.setEnabled(c["modo"] == "compania")
         for combo in self.sonidos_evento.values():
             combo.setEnabled(c["sonido"])
+        self.actualizar_celular()
+
+    def actualizar_celular(self) -> None:
+        cel = self.config["celular"]
+        conectado = bool(cel["llave"] and cel["conectado"])
+        self.cel_desconectado.setVisible(not conectado and not self.codigo)
+        self.cel_esperando.setVisible(not conectado and bool(self.codigo))
+        self.cel_conectado.setVisible(conectado)
+        self.cel_activo.setEnabled(conectado)
+        self.cel_codigo.setText(celular.codigo_visible(self.codigo))
+        if conectado:
+            self.cel_estado.setText(t("✓ Conectado al Telegram de {nombre}", nombre=cel["nombre"]) if cel["nombre"]
+                                    else t("✓ Conectado a Telegram"))
+        elif not self.codigo and self.cel_conectar.isEnabled():
+            self.cel_estado.setText(t("Sin conectar: tocá el botón, se abre Telegram y tocás «Iniciar»."))
+        self.cel_valor_minutos.setText(f"{cel['minutos']} min")
+        for control in (self.cel_minutos, self.cel_valor_minutos, self.cel_etiqueta_minutos):
+            control.setEnabled(cel["solo_ausente"])
 
     def mensaje_de_ejemplo(self) -> str:
         automatico = t(AUTOMATICO[self.estado_vista])
@@ -1111,6 +1233,10 @@ class Ajustes(QWidget):
 
     def cambiar_grupo(self, grupo: str, clave: str, nuevo) -> None:
         self.config[grupo][clave] = nuevo
+        self.cambio()
+
+    def cambiar_estado_celular(self, estado: str, activo: bool) -> None:
+        self.config["celular"]["estados"][estado] = activo
         self.cambio()
 
     def cambiar_sonido(self, estado: str, sonido: str) -> None:
@@ -1222,9 +1348,11 @@ class Ajustes(QWidget):
         if QMessageBox.question(self, t("Restablecer"), t("¿Volver a los valores por defecto? "
                                 "Las imágenes propias quedan guardadas.")) != QMessageBox.StandardButton.Yes:
             return
-        idioma = self.config["idioma"]
+        idioma, cel = self.config["idioma"], self.config["celular"]
         self.config = json.loads(json.dumps(m.CONFIG_DEFECTO))  # copia profunda
         self.config["idioma"] = idioma  # el idioma elegido se queda
+        for clave in ("llave", "conectado", "nombre"):  # y Telegram sigue conectado
+            self.config["celular"][clave] = cel[clave]
         aplicar_tema(self.config["tema"])
         self.cargar_en_controles()
         self.cambio()
@@ -1255,6 +1383,122 @@ class Ajustes(QWidget):
         self.guardar()  # el aviso de prueba lee config.json, igual que uno real
         m.lanzar_desacoplado([str(m.DIR / "mascota.py"), f"--estado={self.estado_vista}", "--forzar",
                               "--detalle=" + t("Prueba desde ajustes")])
+
+    # Telegram
+
+    def abrir_enlace(self, url: str) -> None:
+        QDesktopServices.openUrl(QUrl(url))
+
+    def en_segundo_plano(self, pedido: str, funcion) -> None:
+        """Las llamadas al servidor van en otro hilo, así la ventana no se congela esperando la red.
+        Al terminar llega respuesta_telegram(pedido, resultado) o (pedido + "_error", ErrorCelular)."""
+        def correr():
+            try:
+                resultado, tipo = funcion(), pedido
+            except celular.ErrorCelular as e:
+                resultado, tipo = e, pedido + "_error"
+            except Exception as e:  # nunca un error suelto en un hilo
+                m.log(f"[ajustes] Telegram: {e!r}")
+                resultado, tipo = celular.ErrorCelular(str(e)), pedido + "_error"
+            try:
+                self.respuesta_telegram.emit(tipo, resultado)
+            except RuntimeError:
+                pass  # la ventana ya se cerró
+        threading.Thread(target=correr, daemon=True).start()
+
+    def conectar_telegram(self) -> None:
+        """Pide un código (y, la primera vez, registra esta instalación en el servidor)."""
+        self.cel_conectar.setEnabled(False)
+        self.cel_estado.setText(t("Preparando tu código…"))
+        llave = self.config["celular"]["llave"]
+        if llave:
+            self.en_segundo_plano("codigo", lambda: celular.nuevo_codigo(llave))
+        else:
+            self.en_segundo_plano("registro", celular.registrar)
+
+    def cancelar_codigo(self) -> None:
+        self.timer_estado.stop()
+        self.codigo = ""
+        self.actualizar_celular()
+
+    def consultar_estado(self) -> None:
+        if time.time() > self.fin_codigo:
+            self.cancelar_codigo()
+            self.cel_estado.setText(t("El código venció. Tocá «Conectar con Telegram» para sacar otro."))
+            return
+        if not self.consultando:
+            self.consultando = True
+            llave = self.config["celular"]["llave"]
+            self.en_segundo_plano("estado", lambda: celular.estado(llave))
+
+    def marcar_conexion(self, conectado: bool, nombre: str = "") -> None:
+        cel = self.config["celular"]
+        cel.update(conectado=conectado, nombre=nombre if conectado else "")
+        if conectado:
+            cel["activo"] = True
+        self.cargar_en_controles()
+        self.guardar()
+
+    def al_responder_telegram(self, tipo: str, resultado) -> None:
+        if tipo in ("registro", "codigo"):
+            if tipo == "registro":  # la llave se guarda enseguida: identifica a esta compu en el servidor
+                self.config["celular"].update(llave=resultado["llave"], conectado=False, nombre="")
+                self.guardar()
+            self.codigo = resultado["codigo"]
+            self.fin_codigo = time.time() + 15 * 60
+            self.cel_conectar.setEnabled(True)
+            self.actualizar_celular()
+            self.cel_estado.setText(t("Esperando que le mandes el código al bot…"))
+            self.timer_estado.start()
+            self.abrir_enlace(celular.enlace_bot(self.codigo))
+        elif tipo == "codigo_error" and resultado.estado == 401:
+            self.config["celular"]["llave"] = ""  # el servidor ya no conoce esta compu: se registra de nuevo
+            self.en_segundo_plano("registro", celular.registrar)
+        elif tipo in ("registro_error", "codigo_error"):
+            self.cel_conectar.setEnabled(True)
+            self.cel_estado.setText(t("No pude conectarme con el servidor de WaveMascot ({error}). Probá de nuevo "
+                                      "en un rato.", error=resultado))
+        elif tipo == "estado":
+            self.consultando = False
+            if resultado.get("conectado") and self.timer_estado.isActive():
+                self.timer_estado.stop()
+                self.codigo = ""
+                self.marcar_conexion(True, resultado.get("nombre") or "")
+        elif tipo == "estado_error":
+            self.consultando = False  # se reintenta en la próxima vuelta del timer
+        elif tipo == "inicial" and not resultado.get("conectado"):
+            self.marcar_conexion(False)
+            self.cel_estado.setText(t("Telegram se desconectó (¿le mandaste /stop al bot?). Conectalo de nuevo "
+                                      "cuando quieras."))
+        elif tipo == "inicial_error" and resultado.estado == 401:
+            self.config["celular"]["llave"] = ""
+            self.marcar_conexion(False)
+        elif tipo == "prueba":
+            self.cel_estado.setText(t("✓ Mensaje enviado: mirá tu Telegram."))
+        elif tipo == "prueba_error":
+            if resultado.datos.get("conectado") is False:
+                self.marcar_conexion(False)
+            self.cel_estado.setText(t("No se pudo mandar ({error}).", error=resultado))
+
+    def probar_telegram(self) -> None:
+        self.guardar()
+        c, estado = self.config, self.estado_vista
+        aviso = {"estado": estado, "mensaje": self.mensaje_de_ejemplo(), "resumen": t(RESUMEN_EJEMPLO[estado]),
+                 "meta": t("Prueba desde ajustes"), "aspecto": c["aspecto"], "imagen": c["imagen"],
+                 "gif": c["celular"]["gif"]}
+        llave = c["celular"]["llave"]
+        self.cel_estado.setText(t("Mandando…"))
+        self.en_segundo_plano("prueba", lambda: celular.enviar(llave, aviso))
+
+    def desconectar_telegram(self) -> None:
+        if QMessageBox.question(self, t("Desconectar"), t("¿Dejar de mandar avisos a Telegram? Podés volver a "
+                                "conectarlo cuando quieras.")) != QMessageBox.StandardButton.Yes:
+            return
+        llave = self.config["celular"]["llave"]
+        self.en_segundo_plano("desconectar", lambda: celular.desconectar(llave))
+        self.config["celular"].update(llave="", conectado=False, nombre="", activo=False)
+        self.cargar_en_controles()
+        self.cambio()
 
     def cambiar_idioma(self, idioma: str) -> None:
         """Guarda el idioma y pide rearmar la ventana con los textos nuevos."""

@@ -177,6 +177,29 @@ def pantalla_completa() -> bool:
             and ventana.bottom >= m.bottom)
 
 
+class LASTINPUTINFO(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.UINT), ("dwTime", wintypes.DWORD)]
+
+
+def segundos_inactivo() -> float | None:
+    """Cuántos segundos pasaron desde que tocaste el mouse o el teclado, o None si no se sabe."""
+    if ES_MAC:
+        def mac():
+            cg = _bibliotecas()["cg"]
+            cg.CGEventSourceSecondsSinceLastEventType.restype = ctypes.c_double
+            cg.CGEventSourceSecondsSinceLastEventType.argtypes = (ctypes.c_int32, ctypes.c_uint32)
+            return float(cg.CGEventSourceSecondsSinceLastEventType(0, 0xFFFFFFFF))  # sesión, cualquier evento
+        return _seguro(mac, None)
+    if not ES_WINDOWS:
+        return None
+    info = LASTINPUTINFO()
+    info.cbSize = ctypes.sizeof(info)
+    if not u32.GetLastInputInfo(ctypes.byref(info)):
+        return None
+    k32.GetTickCount.restype = wintypes.DWORD
+    return ((k32.GetTickCount() - info.dwTime) & 0xFFFFFFFF) / 1000  # el contador da la vuelta cada 49 días
+
+
 def monitor_de_ventana(hwnd: int) -> str:
     """Nombre del monitor (p. ej. \\\\.\\DISPLAY2) donde está la ventana, o "" si no se sabe."""
     if not ES_WINDOWS or not hwnd or not u32.IsWindow(hwnd):

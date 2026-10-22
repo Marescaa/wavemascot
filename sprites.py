@@ -749,6 +749,32 @@ def gif(aspecto, estado, mirada=None) -> Path:
     return ruta
 
 
+def gif_celular(aspecto, estado, fondo=(0x1C, 0x15, 0x13), escala=6) -> Path:
+    """GIF para mandar al celular (Telegram): sobre un fondo de color, porque Telegram lo pasa a video y
+    pierde la transparencia, y más grande para que se vea bien en el chat. Queda en caché como gif()."""
+    from PIL import Image
+
+    a = normalizar(aspecto)
+    color = "%02x%02x%02x" % tuple(fondo)
+    ruta = (CACHE / f"v{VERSION}-{a['color']}-{a['cabeza']}-{a['ropa']}-{a['accesorio']}"
+            / f"celular-{estado}-{color}-{escala}.gif")
+    if not ruta.is_file():
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        cuadros, ms = ESTADOS[estado](a)
+        lado = LADO * escala
+        planos = []
+        for cuadro in cuadros:
+            lienzo = Image.new("RGBA", (LADO, LADO), (*fondo, 255))
+            lienzo.alpha_composite(cuadro.convert("RGBA"))
+            planos.append(lienzo.convert("RGB").resize((lado, lado), Image.NEAREST)
+                          .convert("P", palette=Image.ADAPTIVE, colors=64))
+        temporal = ruta.with_name(f"{ruta.stem}.{os.getpid()}.tmp")
+        planos[0].save(temporal, format="GIF", save_all=True, append_images=planos[1:], duration=ms, loop=0,
+                       optimize=False)
+        os.replace(temporal, ruta)
+    return ruta
+
+
 def miniatura(aspecto, recorte=(4, 14, 52, 56), escala=2) -> bytes:
     """PNG de la mascota quieta (para la galería de ajustes), recortado y ampliado."""
     from PIL import Image

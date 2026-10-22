@@ -122,6 +122,11 @@ CONFIG_DEFECTO = {
                 "limite": "grave", "error": "triste"},
     "tema": "oscuro",
     "idioma": idiomas.POR_DEFECTO,  # en, es o pt: la banderita de los ajustes
+    # Avisos a Telegram (celular.py) por el bot oficial: la llave de esta instalación en el servidor y el
+    # nombre de quien la vinculó en Telegram.
+    "celular": {"activo": False, "llave": "", "conectado": False, "nombre": "", "solo_ausente": True, "minutos": 3,
+                "gif": True, "estados": {"listo": True, "permiso": True, "subagente": False, "limite": True,
+                                         "error": True}},
 }
 CANAL = "wavemascot-" + re.sub(r"\W", "", os.environ.get("USERNAME") or os.environ.get("USER") or "yo")
 
@@ -207,6 +212,17 @@ def cargar_config(ruta: Path = CONFIG) -> dict:
     posicion = datos.get("posicion")
     if isinstance(posicion, list) and len(posicion) == 2 and all(isinstance(v, int) for v in posicion):
         config["posicion"] = posicion
+    celular = datos.get("celular")
+    if isinstance(celular, dict):
+        cel = config["celular"]
+        for clave, defecto in cel.items():
+            if clave != "estados" and type(celular.get(clave)) is type(defecto):
+                cel[clave] = celular[clave]
+        cel["minutos"] = min(60, max(1, cel["minutos"]))
+        if isinstance(celular.get("estados"), dict):
+            for estado in cel["estados"]:
+                if isinstance(celular["estados"].get(estado), bool):
+                    cel["estados"][estado] = celular["estados"][estado]
     return config
 
 
@@ -506,6 +522,32 @@ def motivo_para_no_avisar(config: dict, evento: dict, estado: str, duracion: flo
     if estado == "listo" and duracion is not None and duracion < config["umbral_segundos"]:
         return f"la tarea duró {duracion:.0f} s (umbral {config['umbral_segundos']} s)"
     return ""
+
+
+def motivo_para_no_mandar_al_celular(config: dict, evento: dict, estado: str,
+                                     inactivo: float | None = None) -> str:
+    """Por qué este aviso no va a Telegram, o "" si va. inactivo: segundos sin tocar mouse ni teclado."""
+    cel = config["celular"]
+    if not (cel["activo"] and cel["llave"] and cel["conectado"]):
+        return "Telegram no está activado"
+    nombre = evento.get("hook_event_name") or ""
+    if nombre in config["eventos"] and not config["eventos"][nombre]:
+        return f"el evento {nombre} está desactivado"
+    if not cel["estados"].get(estado):
+        return f"Telegram no avisa «{estado}»"
+    if silenciada(config):
+        return "avisos silenciados"
+    nm = config["no_molestar"]
+    if nm["activo"] and en_franja(nm["desde"], nm["hasta"]):
+        return f"no molestar ({nm['desde']}-{nm['hasta']})"
+    if cel["solo_ausente"] and inactivo is not None and inactivo < cel["minutos"] * 60:
+        return f"estás en la compu (última actividad hace {inactivo:.0f} s)"
+    return ""
+
+
+def mandar_al_celular(aviso: dict) -> None:
+    """Lanza celular.py desacoplado: la conexión con Telegram nunca demora a Claude Code."""
+    lanzar_desacoplado([str(DIR / "celular.py"), "--aviso=" + json.dumps(aviso, ensure_ascii=False)])
 
 
 def aplicar_plantilla(plantilla: str, valores: dict) -> str:
@@ -1798,11 +1840,30 @@ def main() -> int:
         compania = config["modo"] == "compania"
         # La compañera igual cambia de cara (sin sonido ni cartel), salvo eventos apagados o permisos.
         silencioso = bool(motivo) and compania and "desactivado" not in motivo and nombre != "PermissionRequest"
+
+        chat, proy = "", ""
+        # Telegram decide aparte: aunque la mascota no se muestre (la terminal tiene el foco, una pregunta
+        # que se contesta en la terminal), el celular avisa si no estás en la compu. Las pruebas no van.
+        motivo_celular = ("es una prueba" if args.forzar or not evento else
+                          motivo_para_no_mandar_al_celular(config, evento, estado, ventanas.segundos_inactivo()))
+        if not motivo_celular:
+            chat, proy = titulo_del_chat(evento) or evento.get("session_title") or "", proyecto(evento)
+            datos_cel = [formato_duracion(duracion) if duracion is not None else "", proy if proy != chat else "", chat]
+            mandar_al_celular({"estado": estado, "sesion": evento.get("session_id") or "",
+                               "mensaje": args.mensaje or mensaje_configurado(estado, evento, config, chat, proy),
+                               "resumen": resumen_para(evento), "meta": " · ".join(d for d in datos_cel if d),
+                               "aspecto": config["aspecto"], "imagen": config["imagen"],
+                               "gif": config["celular"]["gif"]})
+            log(f"evento={nombre} estado={estado}: mandado a Telegram")
+        elif config["celular"]["activo"]:
+            log(f"evento={nombre} estado={estado}: no va a Telegram porque {motivo_celular}")
+
         if motivo and not silencioso:
             log(f"evento={nombre} estado={estado}: no se avisa porque {motivo}")
             return 0
 
-        chat, proy = titulo_del_chat(evento) or evento.get("session_title") or "", proyecto(evento)
+        if not chat and not proy:
+            chat, proy = titulo_del_chat(evento) or evento.get("session_title") or "", proyecto(evento)
         contenido = config["contenido"]
         # Del dato más corto al más largo: si no entra, se corta el título del chat y no la duración.
         varias = sesiones_activas() > 1  # con varias sesiones a la vez, el proyecto se muestra siempre

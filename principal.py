@@ -7,6 +7,7 @@ Un solo ejecutable hace de todo según el primer argumento:
     WaveMascot.exe mascota --ui ...   la ventana de la mascota (la lanza el hook)
     WaveMascot.exe ajustes            centro de ajustes
     WaveMascot.exe bandeja            ícono junto al reloj
+    WaveMascot.exe celular --aviso=…  manda un aviso a Telegram (lo lanza el hook)
     WaveMascot.exe desinstalar        desinstalador
 
 En macOS, abrir WaveMascot.app (sin argumentos) instala la primera vez y después abre los
@@ -21,7 +22,7 @@ import traceback
 
 import mascota as m
 
-PROGRAMAS = ("mascota", "ajustes", "bandeja", "desinstalar") + (("instalar",) if m.MAC else ())
+PROGRAMAS = ("mascota", "ajustes", "bandeja", "celular", "desinstalar") + (("instalar",) if m.MAC else ())
 
 
 def main() -> int:
@@ -41,6 +42,9 @@ def main() -> int:
     if programa == "bandeja":
         import bandeja
         return bandeja.main()
+    if programa == "celular":
+        import celular
+        return celular.main(sys.argv[1:])
     if programa in ("desinstalar", "instalar"):
         import instalador
         return instalador.main([programa, *sys.argv[1:]])

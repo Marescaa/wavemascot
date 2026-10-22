@@ -391,4 +391,72 @@ TEXTOS: dict[str, dict[str, str]] = {
               "~/.claude/settings.json sem mexer nos que você já tem (antes é salvo um backup)."},
     "No se pudo completar:\n\n{error}": {"en": "Couldn't finish:\n\n{error}", "pt": "Não foi possível concluir:\n\n{error}"},
     "Listo.": {"en": "Done.", "pt": "Pronto."},
+    # --- avisos al celular (Telegram) ----------------------------------------------------
+    "Te manda los avisos a Telegram, con Wave animada: te enterás aunque no estés en la compu. Te escribe el bot "
+    "oficial, @WaveNotificationBot.": {
+        "en": "Sends your notifications to Telegram, with Wave animated: you'll know even when you're away from the "
+              "computer. They come from the official bot, @WaveNotificationBot.",
+        "pt": "Manda os avisos para o Telegram, com o Wave animado: você fica sabendo mesmo longe do computador. "
+              "Quem escreve é o bot oficial, @WaveNotificationBot."},
+    "Conectar con Telegram": {"en": "Connect Telegram", "pt": "Conectar com o Telegram"},
+    "Tu código:": {"en": "Your code:", "pt": "Seu código:"},
+    "Abrir @WaveNotificationBot": {"en": "Open @WaveNotificationBot", "pt": "Abrir @WaveNotificationBot"},
+    "Copiar código": {"en": "Copy code", "pt": "Copiar código"},
+    "Cancelar": {"en": "Cancel", "pt": "Cancelar"},
+    "Se abre Telegram con el código listo: tocá «Iniciar» y listo. También podés escribirle el código al bot. "
+    "Vence en 15 minutos.": {
+        "en": "Telegram opens with the code ready: tap \u201cStart\u201d and you're done. You can also type the "
+              "code to the bot. It expires in 15 minutes.",
+        "pt": "O Telegram abre com o código pronto: toque em \u201cIniciar\u201d e pronto. Você também pode "
+              "escrever o código para o bot. Ele vence em 15 minutos."},
+    "Los avisos pasan por el servidor de WaveMascot para llegar a Telegram; no se guardan. Para dejar de "
+    "recibirlos: Desconectar, o mandale /stop al bot.": {
+        "en": "Notifications go through the WaveMascot server to reach Telegram; they aren't stored. To stop "
+              "them: Disconnect, or send /stop to the bot.",
+        "pt": "Os avisos passam pelo servidor do WaveMascot para chegar ao Telegram; não são guardados. Para "
+              "parar: Desconectar, ou mande /stop para o bot."},
+    "✓ Conectado al Telegram de {nombre}": {"en": "✓ Connected to {nombre}'s Telegram",
+                                            "pt": "✓ Conectado ao Telegram de {nombre}"},
+    "✓ Conectado a Telegram": {"en": "✓ Connected to Telegram", "pt": "✓ Conectado ao Telegram"},
+    "Sin conectar: tocá el botón, se abre Telegram y tocás «Iniciar».": {
+        "en": "Not connected: tap the button, Telegram opens and you tap \u201cStart\u201d.",
+        "pt": "Não conectado: toque no botão, o Telegram abre e você toca em \u201cIniciar\u201d."},
+    "Preparando tu código…": {"en": "Getting your code…", "pt": "Preparando seu código…"},
+    "El código venció. Tocá «Conectar con Telegram» para sacar otro.": {
+        "en": "The code expired. Tap \u201cConnect Telegram\u201d to get a new one.",
+        "pt": "O código venceu. Toque em \u201cConectar com o Telegram\u201d para gerar outro."},
+    "Esperando que le mandes el código al bot…": {"en": "Waiting for you to send the code to the bot…",
+                                                  "pt": "Esperando você mandar o código para o bot…"},
+    "No pude conectarme con el servidor de WaveMascot ({error}). Probá de nuevo en un rato.": {
+        "en": "Couldn't reach the WaveMascot server ({error}). Try again in a while.",
+        "pt": "Não consegui falar com o servidor do WaveMascot ({error}). Tente de novo daqui a pouco."},
+    "Telegram se desconectó (¿le mandaste /stop al bot?). Conectalo de nuevo cuando quieras.": {
+        "en": "Telegram got disconnected (did you send /stop to the bot?). Connect it again whenever you want.",
+        "pt": "O Telegram foi desconectado (você mandou /stop para o bot?). Conecte de novo quando quiser."},
+    "¿Dejar de mandar avisos a Telegram? Podés volver a conectarlo cuando quieras.": {
+        "en": "Stop sending notifications to Telegram? You can connect it again anytime.",
+        "pt": "Parar de mandar avisos para o Telegram? Você pode conectar de novo quando quiser."},
+    "Celular": {"en": "Phone", "pt": "Celular"},
+    "Telegram": {"en": "Telegram", "pt": "Telegram"},
+    "Mandarme los avisos a Telegram": {"en": "Send my notifications to Telegram", "pt": "Mandar os avisos para o Telegram"},
+    "Mandar un aviso de prueba": {"en": "Send a test notification", "pt": "Mandar um aviso de teste"},
+    "Desconectar": {"en": "Disconnect", "pt": "Desconectar"},
+    "Cuándo": {"en": "When", "pt": "Quando"},
+    "Solo si no estoy usando la compu": {"en": "Only when I'm not using the computer",
+                                         "pt": "Só quando eu não estiver usando o computador"},
+    "Sin tocar el mouse ni el teclado por": {"en": "No mouse or keyboard for", "pt": "Sem mexer no mouse nem no teclado por"},
+    "Si estás en la compu te avisa solo la mascota, así no te llega todo dos veces. El silencio y el «no molestar» "
+    "también valen para Telegram.": {
+        "en": "When you're at the computer only the mascot lets you know, so you don't get everything twice. "
+              "Mute and Do Not Disturb apply to Telegram too.",
+        "pt": "Se você estiver no computador, só o mascote avisa, assim nada chega duas vezes. O silêncio e o "
+              "\u201cnão perturbe\u201d também valem para o Telegram."},
+    "Qué avisos": {"en": "Which notifications", "pt": "Quais avisos"},
+    "Cuando llega al límite de uso": {"en": "When it hits the usage limit", "pt": "Quando chega ao limite de uso"},
+    "Cuando hay un error de la API": {"en": "When there's an API error", "pt": "Quando há um erro da API"},
+    "Con Wave animada (GIF)": {"en": "With Wave animated (GIF)", "pt": "Com o Wave animado (GIF)"},
+    "✓ Mensaje enviado: mirá tu Telegram.": {"en": "✓ Message sent: check your Telegram.",
+                                            "pt": "✓ Mensagem enviada: olhe o seu Telegram."},
+    "No se pudo mandar ({error}).": {"en": "Couldn't send it ({error}).", "pt": "Não foi possível mandar ({error})."},
+    "Mandando…": {"en": "Sending…", "pt": "Mandando…"},
 }

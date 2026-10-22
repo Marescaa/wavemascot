@@ -16,11 +16,12 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 import idiomas  # noqa: E402
 
-ARCHIVOS = ("mascota.py", "ajustes.py", "bandeja.py", "instalador.py")
+ARCHIVOS = ("mascota.py", "ajustes.py", "bandeja.py", "instalador.py", "celular.py")
 TRADUCEN = {"t", "seccion", "ayuda", "opcion"}  # su primer argumento se traduce
 # Tablas cuyos valores se traducen donde se usan: (archivo, nombre, cómo sacar el texto de cada valor)
 TABLAS = [
     ("ajustes.py", "NOMBRES_ESTADO", None), ("ajustes.py", "NOMBRES_EVENTO", None),
+    ("ajustes.py", "NOMBRES_CELULAR", None),
     ("ajustes.py", "NOMBRES_CONTENIDO", None), ("ajustes.py", "NOMBRES_ESQUINA", None),
     ("ajustes.py", "NOMBRES_TAMANO", None), ("ajustes.py", "AUTOMATICO", None), ("ajustes.py", "EJEMPLO", None),
     ("ajustes.py", "RESUMEN_EJEMPLO", None), ("mascota.py", "ESTADOS", "mensaje"), ("mascota.py", "BOTONES", None),

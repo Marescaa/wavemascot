@@ -1,0 +1,24 @@
+# Servidor del bot oficial de WaveMascot. Publicar: ver servidor/README.md
+name = "wavemascot"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+
+# GIF y fotos del bot (los genera generar_imagenes.py): se sirven en /img/...
+[assets]
+directory = "./publico"
+binding = "ASSETS"
+
+# Datos mínimos: instalaciones, códigos de 15 minutos y los file_id de los GIF.
+# El id lo crea "npx wrangler kv namespace create DATOS".
+[[kv_namespaces]]
+binding = "DATOS"
+id = "9b5fa84dcefa40e3aa6f7d402eb48bcb"
+
+# Máximo 20 avisos por minuto por instalación.
+[[ratelimits]]
+name = "LIMITE"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 20
+  period = 60

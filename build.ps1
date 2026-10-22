@@ -47,15 +47,16 @@ $comunes = @('--noconfirm', '--clean', '--windowed', '--icon', $icono,
 Ejecutar $py (@('-m', 'PyInstaller') + $comunes + @(
     '--name', 'WaveMascot', '--distpath', (Join-Path $build 'dist'),
     '--add-data', "$(Join-Path $raiz 'assets');assets",
-    '--hidden-import', 'ajustes', '--hidden-import', 'bandeja', '--hidden-import', 'instalador', '--hidden-import', 'idiomas',
+    '--hidden-import', 'ajustes', '--hidden-import', 'bandeja', '--hidden-import', 'instalador', '--hidden-import', 'idiomas', '--hidden-import', 'celular',
     '--exclude-module', 'tkinter',
     (Join-Path $raiz 'principal.py')))
 
 # Lo que PyInstaller suma por las dudas y la mascota nunca usa (no dibuja con OpenGL, no abre PDF,
-# no se conecta a internet, no lee AVIF ni dibuja texto con Pillow): ~45 MB menos.
+# no lee AVIF ni dibuja texto con Pillow): ~45 MB menos. libssl y libcrypto se quedan: los avisos a
+# Telegram (celular.py) van por HTTPS.
 $interno = Join-Path $build 'dist\WaveMascot\_internal'
 $sobran = 'PyQt6\Qt6\bin\opengl32sw.dll', 'PyQt6\Qt6\bin\Qt6Pdf.dll', 'PyQt6\Qt6\plugins\imageformats\qpdf.dll',
-          'PyQt6\Qt6\plugins\tls', 'PyQt6\Qt6\plugins\networkinformation', 'libcrypto-3-x64.dll', 'libssl-3-x64.dll',
+          'PyQt6\Qt6\plugins\tls', 'PyQt6\Qt6\plugins\networkinformation',
           'PIL\_avif*.pyd', 'PIL\_imagingft*.pyd'
 foreach ($s in $sobran) { Remove-Item -Path (Join-Path $interno $s) -Recurse -Force -ErrorAction SilentlyContinue }
 

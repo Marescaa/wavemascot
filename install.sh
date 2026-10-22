@@ -27,7 +27,7 @@ while [ $# -gt 0 ]; do
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
-archivos=(mascota.py ajustes.py bandeja.py sprites.py ventanas.py instalador.py idiomas.py uninstall.sh
+archivos=(mascota.py ajustes.py bandeja.py sprites.py ventanas.py instalador.py idiomas.py celular.py uninstall.sh
           requirements.txt LICENSE)
 
 buscar_python() {

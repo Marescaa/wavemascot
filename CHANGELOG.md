@@ -3,6 +3,26 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Notifications on your phone through Telegram**, with Wave animated (a GIF of each state), from the official bot
+  **@WaveNotificationBot**. New **Phone** tab in the settings: tap **Connect Telegram**, Telegram opens with a one-time
+  code and you tap **Start**. Nothing to create or paste.
+  - By default it only sends when you're away from the computer (no mouse or keyboard for 3 minutes, adjustable), so
+    you don't get everything twice. Mute and Do Not Disturb apply too.
+  - Pick which notices go to the phone (done, needs something, sub-agent, usage limit, API error) and whether they
+    include the GIF. A custom image is sent instead of the drawn mascot.
+  - Sent from a separate process, so the network never slows down Claude Code; a permission request that arrives as
+    two events is sent once. Send /stop to the bot or tap **Disconnect** to stop.
+  - The bot's token lives only on a small Cloudflare Worker (`servidor/`); each installation gets its own key that can
+    only message the chat it linked. Messages are relayed, not stored.
+
+### Changed
+
+- The Windows build keeps `libssl`/`libcrypto` (needed for HTTPS to Telegram).
+
 ## [1.2.0] - 2026-10-19
 
 ### Added
