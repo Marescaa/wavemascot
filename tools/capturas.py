@@ -249,6 +249,28 @@ def telegram(idioma, carpeta, t, ajustes):
         cuadros.append(qimagen_a_pil(img))
     cuadros += [cuadros[-1]] * 14
     guardar_gif(cuadros, 90, carpeta / "telegram.gif")
+    return cuadros
+
+
+def portada(aviso, celular, ruta):
+    """La imagen de arriba del README: el aviso en la compu y el mismo momento en el celular, lado a lado."""
+    alto = 600
+    tel = [c.resize((int(c.width * alto / c.height / 1.0), alto), Image.LANCZOS) for c in celular]
+    av = aviso[0]
+    escala = min(1.0, (alto - 40) / av.height)
+    av = [c.resize((int(c.width * escala), int(c.height * escala)), Image.LANCZOS) for c in aviso]
+    hueco = 80
+    ancho = av[0].width + hueco + tel[0].width + 120
+    mascara = Image.new("L", tel[0].size, 0)
+    ImageDraw.Draw(mascara).rounded_rectangle((0, 0, *[v - 1 for v in tel[0].size]), radius=26, fill=255)
+    cuadros = []
+    for i in range(len(tel)):
+        hoja = Image.new("RGB", (ancho, alto + 40), FONDO)
+        a = av[i % len(av)]
+        hoja.paste(a, (60, (alto + 40 - a.height) // 2))
+        hoja.paste(tel[i], (60 + a.width + hueco, 20), mascara)
+        cuadros.append(hoja)
+    guardar_gif(cuadros, 90, ruta)
 
 
 def qt_capturas():
@@ -269,6 +291,7 @@ def qt_capturas():
         idiomas.usar(idioma)
         carpeta = DOCS / "capturas" / idioma
         carpeta.mkdir(parents=True, exist_ok=True)
+        avisos = {}
 
         # --- los avisos animados: la mascota real arriba y el cartel real abajo -------------------
         botones = {"listo": ["enfocar"], "permiso": ["permitir", "denegar", "enfocar"], "pensando": [],
@@ -311,8 +334,9 @@ def qt_capturas():
                 hoja.paste(tarjeta, ((ancho - tarjeta.width) // 2, 12 + mh))
                 salida.append(hoja)
             guardar_gif(salida, ms, carpeta / f"aviso-{estado}.gif")
+            avisos[estado] = salida
 
-        telegram(idioma, carpeta, t, ajustes)
+        portada(avisos["permiso"], telegram(idioma, carpeta, t, ajustes), carpeta / "portada.gif")
 
         # --- la ventana de ajustes, una captura por pestaña ---------------------------------------
         (casa / ".wavemascot" / "config.json").write_text(json.dumps(
