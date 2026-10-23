@@ -58,10 +58,10 @@ HOOKS = {
     "UserPromptSubmit": ("pensando", 10, True),   # async: no demora el envío de tus mensajes
     "SubagentStop": ("subagente", 10, False),
     "StopFailure": ("limite", 10, False),
-    "PermissionRequest": ("permiso", 150, False),  # espera tu Permitir/Denegar en la mascota
+    "PermissionRequest": ("permiso", 600, False),  # espera tu Permitir/Denegar en la mascota o en Telegram
 }
 ARCHIVOS_FUENTE = ("mascota.py", "ajustes.py", "bandeja.py", "sprites.py", "ventanas.py", "instalador.py",
-                   "idiomas.py", "celular.py")
+                   "idiomas.py", "celular.py", "actualizacion.py")
 
 
 class ErrorInstalacion(Exception):

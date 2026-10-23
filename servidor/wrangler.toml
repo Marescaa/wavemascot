@@ -22,3 +22,12 @@ namespace_id = "1001"
   [ratelimits.simple]
   limit = 20
   period = 60
+
+# Pedidos de permiso (Permitir / Denegar desde Telegram): consistencia fuerte y respuesta al instante.
+[[durable_objects.bindings]]
+name = "PERMISOS"
+class_name = "Permisos"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Permisos"]

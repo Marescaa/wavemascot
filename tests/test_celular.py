@@ -149,5 +149,52 @@ class Envio(unittest.TestCase):
             self.assertFalse(celular.repetido("otra|permiso"))
 
 
+class PermisosPorTelegram(unittest.TestCase):
+    """responder_permiso con Telegram y sin la mascota en pantalla (la terminal tiene el foco)."""
+
+    def correr(self, esperar, espera=60):
+        import io
+        cerrados = []
+        telegram = {"llave": LLAVE, "texto": "🔐 x", "idioma": "es", "espera": espera}
+        salida = io.StringIO()
+        with mock.patch.object(celular, "pedir_permiso", return_value="I" * 20) as pedir, \
+                mock.patch.object(celular, "esperar_permiso", side_effect=esperar), \
+                mock.patch.object(celular, "cerrar_permiso", side_effect=lambda *a, **k: cerrados.append(a)), \
+                mock.patch.object(m.sys, "stdout", salida):
+            m.responder_permiso(None, 30, telegram)
+        pedir.assert_called_once_with(LLAVE, "🔐 x", "es", espera)
+        return salida.getvalue(), cerrados
+
+    def test_permitir_desde_telegram(self):
+        respuestas = iter([None, "allow"])
+        texto, cerrados = self.correr(lambda *a: next(respuestas))
+        self.assertEqual(json.loads(texto)["hookSpecificOutput"]["decision"], {"behavior": "allow"})
+        self.assertEqual(cerrados, [])  # el mensaje lo edita el servidor al tocar el botón
+
+    def test_denegar_dice_desde_donde(self):
+        texto, _ = self.correr(lambda *a: "deny")
+        decision = json.loads(texto)["hookSpecificOutput"]["decision"]
+        self.assertEqual(decision["behavior"], "deny")
+        self.assertIn("Telegram", decision["message"])
+
+    def test_sin_respuesta_se_vence_y_decide_la_terminal(self):
+        import itertools
+        reloj = itertools.count(0, 100)  # cada consulta de la hora avanza 100 s: la espera de 60 s se agota enseguida
+        with mock.patch.object(m.time, "time", side_effect=lambda: next(reloj)):
+            texto, cerrados = self.correr(lambda *a: None, espera=60)
+        self.assertEqual(texto, "")
+        self.assertEqual(cerrados, [(LLAVE, "I" * 20, "vencido", None)])
+
+    def test_texto_del_pedido(self):
+        texto = celular.texto_permiso("¿Permitir Bash?", "rm -rf <carpeta> && echo 'ok'", "waveapp · chat")
+        self.assertEqual(texto, "🔐 <b>¿Permitir Bash?</b>\n<pre>rm -rf &lt;carpeta&gt; &amp;&amp; echo &#x27;ok&#x27;</pre>"
+                                "\n<i>waveapp · chat</i>")
+
+    def test_espera_se_limita(self):
+        ruta = Path(tempfile.mkdtemp()) / "config.json"
+        ruta.write_text(json.dumps({"celular": {"espera_permisos": 5000}}), encoding="utf-8")
+        self.assertEqual(m.cargar_config(ruta)["celular"]["espera_permisos"], m.ESPERA_TELEGRAM_MAX)
+
+
 if __name__ == "__main__":
     unittest.main()

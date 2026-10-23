@@ -5,6 +5,10 @@ and the project uses [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The Windows build keeps `libssl`/`libcrypto` (needed for HTTPS to Telegram and GitHub).
+
 ### Added
 
 - **Mascot styles (beta)**: Classic, Sakura, Ninja and Robot, in the **Mascot** tab. A style changes the mascot's
@@ -29,12 +33,18 @@ and the project uses [semantic versioning](https://semver.org/).
     include the GIF. A custom image is sent instead of the drawn mascot.
   - Sent from a separate process, so the network never slows down Claude Code; a permission request that arrives as
     two events is sent once. Send /stop to the bot or tap **Disconnect** to stop.
+  - **Allow or deny permissions from Telegram**: when Claude asks for permission and you're away, the message shows
+    the full command with **Allow** and **Deny** buttons, and your answer goes straight back to Claude Code. Whatever
+    comes first wins (the phone, Wave's buttons or the terminal) and the other side updates itself. Waits up to
+    9 minutes (adjustable); the permission hook timeout is now 600 s.
   - The bot's token lives only on a small Cloudflare Worker (`servidor/`); each installation gets its own key that can
     only message the chat it linked. Messages are relayed, not stored.
 
-### Changed
-
-- The Windows build keeps `libssl`/`libcrypto` (needed for HTTPS to Telegram).
+- **Update notice**: WaveMascot checks GitHub at most once a day. When there's a new version, Wave says so once
+  (with **Update** and **Not now**), a small "⬇ version" pill appears next to the language flag in the settings and
+  the tray menu offers **Update to version…**. On Windows, **Update** downloads the installer, checks it against
+  `SHA256SUMS.txt` and installs it silently, keeping your settings; on macOS it opens the download page. Releases now
+  include this version's CHANGELOG section, which the app shows as "what's new".
 
 ## [1.2.0] - 2026-10-19
 

@@ -47,7 +47,7 @@ $comunes = @('--noconfirm', '--clean', '--windowed', '--icon', $icono,
 Ejecutar $py (@('-m', 'PyInstaller') + $comunes + @(
     '--name', 'WaveMascot', '--distpath', (Join-Path $build 'dist'),
     '--add-data', "$(Join-Path $raiz 'assets');assets",
-    '--hidden-import', 'ajustes', '--hidden-import', 'bandeja', '--hidden-import', 'instalador', '--hidden-import', 'idiomas', '--hidden-import', 'celular',
+    '--hidden-import', 'ajustes', '--hidden-import', 'bandeja', '--hidden-import', 'instalador', '--hidden-import', 'idiomas', '--hidden-import', 'celular', '--hidden-import', 'actualizacion',
     '--exclude-module', 'tkinter',
     (Join-Path $raiz 'principal.py')))
 

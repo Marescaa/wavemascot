@@ -482,4 +482,59 @@ TEXTOS: dict[str, dict[str, str]] = {
                                             "pt": "✓ Mensagem enviada: olhe o seu Telegram."},
     "No se pudo mandar ({error}).": {"en": "Couldn't send it ({error}).", "pt": "Não foi possível mandar ({error})."},
     "Mandando…": {"en": "Sending…", "pt": "Mandando…"},
+    # --- versiones nuevas (actualizacion.py) -----------------------------------------------
+    "¡Hay una versión nueva de WaveMascot!": {"en": "There's a new version of WaveMascot!",
+                                              "pt": "Tem uma versão nova do WaveMascot!"},
+    "Versión {version}": {"en": "Version {version}", "pt": "Versão {version}"},
+    "Tenés la {version}": {"en": "You have {version}", "pt": "Você tem a {version}"},
+    "Actualizar": {"en": "Update", "pt": "Atualizar"},
+    "Ahora no": {"en": "Not now", "pt": "Agora não"},
+    "Hay una versión nueva": {"en": "A new version is available", "pt": "Tem uma versão nova"},
+    "⬆ Actualizar a la versión {version}…": {"en": "⬆ Update to version {version}…",
+                                             "pt": "⬆ Atualizar para a versão {version}…"},
+    "Actualizar ahora": {"en": "Update now", "pt": "Atualizar agora"},
+    "Descargar": {"en": "Download", "pt": "Baixar"},
+    "Ver novedades": {"en": "What's new", "pt": "Ver novidades"},
+    "Hay una versión nueva: {version}": {"en": "A new version is out: {version}", "pt": "Tem uma versão nova: {version}"},
+    "Tenés la {version}. Mirá qué trae en «Ver novedades».": {
+        "en": "You have {version}. See what's in it under \u201cWhat's new\u201d.",
+        "pt": "Você tem a {version}. Veja o que ela traz em \u201cVer novidades\u201d."},
+    "Buscando la versión nueva…": {"en": "Looking for the new version…", "pt": "Procurando a versão nova…"},
+    "Bajando la versión {version}…": {"en": "Downloading version {version}…", "pt": "Baixando a versão {version}…"},
+    "{porcentaje} % · cuando termine, WaveMascot se cierra y vuelve a abrir sola.": {
+        "en": "{porcentaje} % · when it's done, WaveMascot closes and reopens on its own.",
+        "pt": "{porcentaje} % · quando terminar, o WaveMascot fecha e abre de novo sozinho."},
+    "Instalando la versión {version}…": {"en": "Installing version {version}…", "pt": "Instalando a versão {version}…"},
+    "WaveMascot se cierra y vuelve a abrir sola en unos segundos.": {
+        "en": "WaveMascot will close and reopen on its own in a few seconds.",
+        "pt": "O WaveMascot vai fechar e abrir de novo sozinho em alguns segundos."},
+    "No se pudo actualizar": {"en": "Couldn't update", "pt": "Não foi possível atualizar"},
+    "{error}. Probá de nuevo o bajala desde «Ver novedades».": {
+        "en": "{error}. Try again or download it from \u201cWhat's new\u201d.",
+        "pt": "{error}. Tente de novo ou baixe em \u201cVer novidades\u201d."},
+    "Actualizaciones": {"en": "Updates", "pt": "Atualizações"},
+    "Avisarme cuando haya una versión nueva": {"en": "Tell me when there's a new version",
+                                               "pt": "Me avisar quando houver uma versão nova"},
+    "Buscar ahora": {"en": "Check now", "pt": "Procurar agora"},
+    "Buscando…": {"en": "Checking…", "pt": "Procurando…"},
+    "Tenés la versión {version}.": {"en": "You have version {version}.", "pt": "Você tem a versão {version}."},
+    "Tenés la versión {version}: es la última.": {"en": "You have version {version}: it's the latest.",
+                                                   "pt": "Você tem a versão {version}: é a mais recente."},
+    "Tenés la {actual}; hay una nueva: {version}.": {"en": "You have {actual}; a new one is out: {version}.",
+                                                     "pt": "Você tem a {actual}; tem uma nova: {version}."},
+    "Tenés la versión {version}. No pude buscar si hay una nueva ({error}).": {
+        "en": "You have version {version}. Couldn't check for a new one ({error}).",
+        "pt": "Você tem a versão {version}. Não consegui procurar uma nova ({error})."},
+    # --- permisos desde Telegram --------------------------------------------------------------
+    "Permisos": {"en": "Permissions", "pt": "Permissões"},
+    "Aprobar o denegar permisos desde Telegram": {"en": "Allow or deny permissions from Telegram",
+                                                  "pt": "Permitir ou negar permissões pelo Telegram"},
+    "Te llega el comando completo con los botones Permitir y Denegar. Si no contestás a tiempo, queda el "
+    "diálogo de siempre en la terminal. Las preguntas de Claude se contestan en la terminal.": {
+        "en": "You get the full command with Allow and Deny buttons. If you don't answer in time, the usual dialog "
+              "stays in the terminal. Claude's questions are answered in the terminal.",
+        "pt": "Chega o comando completo com os botões Permitir e Negar. Se você não responder a tempo, fica o "
+              "diálogo de sempre no terminal. As perguntas do Claude são respondidas no terminal."},
+    "Permitido desde Telegram ✓": {"en": "Allowed from Telegram ✓", "pt": "Permitido pelo Telegram ✓"},
+    "Denegado desde Telegram": {"en": "Denied from Telegram", "pt": "Negado pelo Telegram"},
 }

@@ -24,6 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import mascota as m  # noqa: E402
+import actualizacion  # noqa: E402
 import celular  # noqa: E402
 import idiomas  # noqa: E402
 import sprites  # noqa: E402
@@ -32,12 +33,13 @@ from idiomas import t  # noqa: E402
 
 if __name__ == "__main__" and "--ventana" not in sys.argv[1:]:
     # Lanzador: abre la ventana desacoplada y sale sin cargar Qt.
-    m.lanzar_desacoplado([str(Path(__file__).resolve()), "--ventana"])
+    m.lanzar_desacoplado([str(Path(__file__).resolve()), "--ventana", *sys.argv[1:]])
     os._exit(0)
 
 from PyQt6.QtCore import (QEasingCurve, QElapsedTimer, QLibraryInfo, QPointF, QRectF, QSize, Qt, QTimer,  # noqa: E402
                           QTranslator, QUrl, pyqtSignal)
-from PyQt6.QtGui import (QColor, QDesktopServices, QIcon, QImageReader, QKeySequence, QLinearGradient, QPainter,  # noqa: E402
+from PyQt6.QtGui import (QColor, QDesktopServices, QFontMetrics, QIcon, QImageReader, QKeySequence,  # noqa: E402
+                         QLinearGradient, QPainter,
                          QPainterPath, QPalette, QPen, QPixmap, QShortcut)
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket  # noqa: E402
 from PyQt6.QtCore import QFileSystemWatcher, QTime  # noqa: E402
@@ -109,6 +111,8 @@ QLabel#seccion { color: %(suave)s; font-size: 8pt; font-weight: 700; }
 QLabel#beta { background: %(acento)s; color: %(sobre)s; font-size: 7pt; font-weight: 700; border-radius: 4px;
               padding: 0 5px; }
 QLabel#codigo { color: %(acento)s; font-size: 22pt; font-weight: 700; }
+QFrame#franja { background: %(panel)s; border: 1px solid %(acento)s; border-radius: 12px; }
+QLabel#franja_titulo { font-size: 11pt; font-weight: 600; }
 QTabWidget::pane { border: 1px solid %(borde)s; border-radius: 12px; background: %(panel)s; top: -1px; }
 QTabBar::tab { background: transparent; color: %(suave)s; padding: 8px 9px; border: none;
                border-bottom: 2px solid transparent; margin-right: 3px; font-weight: 600; }
@@ -409,6 +413,84 @@ class Interruptor(QCheckBox):
         p.drawRoundedRect(pista, 10, 10)
         p.setBrush(QColor("#FFF9F4"))  # la perilla siempre clara, en cualquier tema
         p.drawEllipse(QPointF(pista.right() - 10 if self.isChecked() else pista.left() + 10, pista.center().y()), 7, 7)
+
+
+class BotonNovedad(QAbstractButton):
+    """Hay una versión nueva: una píldora del tamaño de la banderita con una flecha de descarga y el número
+    de versión, y un puntito que late en la esquina. Al tocarla se abre el cartelito con la actualización."""
+
+    ALTO = 32
+
+    def __init__(self):
+        super().__init__()
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.version = ""
+        self.reloj = QElapsedTimer()
+        self.reloj.start()
+        self.timer = QTimer(self, interval=40, timeout=self.update)  # el latido del puntito
+        self.poner_version("")
+
+    def fuente(self):
+        fuente = self.font()
+        fuente.setBold(True)
+        return fuente
+
+    def poner_version(self, version: str) -> None:
+        self.version = version
+        ancho = QFontMetrics(self.fuente()).horizontalAdvance(version) if version else 0
+        self.setFixedSize(12 + 14 + (6 + ancho if version else 0) + 12 + 4, self.ALTO + 4)  # + lugar del puntito
+        self.update()
+
+    def paintEvent(self, evento) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        acento = QColor(C["acento"])
+        caja = QRectF(0.5, 4.5, self.width() - 5, self.ALTO - 1)  # el puntito sobresale arriba a la derecha
+        fondo = QColor(acento)
+        fondo.setAlpha(70 if self.underMouse() or self.isDown() else 34)
+        p.setPen(QPen(acento, 1))
+        p.setBrush(fondo)
+        p.drawRoundedRect(caja, 8, 8)
+        # Flecha de descarga: palito, punta y la bandejita de abajo.
+        x, y = caja.left() + 12, caja.center().y()
+        lapiz = QPen(QColor(C["texto"]), 1.8)
+        lapiz.setCapStyle(Qt.PenCapStyle.RoundCap)
+        lapiz.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        p.setPen(lapiz)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawLine(QPointF(x + 7, y - 6), QPointF(x + 7, y + 2))
+        p.drawPolyline([QPointF(x + 3.5, y - 1.5), QPointF(x + 7, y + 2), QPointF(x + 10.5, y - 1.5)])
+        p.drawPolyline([QPointF(x + 1, y + 3), QPointF(x + 1, y + 6), QPointF(x + 13, y + 6), QPointF(x + 13, y + 3)])
+        if self.version:
+            p.setFont(self.fuente())
+            p.setPen(QColor(C["texto"]))
+            p.drawText(QRectF(x + 20, caja.top(), caja.width(), caja.height()),
+                       int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter), self.version)
+        # Puntito que late: un aro que se agranda y se desvanece cada 1,6 s.
+        centro = QPointF(caja.right() - 1, caja.top() + 1)
+        fase = (self.reloj.elapsed() % 1600) / 1600
+        aro = QColor(acento)
+        aro.setAlphaF(0.55 * (1 - fase))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(aro)
+        p.drawEllipse(centro, 4 + 5 * fase, 4 + 5 * fase)
+        p.setPen(QPen(QColor(C["fondo"]), 1.5))
+        p.setBrush(acento)
+        p.drawEllipse(centro, 4, 4)
+
+    def showEvent(self, evento) -> None:
+        self.timer.start()
+        super().showEvent(evento)
+
+    def hideEvent(self, evento) -> None:
+        self.timer.stop()
+        super().hideEvent(evento)
+
+    def enterEvent(self, evento) -> None:
+        self.update()
+
+    def leaveEvent(self, evento) -> None:
+        self.update()
 
 
 class MuestraColor(QAbstractButton):
@@ -718,6 +800,7 @@ class VistaPrevia(QWidget):
 class Ajustes(QWidget):
     idioma_cambiado = pyqtSignal(str)
     respuesta_telegram = pyqtSignal(str, object)  # (qué se pidió, resultado o texto del error)
+    respuesta_version = pyqtSignal(str, object)   # búsqueda y descarga de la versión nueva
 
     def __init__(self):
         super().__init__()
@@ -734,11 +817,14 @@ class Ajustes(QWidget):
         self.codigo, self.consultando, self.fin_codigo = "", False, 0.0
         self.timer_estado = QTimer(self, interval=2500, timeout=self.consultar_estado)
         self.respuesta_telegram.connect(self.al_responder_telegram)
+        self.version, self.actualizando = None, False
+        self.respuesta_version.connect(self.al_responder_version)
 
         raiz = QVBoxLayout(self)
         raiz.setContentsMargins(22, 18, 22, 16)
         raiz.setSpacing(14)
         raiz.addLayout(self.cabecera())
+        self.franja_version()  # el cartelito de la versión nueva (se abre desde el Wave con "!")
         cuerpo = QHBoxLayout()
         cuerpo.setSpacing(18)
         self.pestanas = QTabWidget()
@@ -760,6 +846,7 @@ class Ajustes(QWidget):
 
         self.cargar_en_controles()
         self.estado_guardado.setText(t("Los cambios se guardan solos"))
+        self.buscar_version()
         if self.config["celular"]["llave"] and self.config["celular"]["conectado"]:
             llave = self.config["celular"]["llave"]  # ¿sigue conectado? (pudo mandar /stop desde Telegram)
             self.en_segundo_plano("inicial", lambda: celular.estado(llave))
@@ -781,8 +868,54 @@ class Ajustes(QWidget):
                                 objectName="subtitulo"))
         caja.addWidget(self.icono_cabecera)
         caja.addLayout(textos, 1)
-        caja.addWidget(self.selector_idioma(), 0, Qt.AlignmentFlag.AlignTop)
+        self.boton_novedad = BotonNovedad()  # flecha de descarga + versión: solo si hay una nueva
+        self.boton_novedad.setToolTip(t("Hay una versión nueva"))
+        self.boton_novedad.clicked.connect(self.abrir_franja)
+        self.boton_novedad.setVisible(False)
+        caja.addWidget(self.boton_novedad, 0, Qt.AlignmentFlag.AlignTop)
+        idioma = QVBoxLayout()
+        idioma.setContentsMargins(0, 4, 0, 0)  # a la altura de la píldora (su puntito sobresale arriba)
+        idioma.addWidget(self.selector_idioma())
+        idioma.addStretch(1)
+        caja.addLayout(idioma)
         return caja
+
+    def franja_version(self) -> QFrame:
+        """El cartelito que se abre al tocar el Wave con "!": qué trae la versión nueva y el botón para actualizar."""
+        # Ventana emergente transparente (para las esquinas redondeadas) con el marco dibujado adentro.
+        self.franja = QWidget(self)
+        self.franja.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        self.franja.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.franja.setFixedWidth(380)
+        exterior = QVBoxLayout(self.franja)
+        exterior.setContentsMargins(0, 0, 0, 0)
+        marco = QFrame(objectName="franja")
+        exterior.addWidget(marco)
+        caja = QVBoxLayout(marco)
+        caja.setContentsMargins(18, 16, 18, 16)
+        caja.setSpacing(6)
+        self.franja_titulo = QLabel(objectName="franja_titulo", wordWrap=True)
+        self.franja_texto = QLabel(objectName="ayuda", wordWrap=True)
+        caja.addWidget(self.franja_titulo)
+        caja.addWidget(self.franja_texto)
+        caja.addSpacing(6)
+        self.boton_actualizar = QPushButton(t("Actualizar ahora"), objectName="primario",
+                                            clicked=self.empezar_actualizacion)
+        self.boton_novedades = QPushButton(t("Ver novedades"), clicked=lambda: self.abrir_enlace(
+            (self.version or {}).get("pagina") or actualizacion.PAGINA))
+        self.boton_ahora_no = QPushButton(t("Ahora no"), clicked=self.ignorar_version)
+        botones = fila(self.boton_actualizar, self.boton_novedades, self.boton_ahora_no, espacio=6)
+        botones.addStretch(1)
+        caja.addLayout(botones)
+        return self.franja
+
+    def abrir_franja(self) -> None:
+        """Abre el cartelito debajo del Wave con "!", alineado a su borde derecho."""
+        self.franja.adjustSize()
+        abajo_derecha = self.boton_novedad.mapToGlobal(self.boton_novedad.rect().bottomRight())
+        self.franja.move(abajo_derecha.x() - self.franja.width() + 4, abajo_derecha.y() + 6)
+        self.franja.show()
+        self.franja.raise_()
 
     def selector_idioma(self) -> QToolButton:
         """La banderita de arriba a la derecha: cambia el idioma de todo."""
@@ -992,6 +1125,17 @@ class Ajustes(QWidget):
                              "ajustes, silenciar los avisos o cambiar de modo." if m.MAC else
                              "Click en el ícono de la mascota (junto al reloj) para volver a estos ajustes; "
                              "click derecho para silenciar o cambiar de modo."))
+
+        caja.addSpacing(10)
+        caja.addWidget(seccion("Actualizaciones"))
+        self.buscar_versiones, fila_versiones = opcion("Avisarme cuando haya una versión nueva",
+                                                       lambda v: self.cambiar_grupo("actualizaciones", "buscar", v))
+        caja.addLayout(fila_versiones)
+        self.estado_version = QLabel(objectName="valor", wordWrap=True)
+        self.boton_buscar = QPushButton(t("Buscar ahora"), clicked=lambda: self.buscar_version(forzar=True))
+        fila_buscar = fila(self.boton_buscar, self.estado_version, espacio=12)
+        fila_buscar.setStretch(1, 1)
+        caja.addLayout(fila_buscar)
         caja.addStretch(1)
         return pagina
 
@@ -1187,6 +1331,20 @@ class Ajustes(QWidget):
             caja.addLayout(fila_estado)
         self.cel_gif, fila_gif = opcion("Con Wave animada (GIF)", lambda v: self.cambiar_grupo("celular", "gif", v))
         caja.addLayout(fila_gif)
+
+        caja.addSpacing(10)
+        caja.addWidget(seccion("Permisos"))
+        self.cel_permisos, fila_permisos = opcion("Aprobar o denegar permisos desde Telegram",
+                                                  lambda v: self.cambiar_grupo("celular", "permisos", v))
+        caja.addLayout(fila_permisos)
+        self.cel_etiqueta_espera = QLabel(t("Esperar mi respuesta"))
+        self.cel_espera = QSlider(Qt.Orientation.Horizontal, minimum=1, maximum=m.ESPERA_TELEGRAM_MAX // 60, pageStep=1)
+        self.cel_valor_espera = valor()
+        self.cel_espera.valueChanged.connect(lambda v: self.cambiar_grupo("celular", "espera_permisos", v * 60))
+        caja.addLayout(fila(self.cel_etiqueta_espera, self.cel_espera, self.cel_valor_espera))
+        caja.addWidget(ayuda("Te llega el comando completo con los botones Permitir y Denegar. Si no contestás a "
+                             "tiempo, queda el diálogo de siempre en la terminal. Las preguntas de Claude se "
+                             "contestan en la terminal."))
         caja.addSpacing(6)
         caja.addWidget(ayuda("Los avisos pasan por el servidor de WaveMascot para llegar a Telegram; no se guardan. "
                              "Para dejar de recibirlos: Desconectar, o mandale /stop al bot."))
@@ -1230,7 +1388,8 @@ class Ajustes(QWidget):
         controles = [self.duracion, self.sonido, self.volumen, self.tamano, self.inicio, self.no_molestar,
                      self.desde, self.hasta, self.pantalla_completa, self.enfocada, self.umbral, self.permisos,
                      self.espera, self.enfocar, *self.textos.values(), *self.sonidos_evento.values(),
-                     self.cel_activo, self.cel_ausente, self.cel_minutos, self.cel_gif,
+                     self.cel_activo, self.cel_ausente, self.cel_minutos, self.cel_gif, self.buscar_versiones,
+                     self.cel_permisos, self.cel_espera,
                      *self.cel_estados.values(),
                      *(w for g in grupos.values() for w in g.values())]
         for control in controles:
@@ -1261,11 +1420,14 @@ class Ajustes(QWidget):
             combo.setCurrentIndex(max(0, combo.findData(c["sonidos"][estado])))
         self.botones_modo[c["modo"]].setChecked(True)
         self.botones_tema[c["tema"]].setChecked(True)
+        self.buscar_versiones.setChecked(c["actualizaciones"]["buscar"])
         cel = c["celular"]
         self.cel_activo.setChecked(cel["activo"])
         self.cel_ausente.setChecked(cel["solo_ausente"])
         self.cel_minutos.setValue(cel["minutos"])
         self.cel_gif.setChecked(cel["gif"])
+        self.cel_permisos.setChecked(cel["permisos"])
+        self.cel_espera.setValue(round(cel["espera_permisos"] / 60))
         for estado, interruptor in self.cel_estados.items():
             interruptor.setChecked(cel["estados"][estado])
         for control in controles:
@@ -1341,6 +1503,9 @@ class Ajustes(QWidget):
         elif not self.codigo and self.cel_conectar.isEnabled():
             self.cel_estado.setText(t("Sin conectar: tocá el botón, se abre Telegram y tocás «Iniciar»."))
         self.cel_valor_minutos.setText(f"{cel['minutos']} min")
+        self.cel_valor_espera.setText(f"{round(cel['espera_permisos'] / 60)} min")
+        for control in (self.cel_espera, self.cel_valor_espera, self.cel_etiqueta_espera):
+            control.setEnabled(cel["permisos"])
         for control in (self.cel_minutos, self.cel_valor_minutos, self.cel_etiqueta_minutos):
             control.setEnabled(cel["solo_ausente"])
 
@@ -1510,6 +1675,7 @@ class Ajustes(QWidget):
         self.config["aspecto"] = sprites.normalizar(self.config["aspecto"])
         for clave in ("llave", "conectado", "nombre"):  # y Telegram sigue conectado
             self.config["celular"][clave] = cel[clave]
+        self.config["actualizaciones"]["ignorada"] = ""
         aplicar_tema(self.config["tema"], self.config["aspecto"]["estilo"])
         self.cargar_en_controles()
         self.cambio()
@@ -1540,6 +1706,121 @@ class Ajustes(QWidget):
         self.guardar()  # el aviso de prueba lee config.json, igual que uno real
         m.lanzar_desacoplado([str(m.DIR / "mascota.py"), f"--estado={self.estado_vista}", "--forzar",
                               "--detalle=" + t("Prueba desde ajustes")])
+
+    # versión nueva
+
+    def buscar_version(self, forzar: bool = False) -> None:
+        self.estado_version.setText(t("Buscando…") if forzar else t("Tenés la versión {version}.",
+                                                                     version=m.__version__))
+        self.boton_buscar.setEnabled(False)
+
+        def correr():
+            try:
+                tipo, resultado = "buscar", actualizacion.buscar(forzar)
+            except actualizacion.ErrorActualizacion as e:
+                tipo, resultado = "buscar_error", e
+            try:
+                self.respuesta_version.emit(tipo, resultado)
+            except RuntimeError:
+                pass
+        threading.Thread(target=correr, daemon=True).start()
+
+    def mostrar_franja(self, info: dict) -> None:
+        self.version = info
+        self.franja_titulo.setText(t("Hay una versión nueva: {version}", version=info["version"]))
+        novedades = info.get("novedades") or []
+        self.franja_texto.setText("\n".join(f"• {n}" for n in novedades) if novedades else
+                                  t("Tenés la {version}. Mirá qué trae en «Ver novedades».", version=m.__version__))
+        self.boton_actualizar.setText(t("Actualizar ahora") if actualizacion.se_instala_sola(info) else t("Descargar"))
+        self.boton_novedad.setToolTip(t("Hay una versión nueva: {version}", version=info["version"]))
+        self.boton_novedad.poner_version(info["version"])
+        self.boton_novedad.setVisible(True)
+
+    def empezar_actualizacion(self) -> None:
+        """Baja la versión nueva y la instala (Windows); en macOS o desde el código, abre la descarga."""
+        if self.actualizando:
+            return
+        self.actualizando = True
+        self.boton_novedad.setVisible(True)
+        QTimer.singleShot(0, self.abrir_franja)  # recién armada la ventana, el botón ya tiene su lugar
+        self.franja_titulo.setText(t("Buscando la versión nueva…"))
+        self.franja_texto.setText("")
+        for boton in (self.boton_actualizar, self.boton_novedades, self.boton_ahora_no):
+            boton.setEnabled(False)
+        info = self.version
+
+        def correr():
+            try:
+                datos = info or actualizacion.buscar(forzar=True)
+                if not datos:
+                    tipo, resultado = "al_dia", None
+                elif not actualizacion.se_instala_sola(datos):
+                    tipo, resultado = "pagina", datos
+                else:
+                    self.respuesta_version.emit("bajando", datos)
+                    ruta = actualizacion.descargar(datos, lambda f: self.respuesta_version.emit("progreso", f))
+                    tipo, resultado = "bajado", ruta
+            except actualizacion.ErrorActualizacion as e:
+                tipo, resultado = "actualizar_error", e
+            try:
+                self.respuesta_version.emit(tipo, resultado)
+            except RuntimeError:
+                pass
+        threading.Thread(target=correr, daemon=True).start()
+
+    def al_responder_version(self, tipo: str, resultado) -> None:
+        if tipo == "buscar":
+            self.boton_buscar.setEnabled(True)
+            if resultado:
+                self.estado_version.setText(t("Tenés la {actual}; hay una nueva: {version}.", actual=m.__version__,
+                                              version=resultado["version"]))
+                if not self.actualizando:
+                    self.mostrar_franja(resultado)
+            else:
+                self.estado_version.setText(t("Tenés la versión {version}: es la última.", version=m.__version__))
+        elif tipo == "buscar_error":
+            self.boton_buscar.setEnabled(True)
+            self.estado_version.setText(t("Tenés la versión {version}. No pude buscar si hay una nueva ({error}).",
+                                          version=m.__version__, error=resultado))
+        elif tipo == "bajando":
+            self.version = resultado
+            self.franja_titulo.setText(t("Bajando la versión {version}…", version=resultado["version"]))
+        elif tipo == "progreso":
+            self.franja_texto.setText(t("{porcentaje} % · cuando termine, WaveMascot se cierra y vuelve a abrir sola.",
+                                        porcentaje=round(resultado * 100)))
+            self.boton_novedad.setToolTip(self.franja_texto.text())
+        elif tipo == "bajado":
+            self.franja_titulo.setText(t("Instalando la versión {version}…", version=self.version["version"]))
+            self.franja_texto.setText(t("WaveMascot se cierra y vuelve a abrir sola en unos segundos."))
+            self.guardar()
+            actualizacion.instalar(resultado)
+            QTimer.singleShot(1500, QApplication.quit)  # el instalador reemplaza también esta ventana
+        elif tipo == "pagina":
+            self.abrir_enlace(resultado.get("url") or resultado.get("pagina") or actualizacion.PAGINA)
+            self.terminar_actualizacion(resultado)
+        elif tipo == "al_dia":
+            self.actualizando = False
+            self.franja.hide()
+            self.boton_novedad.setVisible(False)
+            self.estado_version.setText(t("Tenés la versión {version}: es la última.", version=m.__version__))
+        elif tipo == "actualizar_error":
+            self.terminar_actualizacion(self.version)
+            self.franja_titulo.setText(t("No se pudo actualizar"))
+            self.franja_texto.setText(t("{error}. Probá de nuevo o bajala desde «Ver novedades».", error=resultado))
+
+    def terminar_actualizacion(self, info) -> None:
+        self.actualizando = False
+        for boton in (self.boton_actualizar, self.boton_novedades, self.boton_ahora_no):
+            boton.setEnabled(True)
+        if info:
+            self.mostrar_franja(info)
+
+    def ignorar_version(self) -> None:
+        if self.version:
+            self.config["actualizaciones"]["ignorada"] = self.version["version"]
+            self.cambio()
+        self.franja.hide()
+        self.boton_novedad.setVisible(False)
 
     # Telegram
 
@@ -1698,7 +1979,7 @@ def ejecutar_ventana() -> int:
     s = QLocalSocket()
     s.connectToServer(CANAL_AJUSTES)
     if s.waitForConnected(300):
-        s.write(b"mostrar\n")
+        s.write(b"actualizar\n" if "--actualizar" in sys.argv[1:] else b"mostrar\n")
         s.flush()
         s.waitForBytesWritten(300)
         return 0
@@ -1722,10 +2003,19 @@ def ejecutar_ventana() -> int:
             anterior.close()
             anterior.deleteLater()
 
-    servidor.newConnection.connect(lambda: (servidor.nextPendingConnection(), traer_al_frente(actual["ventana"])))
+    def al_conectarse() -> None:
+        conexion = servidor.nextPendingConnection()
+        traer_al_frente(actual["ventana"])
+        if conexion and (conexion.bytesAvailable() or conexion.waitForReadyRead(300)):
+            if bytes(conexion.readAll()).startswith(b"actualizar"):
+                actual["ventana"].empezar_actualizacion()
+
+    servidor.newConnection.connect(al_conectarse)
     ventanas.al_reabrir(lambda: traer_al_frente(actual["ventana"]))  # macOS: click en el Dock o abrir la app
     abrir()
     m.log("[ajustes] ventana abierta")
+    if "--actualizar" in sys.argv[1:]:  # desde el cartel de Wave o el menú del ícono
+        actual["ventana"].empezar_actualizacion()
     return app.exec()
 
 

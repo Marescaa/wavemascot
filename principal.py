@@ -35,7 +35,7 @@ def main() -> int:
         del sys.argv[1]  # cada módulo ve sus argumentos como si lo hubieran llamado directo
     if programa == "ajustes":
         if "--ventana" not in sys.argv[1:]:
-            m.lanzar_desacoplado(["ajustes.py", "--ventana"])  # el /wavemascot no tiene que esperar
+            m.lanzar_desacoplado(["ajustes.py", "--ventana", *sys.argv[1:]])  # el /wavemascot no tiene que esperar
             return 0
         import ajustes
         return ajustes.ejecutar_ventana()

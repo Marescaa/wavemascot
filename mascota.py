@@ -86,6 +86,9 @@ TEMAS = ("oscuro", "claro", "acento")
 MODOS = ("aviso", "compania")
 EVENTOS = ("Stop", "Notification", "UserPromptSubmit", "SubagentStop", "StopFailure")
 NO_SE_APRUEBAN = ("AskUserQuestion", "ExitPlanMode")  # no son permisos de verdad: los responde la terminal
+# Lo más que el hook PermissionRequest espera tu respuesta en Telegram: Claude Code lo corta a los 600 s
+# (el timeout que pone el instalador), así que queda margen para devolver la decisión.
+ESPERA_TELEGRAM_MAX = 540
 ESQUINAS = ("arriba-derecha", "arriba-izquierda", "abajo-derecha", "abajo-izquierda")
 
 PIXEL_ASSET = sprites.ESCALA  # cada pixel de arte ocupa 4x4 en los GIF dibujados
@@ -126,7 +129,11 @@ CONFIG_DEFECTO = {
     # nombre de quien la vinculó en Telegram.
     "celular": {"activo": False, "llave": "", "conectado": False, "nombre": "", "solo_ausente": True, "minutos": 3,
                 "gif": True, "estados": {"listo": True, "permiso": True, "subagente": False, "limite": True,
-                                         "error": True}},
+                                         "error": True},
+                # Permitir / Denegar desde Telegram, y cuántos segundos se espera tu respuesta.
+                "permisos": True, "espera_permisos": 240},
+    # Buscar versiones nuevas (actualizacion.py); "ignorada": la versión a la que le dijiste "Ahora no".
+    "actualizaciones": {"buscar": True, "ignorada": ""},
 }
 CANAL = "wavemascot-" + re.sub(r"\W", "", os.environ.get("USERNAME") or os.environ.get("USER") or "yo")
 
@@ -184,7 +191,7 @@ def cargar_config(ruta: Path = CONFIG) -> dict:
         if texto.strip() in ("¡Listo! Terminé", "{mensaje}"):
             config["mensajes"][evento] = ""
     # Grupos de opciones: se copia cada valor que tenga el mismo tipo que el de por defecto.
-    for grupo in ("contenido", "eventos", "no_molestar", "vida", "sonidos"):
+    for grupo in ("contenido", "eventos", "no_molestar", "vida", "sonidos", "actualizaciones"):
         if isinstance(datos.get(grupo), dict):
             for clave, defecto in config[grupo].items():
                 if type(datos[grupo].get(clave)) is type(defecto):
@@ -219,6 +226,7 @@ def cargar_config(ruta: Path = CONFIG) -> dict:
             if clave != "estados" and type(celular.get(clave)) is type(defecto):
                 cel[clave] = celular[clave]
         cel["minutos"] = min(60, max(1, cel["minutos"]))
+        cel["espera_permisos"] = min(ESPERA_TELEGRAM_MAX, max(60, cel["espera_permisos"]))
         if isinstance(celular.get("estados"), dict):
             for estado in cel["estados"]:
                 if isinstance(celular["estados"].get(estado), bool):
@@ -411,11 +419,15 @@ def resumen_para(evento: dict) -> str:
                         evento.get("prompt") or "", flags=re.S)
         return texto_corto(prompt, 90)
     if nombre == "PermissionRequest":
-        entrada = evento.get("tool_input") or {}
-        detalle = next((entrada[c] for c in ("command", "file_path", "url", "pattern", "description", "prompt")
-                        if isinstance(entrada.get(c), str) and entrada[c].strip()), "")
-        return texto_corto(detalle, 120)
+        return texto_corto(detalle_permiso(evento), 120)
     return ""
+
+
+def detalle_permiso(evento: dict) -> str:
+    """Qué quiere hacer la herramienta: el comando, el archivo, la URL... completo (para Telegram)."""
+    entrada = evento.get("tool_input") or {}
+    return next((entrada[c].strip() for c in ("command", "file_path", "url", "pattern", "description", "prompt")
+                 if isinstance(entrada.get(c), str) and entrada[c].strip()), "")
 
 
 # --- duración de la tarea ----------------------------------------------------------
@@ -834,7 +846,8 @@ class Cartel:
     """Mide y dibuja el cartel debajo de la mascota: mensaje, resumen, datos y botones."""
 
     ANCHO_TEXTO = 236
-    BOTONES = {"permitir": "Permitir", "denegar": "Denegar", "enfocar": "Ir a la terminal"}
+    BOTONES = {"permitir": "Permitir", "denegar": "Denegar", "enfocar": "Ir a la terminal",
+               "actualizar": "Actualizar", "ahora_no": "Ahora no"}
 
     def __init__(self):
         from PyQt6.QtGui import QFont
@@ -953,7 +966,7 @@ class Cartel:
             p.setFont(self.fuente_boton)
             for clave, w in zip(self.botones, self.anchos_boton):
                 zona = QRectF(x, fila, w, 24)
-                principal = clave == "permitir"
+                principal = clave in ("permitir", "actualizar")
                 p.setPen(Qt.PenStyle.NoPen)
                 p.setBrush(c["principal"] if principal else c["boton"])
                 p.drawRoundedRect(zona, 7, 7)
@@ -1096,6 +1109,7 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             self.estado, self.compania, self.deslizar, self.mostrar_cartel = "idle", False, True, False
             self.mirada, self.extra = (0, 0), None
             self.respuesta, self.ventana_terminal = None, 0
+            self.novedad = ""
             self.agarre = self.inicio_agarre = None
             self.arrastrada = False   # ya la moviste alguna vez (se queda donde la dejaste)
             self.arrastrando = False  # el clic actual se convirtió en arrastre
@@ -1187,6 +1201,9 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             botones = ["permitir", "denegar"] if self.respuesta else []
             if self.ventana_terminal and d.get("boton_enfocar", True) and self.mensaje:
                 botones.append("enfocar")
+            self.novedad = d.get("novedad") or ""  # aviso de versión nueva: Actualizar / Ahora no
+            if self.novedad:
+                botones = ["actualizar", "ahora_no"]
             self.cartel.medir(self.mensaje, (d.get("resumen") or "")[:200], (d.get("meta") or "")[:120], botones)
             self.mostrar_cartel = bool(self.mensaje)
             self.cambiar_estado(estado)
@@ -1554,6 +1571,7 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
 
         def avanzar_reloj(self) -> None:
             transcurrido = self.reloj.restart()
+            self.revisar_permiso()
             if not self.pausada and not self.saliendo:
                 self.restante -= transcurrido
                 if self.restante <= 0:
@@ -1604,6 +1622,18 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
         # acciones del cartel
 
         def accion(self, clave: str) -> None:
+            if clave in ("actualizar", "ahora_no"):
+                if clave == "actualizar":  # los ajustes la bajan y la instalan, mostrando el avance
+                    lanzar_desacoplado([str(DIR / "ajustes.py"), "--actualizar"])
+                else:
+                    config = cargar_config()
+                    config["actualizaciones"]["ignorada"] = self.novedad
+                    guardar_config(config)
+                log(f"versión nueva {self.novedad}: {clave}")
+                self.restante = 0
+                if not self.compania:
+                    self.salir(rapido=True)
+                return
             if clave == "enfocar":
                 ok = ventanas.enfocar(self.ventana_terminal)
                 log(f"botón 'Ir a la terminal': {'enfocada' if ok else 'no se pudo enfocar'} ({self.ventana_terminal})")
@@ -1645,6 +1675,27 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
         def soltar_permiso(self) -> None:
             if self.respuesta:
                 self.responder(None)  # que la terminal muestre su diálogo de siempre
+
+        def revisar_permiso(self) -> None:
+            """El pedido se resolvió en otro lado (Telegram) o el hook dejó de esperar: el cartel pierde los
+            botones, dice qué pasó y se va."""
+            conexion = self.conexion_permiso
+            if not conexion:
+                return
+            try:
+                if not conexion.poll(0):
+                    return
+                mensaje = conexion.recv()
+            except (EOFError, OSError):
+                mensaje = {}
+            self.conexion_permiso, self.respuesta = None, None
+            decision = mensaje.get("resuelto") if isinstance(mensaje, dict) else None
+            texto = {"allow": t("Permitido desde Telegram ✓"), "deny": t("Denegado desde Telegram")}.get(decision)
+            log(f"permiso: resuelto fuera de la mascota ({decision or 'sin respuesta'})")
+            self.cartel.medir(texto or self.mensaje, self.cartel.resumen)
+            self.maquetar()
+            self.total = self.restante = 1500 if texto else 0
+            self.update()
 
         def menu_compania(self, donde) -> None:
             idiomas.usar(cargar_config()["idioma"])  # pudo cambiar en los ajustes desde que se abrió
@@ -1889,11 +1940,8 @@ def main() -> int:
             estado = "limite" if evento.get("error") == "rate_limit" else "error"
         if nombre == "UserPromptSubmit":
             registrar_inicio(evento)
-        apariencia = {clave: config[clave] for clave in
-                      ("aspecto", "imagen", "tamano", "volumen", "tema", "modo", "vida", "posicion", "boton_enfocar",
-                       "no_molestar", "idioma")}
         if args.compania:
-            lanzar_ventana({"estado": "idle", "mensaje": "", **apariencia, "modo": "compania",
+            lanzar_ventana({"estado": "idle", "mensaje": "", **apariencia(config), "modo": "compania",
                             "esquina": config["esquina"]})
             log("compañera abierta")
             return 0
@@ -1912,7 +1960,19 @@ def main() -> int:
         # que se contesta en la terminal), el celular avisa si no estás en la compu. Las pruebas no van.
         motivo_celular = ("es una prueba" if args.forzar or not evento else
                           motivo_para_no_mandar_al_celular(config, evento, estado, ventanas.segundos_inactivo()))
-        if not motivo_celular:
+        # Un pedido de permiso de verdad va con los botones Permitir / Denegar (en vez del aviso común).
+        telegram = None
+        if (not motivo_celular and nombre == "PermissionRequest" and config["celular"]["permisos"]
+                and evento.get("tool_name") not in NO_SE_APRUEBAN):
+            chat, proy = titulo_del_chat(evento) or evento.get("session_title") or "", proyecto(evento)
+            import celular
+            telegram = {"llave": config["celular"]["llave"], "idioma": config["idioma"],
+                        "espera": config["celular"]["espera_permisos"],
+                        "texto": celular.texto_permiso(mensaje_para(estado, evento), detalle_permiso(evento),
+                                                       " · ".join(d for d in (proy, chat if chat != proy else "") if d))}
+            celular.repetido(f"{evento.get('session_id') or ''}|permiso")  # el aviso común de este permiso no va
+            log(f"evento={nombre}: pedido de permiso a Telegram (espera {telegram['espera']} s)")
+        elif not motivo_celular:
             chat, proy = titulo_del_chat(evento) or evento.get("session_title") or "", proyecto(evento)
             datos_cel = [formato_duracion(duracion) if duracion is not None else "", proy if proy != chat else "", chat]
             mandar_al_celular({"estado": estado, "sesion": evento.get("session_id") or "",
@@ -1926,6 +1986,8 @@ def main() -> int:
 
         if motivo and not silencioso:
             log(f"evento={nombre} estado={estado}: no se avisa porque {motivo}")
+            if telegram:  # la mascota no se muestra (p. ej. la terminal tiene el foco), pero Telegram sí espera
+                responder_permiso(None, config["espera_permiso"], telegram)
             return 0
 
         if not chat and not proy:
@@ -1947,7 +2009,7 @@ def main() -> int:
             "sonido": sonido,
             "ventana": anfitriona,
             "sesion": evento.get("session_id") or "",
-            **apariencia,
+            **apariencia(config),
         }
         if estado == "limite":  # la compañera duerme hasta que se renueve el límite
             aviso["despertar"] = hora_de_reinicio(" ".join(str(evento.get(c) or "") for c in
@@ -1957,12 +2019,18 @@ def main() -> int:
             f"modo={aviso['modo']} tema={aviso['tema']} sonido={sonido or 'no'}"
             + (f" (silencioso: {motivo})" if silencioso else ""))
         if nombre == "PermissionRequest":
-            responder_permiso(aviso, config["espera_permiso"])
+            responder_permiso(aviso, config["espera_permiso"], telegram)
         else:
             lanzar_ventana(aviso)
     except Exception:
         log("error al lanzar la mascota:\n" + traceback.format_exc())
     return 0
+
+
+def apariencia(config: dict) -> dict:
+    """Lo que la ventana de la mascota necesita de los ajustes para verse como corresponde."""
+    return {clave: config[clave] for clave in ("aspecto", "imagen", "tamano", "volumen", "tema", "modo", "vida",
+                                               "posicion", "boton_enfocar", "no_molestar", "idioma")}
 
 
 def lanzar_ventana(aviso: dict) -> None:
@@ -1978,51 +2046,112 @@ def direccion_permiso() -> str:
     return str(Path(tempfile.gettempdir()) / f"wavemascot-permiso-{os.getpid()}")
 
 
-def responder_permiso(aviso: dict, espera: int) -> None:
-    """PermissionRequest: muestra Permitir/Denegar y espera tu click para devolverle la decisión
-    a Claude Code. Si no elegís a tiempo no se devuelve nada y decide el diálogo de siempre."""
+def responder_permiso(aviso: dict | None, espera: int, telegram: dict | None = None) -> None:
+    """PermissionRequest: espera tu respuesta en la mascota (Permitir / Denegar) y, si no estás en la compu,
+    también en Telegram; lo primero que llegue se le devuelve a Claude Code y el otro lado se entera (el cartel
+    de Wave se cierra, el mensaje de Telegram pierde los botones). Si nadie responde a tiempo no se devuelve
+    nada y decide el diálogo de siempre de la terminal.
+
+    aviso: el cartel de la mascota (None si no se muestra). telegram: {"llave", "texto", "idioma", "espera"}."""
     from multiprocessing.connection import Listener
 
-    direccion = direccion_permiso()
-    oyente = Listener(direccion, authkey=CLAVE_PERMISO)
-    aviso.update(respuesta=direccion, duracion=espera)
-    lanzar_ventana(aviso)
+    total = max(espera, telegram["espera"]) if telegram else espera
     resultado: dict = {}
+    listo, candado = threading.Event(), threading.Lock()
+    pendientes = [int(bool(aviso)) + int(bool(telegram))]
 
-    def esperar():
+    def decidir(decision: str, origen: str) -> None:
+        with candado:
+            if not listo.is_set():
+                resultado.update(decision=decision, origen=origen)
+                listo.set()
+
+    def termino() -> None:  # un lado dejó de esperar sin respuesta: si eran todos, no se espera más
+        with candado:
+            pendientes[0] -= 1
+            if pendientes[0] <= 0:
+                listo.set()
+
+    def por_la_mascota() -> None:
         try:
             with oyente.accept() as conexion:
                 resultado["mostrado"] = True
-                fin = time.time() + espera + 5
-                while time.time() < fin and conexion.poll(max(0.1, fin - time.time())):
-                    mensaje = conexion.recv()
-                    if "decision" in mensaje:
-                        resultado.update(mensaje)
-                        return
+                fin = time.time() + total + 5
+                while time.time() < fin and not listo.is_set():
+                    if conexion.poll(0.3):
+                        mensaje = conexion.recv()
+                        if mensaje.get("decision") in ("allow", "deny"):
+                            decidir(mensaje["decision"], "mascota")
+                        elif "decision" in mensaje:  # se fue sin elegir (se venció su cartel)
+                            break
+                if resultado.get("origen") == "telegram":  # que el cartel diga que se resolvió en el celu
+                    conexion.send({"resuelto": resultado["decision"]})
         except (OSError, EOFError):
             pass
+        termino()
 
-    hilo = threading.Thread(target=esperar, daemon=True)
-    hilo.start()
-    hilo.join(8)  # si en 8 s la mascota no mostró el cartel, no se la espera: decide la terminal
-    if resultado.get("mostrado"):
-        hilo.join(espera + 5)
-    if os.name != "nt":
+    def por_telegram() -> None:
+        import celular
+        try:
+            resultado["telegram"] = celular.pedir_permiso(telegram["llave"], telegram["texto"], telegram["idioma"],
+                                                          telegram["espera"])
+        except celular.ErrorCelular as e:
+            log(f"permiso: no se pudo mandar a Telegram ({e})")
+            termino()
+            return
+        fin = time.time() + telegram["espera"]
+        while not listo.is_set() and time.time() < fin:
+            try:
+                decision = celular.esperar_permiso(telegram["llave"], resultado["telegram"],
+                                                   int(min(20, max(1, fin - time.time()))))
+            except celular.ErrorCelular as e:  # sin conexión un momento: se reintenta
+                log(f"permiso: Telegram no respondió ({e})")
+                time.sleep(3)
+                continue
+            if decision:
+                decidir(decision, "telegram")
+                return
+        termino()
+
+    hilo_mascota = direccion = None
+    if aviso:
+        direccion = direccion_permiso()
+        oyente = Listener(direccion, authkey=CLAVE_PERMISO)
+        aviso.update(respuesta=direccion, duracion=total)
+        lanzar_ventana(aviso)
+        hilo_mascota = threading.Thread(target=por_la_mascota, daemon=True)
+        hilo_mascota.start()
+    if telegram:
+        threading.Thread(target=por_telegram, daemon=True).start()
+    # Si en 8 s no apareció el cartel ni salió el mensaje de Telegram, no se espera: decide la terminal.
+    listo.wait(8)
+    if resultado.get("mostrado") or resultado.get("telegram"):
+        listo.wait(total + 5)
+    decision, origen = resultado.get("decision"), resultado.get("origen")
+    if resultado.get("telegram") and origen != "telegram":
+        import celular
+        try:
+            celular.cerrar_permiso(telegram["llave"], resultado["telegram"], "compu" if decision else "vencido", decision)
+        except celular.ErrorCelular as e:
+            log(f"permiso: no se pudo cerrar el mensaje de Telegram ({e})")
+    if hilo_mascota:
+        hilo_mascota.join(1.5)  # le avisa al cartel si se resolvió por Telegram
+    if direccion and os.name != "nt":
         try:
             os.unlink(direccion)  # el socket del permiso (os._exit no deja que lo borre multiprocessing)
         except OSError:
             pass
-    decision = resultado.get("decision")
     if decision not in ("allow", "deny"):
-        log("permiso: sin respuesta en la mascota, decide la terminal")
+        log("permiso: sin respuesta en la mascota ni en Telegram, decide la terminal")
         return
     salida = {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": decision}}}
     if decision == "deny":
-        salida["hookSpecificOutput"]["decision"]["message"] = "The user denied it from WaveMascot."
+        donde = "Telegram" if origen == "telegram" else "WaveMascot"
+        salida["hookSpecificOutput"]["decision"]["message"] = f"The user denied it from {donde}."
     if sys.stdout:
         sys.stdout.write(json.dumps(salida))
         sys.stdout.flush()
-    log(f"permiso: {decision} devuelto a Claude Code")
+    log(f"permiso: {decision} devuelto a Claude Code (desde {origen})")
 
 
 if __name__ == "__main__":

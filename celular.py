@@ -105,6 +105,37 @@ def desconectar(llave: str) -> None:
     pedir("DELETE", "/v1/registro", llave)
 
 
+# --- permisos (Permitir / Denegar desde Telegram) --------------------------------------
+
+def texto_permiso(mensaje: str, detalle: str, meta: str) -> str:
+    """El pedido en HTML de Telegram: qué quiere hacer Claude, el comando o archivo completo y el proyecto."""
+    lineas = [f"🔐 <b>{html.escape(mensaje)}</b>"]
+    if detalle:
+        lineas.append(f"<pre>{html.escape(detalle[:3000])}</pre>")
+    if meta:
+        lineas.append(f"<i>{html.escape(meta)}</i>")
+    return "\n".join(lineas)
+
+
+def pedir_permiso(llave: str, texto: str, idioma: str, espera: int) -> str:
+    """Manda el pedido con los botones; devuelve su id."""
+    respuesta = pedir("POST", "/v1/permiso", llave, datos={"texto": texto, "idioma": idioma, "espera": espera})
+    if not respuesta.get("ok") or not respuesta.get("id"):
+        raise ErrorCelular(respuesta.get("error") or "no se pudo mandar el pedido", 0, respuesta)
+    return respuesta["id"]
+
+
+def esperar_permiso(llave: str, id_permiso: str, segundos: int = 20) -> str | None:
+    """Espera hasta `segundos` a que toques un botón: "allow", "deny" o None (todavía nada, o ya se cerró)."""
+    respuesta = pedir("GET", f"/v1/permiso/{id_permiso}?segundos={segundos}", llave, espera=segundos + 15)
+    return respuesta.get("decision") if respuesta.get("decision") in ("allow", "deny") else None
+
+
+def cerrar_permiso(llave: str, id_permiso: str, motivo: str, decision: str | None = None) -> None:
+    """La compu lo resolvió ("compu", con la decisión si la hubo) o se venció: el mensaje pierde los botones."""
+    pedir("POST", f"/v1/permiso/{id_permiso}/cerrar", llave, datos={"motivo": motivo, "decision": decision}, espera=10)
+
+
 def codigo_visible(codigo: str) -> str:
     """ENRHPK -> ENR-HPK, más fácil de leer y de escribir."""
     return f"{codigo[:3]}-{codigo[3:]}" if len(codigo) == 6 else codigo

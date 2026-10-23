@@ -11,6 +11,10 @@
 //   cod:<CÓDIGO>          -> sha256(llave)              (vence en 15 minutos)
 //   chat:<id>             -> ["sha256(llave)", ...]     (para /stop desde Telegram)
 //   gif:<clave>           -> file_id de Telegram         (cada GIF se sube una sola vez para todos)
+//
+// Permisos: cuando Claude Code pide permiso y no estás en la compu, la app manda un mensaje con los
+// botones Permitir / Denegar. Cada pedido vive en un Durable Object (Permisos): guarda la respuesta con
+// consistencia fuerte y despierta al instante a la compu, que la espera con long polling.
 
 const API = "https://api.telegram.org/bot";
 const LETRAS = "ACDEFHJKMNPQRTUVWXY34679"; // sin las que se confunden (0/O, 1/I/L, 5/S, 8/B, 2/Z)
@@ -56,6 +60,17 @@ const TEXTOS = {
       "Así podés levantarte de la compu tranquilo.\n\n" +
       "Para conectarme: WaveMascot → Ajustes → Celular → Conectar con Telegram.",
     corta: "Avisos de Claude Code en tu celular, con Wave animada 👋",
+    permitir: "✅ Permitir",
+    denegar: "❌ Denegar",
+    permitido_tg: "✅ <b>Permitido</b> desde Telegram",
+    denegado_tg: "❌ <b>Denegado</b> desde Telegram",
+    permitido_compu: "✅ <b>Permitido</b> en la compu",
+    denegado_compu: "❌ <b>Denegado</b> en la compu",
+    resuelto_compu: "💻 Lo resolviste en la compu",
+    permiso_vencido: "⏱ <b>Se venció</b>: respondé en la terminal",
+    ok_permitido: "Permitido ✅",
+    ok_denegado: "Denegado ❌",
+    ya_resuelto: "Este pedido ya se resolvió",
     comandos: { help: "Cómo funciono y qué compus tenés conectadas", stop: "Dejar de recibir avisos" },
   },
   en: {
@@ -92,6 +107,17 @@ const TEXTOS = {
       "did. So you can step away from the computer without worrying.\n\n" +
       "To connect me: WaveMascot → Settings → Phone → Connect Telegram.",
     corta: "Claude Code notifications on your phone, with Wave animated 👋",
+    permitir: "✅ Allow",
+    denegar: "❌ Deny",
+    permitido_tg: "✅ <b>Allowed</b> from Telegram",
+    denegado_tg: "❌ <b>Denied</b> from Telegram",
+    permitido_compu: "✅ <b>Allowed</b> on the computer",
+    denegado_compu: "❌ <b>Denied</b> on the computer",
+    resuelto_compu: "💻 You handled it on the computer",
+    permiso_vencido: "⏱ <b>Expired</b>: answer in the terminal",
+    ok_permitido: "Allowed ✅",
+    ok_denegado: "Denied ❌",
+    ya_resuelto: "This request was already handled",
     comandos: { help: "How I work and which computers are connected", stop: "Stop notifications" },
   },
   pt: {
@@ -128,6 +154,17 @@ const TEXTOS = {
       "fez. Assim você pode sair do computador tranquilo.\n\n" +
       "Para me conectar: WaveMascot → Ajustes → Celular → Conectar com o Telegram.",
     corta: "Avisos do Claude Code no seu celular, com o Wave animado 👋",
+    permitir: "✅ Permitir",
+    denegar: "❌ Negar",
+    permitido_tg: "✅ <b>Permitido</b> pelo Telegram",
+    denegado_tg: "❌ <b>Negado</b> pelo Telegram",
+    permitido_compu: "✅ <b>Permitido</b> no computador",
+    denegado_compu: "❌ <b>Negado</b> no computador",
+    resuelto_compu: "💻 Você resolveu no computador",
+    permiso_vencido: "⏱ <b>Venceu</b>: responda no terminal",
+    ok_permitido: "Permitido ✅",
+    ok_denegado: "Negado ❌",
+    ya_resuelto: "Este pedido já foi resolvido",
     comandos: { help: "Como eu funciono e quais computadores estão conectados", stop: "Parar os avisos" },
   },
 };
@@ -143,6 +180,12 @@ export default {
       if (url.pathname === "/v1/codigo" && pedido.method === "POST") return await conLlave(pedido, env, nuevoCodigo);
       if (url.pathname === "/v1/estado" && pedido.method === "GET") return await conLlave(pedido, env, estado);
       if (url.pathname === "/v1/aviso" && pedido.method === "POST") return await conLlave(pedido, env, aviso);
+      if (url.pathname === "/v1/permiso" && pedido.method === "POST") return await conLlave(pedido, env, pedirPermiso);
+      const permiso = url.pathname.match(/^\/v1\/permiso\/([A-Za-z0-9]{20})(\/cerrar)?$/);
+      if (permiso) {
+        const accion = permiso[2] ? cerrarPermiso : esperarPermiso;
+        return await conLlave(pedido, env, (p, e, hash, datos) => accion(p, e, hash, datos, permiso[1]));
+      }
       if (url.pathname === "/") return json({ ok: true, servicio: "WaveMascot" });
       return json({ ok: false, error: "no existe" }, 404);
     } catch (e) {
@@ -169,6 +212,10 @@ function azar(cantidad, letras) {
 }
 
 async function telegram(env, metodo, datos) {
+  if (env.TELEGRAM_FALSO) { // solo en pruebas locales (.dev.vars): no sale nada a Telegram
+    console.log("telegram falso:", metodo, datos instanceof FormData ? "(archivo)" : JSON.stringify(datos));
+    return { ok: true, result: { message_id: 1, username: "WaveNotificationBot" } };
+  }
   const opciones = datos instanceof FormData
     ? { method: "POST", body: datos }
     : { method: "POST", body: JSON.stringify(datos || {}), headers: { "content-type": "application/json" } };
@@ -284,6 +331,155 @@ async function aviso(pedido, env, hash, datos) {
   return json(r.ok ? { ok: true } : { ok: false, error: r.description || "Telegram no lo aceptó" }, r.ok ? 200 : 502);
 }
 
+// --- permisos -------------------------------------------------------------------------------------
+
+const LETRAS_ID = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function cajaPermiso(env, id) {
+  return env.PERMISOS.get(env.PERMISOS.idFromName(id));
+}
+
+async function alPermiso(env, id, accion, datos, consulta = "") {
+  const r = await cajaPermiso(env, id).fetch("https://permiso/" + accion + consulta,
+    datos ? { method: "POST", body: JSON.stringify(datos) } : {});
+  return { estado: r.status, ...(await r.json()) };
+}
+
+async function pedirPermiso(pedido, env, hash, datos) {
+  // La app manda el texto ya armado (en el idioma de sus ajustes): el bot le suma los botones.
+  if (!datos.chat) return json({ ok: false, error: "no conectado", conectado: false }, 409);
+  const entrada = await pedido.json();
+  const texto = String(entrada.texto || "").slice(0, 3500);
+  if (!texto.trim()) return json({ ok: false, error: "falta el texto" }, 400);
+  const idioma = TEXTOS[entrada.idioma] ? entrada.idioma : "en";
+  const espera = Math.min(600, Math.max(30, Number(entrada.espera) || 240));
+  const t = TEXTOS[idioma];
+  const id = azar(20, LETRAS_ID);
+  const r = await telegram(env, "sendMessage", {
+    chat_id: datos.chat, text: texto, parse_mode: "HTML",
+    reply_markup: { inline_keyboard: [[{ text: t.permitir, callback_data: `p:${id}:a` },
+                                       { text: t.denegar, callback_data: `p:${id}:d` }]] },
+  });
+  if (!r.ok) {
+    if (r.error_code === 403) { // bloqueó al bot: queda desconectado
+      await sacarDelChat(env, datos.chat, hash);
+      await env.DATOS.put("inst:" + hash, JSON.stringify({ ...datos, chat: null }));
+      return json({ ok: false, error: "el chat bloqueó al bot", conectado: false }, 409);
+    }
+    return json({ ok: false, error: r.description || "Telegram no lo aceptó" }, 502);
+  }
+  await alPermiso(env, id, "crear", { hash, chat: datos.chat, mensaje: r.result.message_id, texto, idioma,
+                                      vence: Date.now() / 1000 + espera + 20 });
+  return json({ ok: true, id });
+}
+
+async function esperarPermiso(pedido, env, hash, datos, id) {
+  // Long polling: responde apenas tocás un botón, o a los ~25 s sin novedades (la app vuelve a preguntar).
+  const segundos = Math.min(25, Math.max(1, Number(new URL(pedido.url).searchParams.get("segundos")) || 20));
+  const r = await alPermiso(env, id, "esperar", null, `?hash=${hash}&segundos=${segundos}`);
+  return json(r, r.estado);
+}
+
+async function cerrarPermiso(pedido, env, hash, datos, id) {
+  // La compu lo resolvió (Wave o la terminal) o se cansó de esperar: el mensaje pierde los botones.
+  const entrada = await pedido.json();
+  const r = await alPermiso(env, id, "cerrar", { hash, motivo: entrada.motivo === "vencido" ? "vencido" : "compu",
+                                                 decision: ["allow", "deny"].includes(entrada.decision) ? entrada.decision : null });
+  if (r.ok && r.cambio) await editarPermiso(env, r.d);
+  return json({ ok: r.ok }, r.estado);
+}
+
+async function editarPermiso(env, d) {
+  const t = TEXTOS[d.idioma] || TEXTOS.en;
+  const linea = d.origen === "telegram" ? (d.decision === "allow" ? t.permitido_tg : t.denegado_tg)
+    : d.cerrado === "vencido" ? t.permiso_vencido
+    : d.decision_compu === "allow" ? t.permitido_compu
+    : d.decision_compu === "deny" ? t.denegado_compu : t.resuelto_compu;
+  await telegram(env, "editMessageText", { chat_id: d.chat, message_id: d.mensaje, text: d.texto + "\n\n" + linea,
+                                           parse_mode: "HTML", reply_markup: { inline_keyboard: [] } });
+}
+
+async function botonPermiso(env, consulta) {
+  // Tocaron Permitir o Denegar: solo vale desde el chat que recibió el pedido, y una sola vez.
+  const partes = /^p:([A-Za-z0-9]{20}):([ad])$/.exec(consulta.data || "");
+  const t = TEXTOS[(consulta.from && consulta.from.language_code || "en").slice(0, 2)] || TEXTOS.en;
+  if (!partes || !consulta.message) {
+    await telegram(env, "answerCallbackQuery", { callback_query_id: consulta.id });
+    return;
+  }
+  const decision = partes[2] === "a" ? "allow" : "deny";
+  const r = await alPermiso(env, partes[1], "decidir", { decision, chat: consulta.message.chat.id });
+  await telegram(env, "answerCallbackQuery", {
+    callback_query_id: consulta.id,
+    text: r.ok ? (decision === "allow" ? t.ok_permitido : t.ok_denegado) : t.ya_resuelto,
+  });
+  if (r.ok) await editarPermiso(env, r.d);
+}
+
+// Un pedido de permiso. Guarda: hash de la instalación, chat, id del mensaje, texto, idioma, vencimiento,
+// y después la decisión (desde Telegram) o cómo se cerró (en la compu, o vencido).
+export class Permisos {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+    this.esperando = [];
+  }
+
+  async fetch(pedido) {
+    const url = new URL(pedido.url);
+    const accion = url.pathname.slice(1);
+    let d = await this.state.storage.get("d");
+    if (accion === "crear") {
+      d = await pedido.json();
+      await this.state.storage.put("d", d);
+      await this.state.storage.setAlarm(d.vence * 1000); // si la compu no lo cierra, se vence solo
+      return json({ ok: true });
+    }
+    if (!d) return json({ ok: false, error: "no existe" }, 404);
+    if (accion === "esperar") {
+      if (url.searchParams.get("hash") !== d.hash) return json({ ok: false, error: "no es tuyo" }, 403);
+      if (!d.decision && !d.cerrado) {
+        const segundos = Number(url.searchParams.get("segundos")) || 20;
+        await new Promise((listo) => {
+          const reloj = setTimeout(listo, segundos * 1000);
+          this.esperando.push(() => { clearTimeout(reloj); listo(); });
+        });
+        d = await this.state.storage.get("d");
+      }
+      return json({ ok: true, decision: d.decision || null, cerrado: d.cerrado || null });
+    }
+    const entrada = await pedido.json();
+    if (accion === "decidir") {
+      if (entrada.chat !== d.chat) return json({ ok: false, error: "otro chat" }, 403);
+      if (d.decision || d.cerrado || Date.now() / 1000 > d.vence) return json({ ok: false, ya: true });
+      d.decision = entrada.decision;
+      d.origen = "telegram";
+    } else if (accion === "cerrar") {
+      if (entrada.hash !== d.hash) return json({ ok: false, error: "no es tuyo" }, 403);
+      if (d.decision || d.cerrado) return json({ ok: true, cambio: false });
+      d.cerrado = entrada.motivo;
+      d.decision_compu = entrada.decision;
+    } else {
+      return json({ ok: false, error: "no existe" }, 404);
+    }
+    await this.state.storage.put("d", d);
+    for (const despertar of this.esperando.splice(0)) despertar();
+    return json({ ok: true, cambio: true, d });
+  }
+
+  async alarm() {
+    const d = await this.state.storage.get("d");
+    if (d && !d.decision && !d.cerrado) {
+      d.cerrado = "vencido";
+      await this.state.storage.put("d", d);
+      await editarPermiso(this.env, d);
+    }
+    // Una hora después ya no sirve para nada: se borra.
+    if (d && Date.now() / 1000 > d.vence + 3600) await this.state.storage.deleteAll();
+    else await this.state.storage.setAlarm(Date.now() + 3600 * 1000);
+  }
+}
+
 // --- lo que llega de Telegram ------------------------------------------------------------------
 
 async function secretoWebhook(env) {
@@ -296,7 +492,7 @@ async function setup(url, env) {
   const r = await telegram(env, "setWebhook", {
     url: url.origin + "/telegram",
     secret_token: await secretoWebhook(env),
-    allowed_updates: ["message"],
+    allowed_updates: ["message", "callback_query"],
     drop_pending_updates: true,
   });
   const resultado = { ok: r.ok, webhook: r.description, bot: await nombreDelBot(env) };
@@ -361,6 +557,10 @@ async function webhook(pedido, env) {
   }
   const origen = new URL(pedido.url).origin;
   const novedad = await pedido.json();
+  if (novedad.callback_query) { // tocaron Permitir o Denegar en un pedido de permiso
+    await botonPermiso(env, novedad.callback_query);
+    return new Response("ok");
+  }
   const mensaje = novedad.message;
   if (!mensaje || !mensaje.chat || mensaje.chat.type !== "private") return new Response("ok");
   const idioma = (mensaje.from && mensaje.from.language_code || "en").slice(0, 2);

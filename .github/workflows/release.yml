@@ -66,6 +66,19 @@ jobs:
     needs: [windows, mac]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      # La sección de esta versión en el CHANGELOG va al principio de las notas: la app la lee para
+      # mostrar qué trae la versión nueva (actualizacion.py busca "What's new").
+      - name: Novedades
+        id: novedades
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" 'index($0, "## [" v "]") == 1 {dentro=1; next} dentro && index($0, "## [") == 1 {exit} dentro' \
+            CHANGELOG.md | sed '/^### Added$/d' > novedades.md
+          { echo 'texto<<FIN_NOVEDADES'; cat novedades.md; echo 'FIN_NOVEDADES'; } >> "$GITHUB_OUTPUT"
+          cat novedades.md
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -87,6 +100,10 @@ jobs:
             dist/SHA256SUMS.txt
           generate_release_notes: true
           body: |
+            ## What's new
+
+            ${{ steps.novedades.outputs.texto }}
+
             ## Download
 
             | Your computer | File |

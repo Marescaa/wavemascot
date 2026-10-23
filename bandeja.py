@@ -15,6 +15,7 @@ import ctypes
 import os
 import subprocess
 import sys
+import threading
 import time
 import traceback
 from datetime import datetime
@@ -28,7 +29,7 @@ import sprites  # noqa: E402
 import ventanas  # noqa: E402
 from idiomas import t  # noqa: E402
 
-from PyQt6.QtCore import QFileSystemWatcher, QSize, QTimer  # noqa: E402
+from PyQt6.QtCore import QFileSystemWatcher, QSize, QTimer, pyqtSignal  # noqa: E402
 from PyQt6.QtGui import QIcon, QPixmap  # noqa: E402
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket  # noqa: E402
 from PyQt6.QtWidgets import QApplication, QMenu, QSystemTrayIcon  # noqa: E402
@@ -101,9 +102,16 @@ def png(imagen) -> bytes:
 
 
 class Bandeja(QSystemTrayIcon):
+    version_nueva = pyqtSignal(object)  # lo que encontró la búsqueda de actualizaciones (o None)
+
     def __init__(self):
         super().__init__()
         menu = QMenu()
+        self.accion_actualizar = menu.addAction("")
+        self.accion_actualizar.triggered.connect(self.actualizar_app)
+        self.accion_actualizar.setVisible(False)
+        self.separador_actualizar = menu.addSeparator()
+        self.separador_actualizar.setVisible(False)
         self.accion_ajustes = menu.addAction("")
         self.accion_ajustes.triggered.connect(self.abrir_ajustes)
         menu.setDefaultAction(self.accion_ajustes)
@@ -141,7 +149,36 @@ class Bandeja(QSystemTrayIcon):
         self.reloj = QTimer(self, interval=30_000, timeout=self.actualizar)  # vence el silencio
         self.reloj.start()
         self.color = None
+        self.nueva = None
         self.actualizar()
+        # Versiones nuevas: un rato después de arrancar (no compite con el inicio de Windows) y cada 3 horas.
+        self.version_nueva.connect(self.al_encontrar_version)
+        self.timer_version = QTimer(self, interval=3 * 3600 * 1000, timeout=self.buscar_version)
+        self.timer_version.start()
+        QTimer.singleShot(90_000, self.buscar_version)
+
+    def buscar_version(self) -> None:
+        def buscar():
+            import actualizacion
+            try:
+                info = actualizacion.revisar_y_avisar()
+            except actualizacion.ErrorActualizacion as e:
+                m.log(f"[bandeja] {e}")
+                info = self.nueva  # sin conexión: queda lo que ya se sabía
+            try:
+                self.version_nueva.emit(info)
+            except RuntimeError:
+                pass
+        threading.Thread(target=buscar, daemon=True).start()
+
+    def al_encontrar_version(self, info) -> None:
+        self.nueva = info
+        self.actualizar()
+
+    def actualizar_app(self) -> None:
+        if os.name == "nt":
+            ctypes.windll.user32.AllowSetForegroundWindow(-1)
+        m.lanzar_desacoplado([str(DIR / "ajustes.py"), "--actualizar"])
 
     def actualizar(self) -> None:
         config = m.cargar_config()
@@ -155,6 +192,11 @@ class Bandeja(QSystemTrayIcon):
         if m.MAC:
             self.accion_inicio.setText(t("Abrir al iniciar sesión"))
             self.accion_desinstalar.setText(t("Desinstalar {nombre}…", nombre="WaveMascot"))
+        hay_nueva = bool(self.nueva)
+        self.accion_actualizar.setVisible(hay_nueva)
+        self.separador_actualizar.setVisible(hay_nueva)
+        if hay_nueva:
+            self.accion_actualizar.setText(t("⬆ Actualizar a la versión {version}…", version=self.nueva["version"]))
         silenciada = m.silenciada(config)
         if config["aspecto"]["color"] != self.color:
             self.color = config["aspecto"]["color"]
@@ -168,7 +210,7 @@ class Bandeja(QSystemTrayIcon):
         else:
             estado = t("silenciada hasta las {hora}",
                        hora=f"{datetime.fromtimestamp(config['silenciado_hasta']):%H:%M}")
-        self.setToolTip(f"WaveMascot: {estado}")
+        self.setToolTip(f"WaveMascot: {estado}" + (f"\n{t('Hay una versión nueva')}" if hay_nueva else ""))
         self.accion_hora.setVisible(not silenciada)
         self.accion_siempre.setVisible(not silenciada)
         self.accion_reactivar.setVisible(silenciada)
