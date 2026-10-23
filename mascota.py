@@ -2015,7 +2015,7 @@ def main() -> int:
             aviso["despertar"] = hora_de_reinicio(" ".join(str(evento.get(c) or "") for c in
                                                            ("last_assistant_message", "error_details")))
         log(f"evento={nombre} estado={estado} mensaje={aviso['mensaje']!r} resumen={aviso['resumen'][:60]!r} "
-            f"meta={aviso['meta']!r} aspecto={aviso['imagen'] or '-'.join(aviso['aspecto'].values())} "
+            f"meta={aviso['meta']!r} aspecto={aviso['imagen'] or '-'.join(v for v in aviso['aspecto'].values() if isinstance(v, str))} "
             f"modo={aviso['modo']} tema={aviso['tema']} sonido={sonido or 'no'}"
             + (f" (silencioso: {motivo})" if silencioso else ""))
         if nombre == "PermissionRequest":
