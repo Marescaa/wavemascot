@@ -42,18 +42,18 @@ own. If you're away from the computer, it messages your phone instead.
 
 <table>
   <tr>
-    <td align="center" width="33%">
-      <img src="docs/capturas/en/aviso-listo.gif" alt="Done notice with a one-line summary" width="250"><br>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/capturas/en/aviso-listo.gif" alt="Done notice with a one-line summary" width="220"><br>
       <b>Knows when it's done</b><br>
       <sub>Chat, project, how long it took and a one-line summary of what changed.</sub>
     </td>
-    <td align="center" width="33%">
-      <img src="docs/capturas/en/aviso-permiso.gif" alt="Permission notice with Allow and Deny buttons" width="250"><br>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/capturas/en/aviso-permiso.gif" alt="Permission notice with Allow and Deny buttons" width="220"><br>
       <b>Asks before acting</b><br>
       <sub>Allow or Deny right on the notice, without going back to the terminal.</sub>
     </td>
-    <td align="center" width="33%">
-      <img src="docs/capturas/en/aviso-limite.gif" alt="Usage limit notice" width="250"><br>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/capturas/en/aviso-limite.gif" alt="Usage limit notice" width="220"><br>
       <b>Tells you when to stop</b><br>
       <sub>Usage limit and API errors get their own notice, animation and sound.</sub>
     </td>
@@ -122,7 +122,7 @@ requests come with **Allow** and **Deny** buttons that answer Claude Code right 
 | Telegram notifications with Wave animated | | ✓ |
 | Allow or deny permissions from your phone | | ✓ |
 | One plan for every computer linked to your Telegram | | ✓ |
-| **Price** | **Free forever** | **US$ 1.99 / month** or **US$ 29.99 once** |
+| **Price** | **Free forever** | **US$ 1.99** a month<br>or **US$ 29.99** once |
 
 **How to get it:** open the **Phone** tab, tap **Connect Telegram** and then **Start** in the bot. Nothing to create
 or paste, and your **7-day free trial** starts right there, no card needed. To keep it, tap the **PRO** badge and pay

@@ -43,18 +43,18 @@ computador, ele manda mensagem no seu celular.
 
 <table>
   <tr>
-    <td align="center" width="33%">
-      <img src="docs/capturas/pt/aviso-listo.gif" alt="Aviso de pronto com um resumo de uma linha" width="250"><br>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/capturas/pt/aviso-listo.gif" alt="Aviso de pronto com um resumo de uma linha" width="220"><br>
       <b>Sabe quando terminou</b><br>
       <sub>Chat, projeto, quanto demorou e um resumo de uma linha do que ele fez.</sub>
     </td>
-    <td align="center" width="33%">
-      <img src="docs/capturas/pt/aviso-permiso.gif" alt="Aviso de permissão com os botões Permitir e Negar" width="250"><br>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/capturas/pt/aviso-permiso.gif" alt="Aviso de permissão com os botões Permitir e Negar" width="220"><br>
       <b>Pergunta antes de agir</b><br>
       <sub>Permitir ou Negar no próprio aviso, sem voltar ao terminal.</sub>
     </td>
-    <td align="center" width="33%">
-      <img src="docs/capturas/pt/aviso-limite.gif" alt="Aviso de limite de uso" width="250"><br>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/capturas/pt/aviso-limite.gif" alt="Aviso de limite de uso" width="220"><br>
       <b>Avisa quando parar</b><br>
       <sub>O limite de uso e os erros da API têm seu próprio aviso, animação e som.</sub>
     </td>
@@ -125,7 +125,7 @@ pedidos de permissão chegam com os botões **Permitir** e **Negar**, que respon
 | Avisos pelo Telegram com o Wave animado | | ✓ |
 | Permitir ou negar pelo celular | | ✓ |
 | Um só plano para todos os computadores do seu Telegram | | ✓ |
-| **Preço** | **Grátis para sempre** | **US$ 1,99 por mês** ou **US$ 29,99 uma vez** |
+| **Preço** | **Grátis para sempre** | **US$ 1,99** por mês<br>ou **US$ 29,99** uma vez |
 
 **Como conseguir:** abra a aba **Celular**, toque em **Conectar com o Telegram** e depois em **Começar** no bot. Não
 há nada para criar nem colar, e ali começam os seus **7 dias de teste grátis**, sem cartão. Para continuar, toque no

@@ -42,18 +42,18 @@ escribe al celular.
 
 <table>
   <tr>
-    <td align="center" width="33%">
-      <img src="docs/capturas/es/aviso-listo.gif" alt="Aviso de listo con un resumen de una línea" width="250"><br>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/capturas/es/aviso-listo.gif" alt="Aviso de listo con un resumen de una línea" width="220"><br>
       <b>Sabe cuándo terminó</b><br>
       <sub>Chat, proyecto, cuánto tardó y un resumen de una línea de lo que hizo.</sub>
     </td>
-    <td align="center" width="33%">
-      <img src="docs/capturas/es/aviso-permiso.gif" alt="Aviso de permiso con los botones Permitir y Denegar" width="250"><br>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/capturas/es/aviso-permiso.gif" alt="Aviso de permiso con los botones Permitir y Denegar" width="220"><br>
       <b>Pregunta antes de actuar</b><br>
       <sub>Permitir o Denegar ahí mismo, sin volver a la terminal.</sub>
     </td>
-    <td align="center" width="33%">
-      <img src="docs/capturas/es/aviso-limite.gif" alt="Aviso de límite de uso" width="250"><br>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/capturas/es/aviso-limite.gif" alt="Aviso de límite de uso" width="220"><br>
       <b>Te avisa cuándo parar</b><br>
       <sub>El límite de uso y los errores de la API tienen su aviso, su animación y su sonido.</sub>
     </td>
@@ -124,7 +124,7 @@ llegan con los botones **Permitir** y **Denegar**, que le contestan a Claude Cod
 | Avisos por Telegram con Wave animada | | ✓ |
 | Permitir o denegar desde el celular | | ✓ |
 | Un solo plan para todas las compus de tu Telegram | | ✓ |
-| **Precio** | **Gratis para siempre** | **US$ 1,99 por mes** o **US$ 29,99 una vez** |
+| **Precio** | **Gratis para siempre** | **US$ 1,99** por mes<br>o **US$ 29,99** una vez |
 
 **Cómo conseguirlo:** abrí la pestaña **Celular**, tocá **Conectar con Telegram** y después **Iniciar** en el bot. No
 hay nada que crear ni pegar, y ahí arrancan tus **7 días de prueba gratis**, sin tarjeta. Para quedártelo, tocá el
