@@ -96,6 +96,12 @@ Open the **Phone** tab, tap **Connect Telegram** and then **Start** in the chat 
 By default it only writes when you've been away for 3 minutes. Permission requests come with **Allow** and **Deny**,
 and whichever answer comes first wins: the phone, Wave or the terminal.
 
+**Telegram is part of WaveMascot Pro**, with a 7-day free trial that starts when you connect. Everything else (the
+mascot, on-screen notices, styles, outfits) is free forever. Tap the **PRO** badge on the Phone tab to see how to
+unlock it: you pay with Telegram Stars inside the bot (monthly, cancel anytime with `/pro`, or once for life), and
+it works on every computer you connect to your Telegram. If the trial ends, the mascot keeps notifying you on screen
+and permission requests go back to the terminal.
+
 ## Privacy
 
 Everything runs on your computer. The summary is read locally from the transcript Claude Code already keeps on your
@@ -105,7 +111,8 @@ to send notices to Telegram. Both can be turned off.
 For Telegram, the bot's token lives only on a small [Cloudflare Worker](servidor/) that relays each message without
 storing it, and each installation gets its own key that can only message the chat it linked. What gets sent is what
 the notice shows (message, summary, project, chat title, command to approve). Send `/stop` to the bot or tap
-**Disconnect** to stop.
+**Disconnect** to stop. For Pro, the server only keeps your Telegram chat id, your plan and the payment ids Telegram
+sends; payments are handled by Telegram, so WaveMascot never sees card details.
 
 ## Contributing
 

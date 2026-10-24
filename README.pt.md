@@ -95,6 +95,12 @@ Abra a aba **Celular**, toque em **Conectar com o Telegram** e depois em **Come�
 Por padrão ele só escreve se faz 3 minutos que você não está no computador. Pedidos de permissão chegam com
 **Permitir** e **Negar**, e vale a primeira resposta: o celular, o Wave ou o terminal.
 
+**O Telegram faz parte do WaveMascot Pro**, com 7 dias de teste grátis que começam quando você conecta. Todo o resto
+(o mascote, os avisos na tela, os estilos, o figurino) é grátis para sempre. Toque no selo **PRO** da aba Celular para
+ver como desbloquear: o pagamento é com Telegram Stars dentro do bot (mensal, cancele quando quiser com `/pro`, ou uma
+vez só, vitalício) e vale em todos os computadores que você conectar ao seu Telegram. Se o teste terminar, o mascote
+continua avisando na tela e as permissões voltam para o terminal.
+
 ## Privacidade
 
 Tudo roda no seu computador. O resumo é lido localmente do transcript que o Claude Code já guarda no seu disco. O
@@ -104,7 +110,8 @@ conectar, para mandar avisos ao Telegram. Dá para desligar as duas coisas.
 No Telegram, a chave do bot fica só num pequeno [Worker da Cloudflare](servidor/) que repassa cada mensagem sem
 guardá-la, e cada instalação tem sua própria chave, que só pode escrever para o chat que vinculou. É enviado o que o
 aviso mostra (mensagem, resumo, projeto, título do chat, comando a aprovar). Mande `/stop` ao bot ou toque em
-**Desconectar** para parar.
+**Desconectar** para parar. Para o Pro, o servidor guarda só o seu id de chat do Telegram, o seu plano e os ids de
+pagamento que o Telegram manda; quem cobra é o Telegram, então o WaveMascot nunca vê dados de cartão.
 
 ## Contribuir
 

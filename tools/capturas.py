@@ -344,7 +344,7 @@ def qt_capturas():
         ajustes.aplicar_tema("oscuro")
         win = ajustes.Ajustes()
         win.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen)
-        win.resize(940, 760)
+        win.resize(980, 760)
         win.show()
         for i in range(win.pestanas.count()):
             win.pestanas.setCurrentIndex(i)

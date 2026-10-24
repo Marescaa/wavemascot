@@ -196,5 +196,37 @@ class PermisosPorTelegram(unittest.TestCase):
         self.assertEqual(m.cargar_config(ruta)["celular"]["espera_permisos"], m.ESPERA_TELEGRAM_MAX)
 
 
+class Pro(unittest.TestCase):
+    """WaveMascot Pro: lo decide el servidor; la app lo muestra y reacciona al 402."""
+
+    def test_enlaces_al_bot(self):
+        self.assertEqual(celular.enlace_pro(), "https://t.me/WaveNotificationBot?start=pro")
+        self.assertEqual(celular.enlace_pro("vitalicio"), "https://t.me/WaveNotificationBot?start=pro_vitalicio")
+        self.assertEqual(celular.enlace_pro("cualquiera"), "https://t.me/WaveNotificationBot?start=pro")
+
+    def test_precio_en_dolares(self):  # lo que salen las Stars en la tienda de Telegram
+        self.assertEqual(celular.precio(100, "es"), "US$ 1,99")  # el mensual
+        self.assertEqual(celular.precio(1500, "en"), "US$ 29.99")
+        self.assertEqual(celular.estrellas(1500, "es"), "1.500")
+        self.assertEqual(celular.estrellas(1500, "en"), "1,500")
+
+    def test_sin_pro_es_el_402(self):
+        self.assertTrue(celular.sin_pro(celular.ErrorCelular("hace falta Pro", 402)))
+        self.assertFalse(celular.sin_pro(celular.ErrorCelular("sin conexión")))
+
+    def test_el_aviso_frenado_se_anota_y_no_rompe(self):
+        frenado = celular.ErrorCelular("hace falta WaveMascot Pro", 402, {"pro": False})
+        with mock.patch.object(m, "cargar_config", return_value=config_conectada()), \
+                mock.patch.object(celular, "enviar", side_effect=frenado), mock.patch.object(m, "log") as log:
+            self.assertEqual(celular.main(["--aviso", json.dumps({"estado": "listo", "mensaje": "hola"})]), 0)
+        self.assertIn("WaveMascot Pro", log.call_args[0][0])
+
+    def test_el_plan_guardado_se_lee(self):
+        ruta = Path(tempfile.mkdtemp()) / "config.json"
+        ruta.write_text(json.dumps({"celular": {"plan": {"tipo": "prueba", "dias": 3}}}), encoding="utf-8")
+        self.assertEqual(m.cargar_config(ruta)["celular"]["plan"], {"tipo": "prueba", "dias": 3})
+        self.assertEqual(m.CONFIG_DEFECTO["celular"]["plan"], {})
+
+
 if __name__ == "__main__":
     unittest.main()

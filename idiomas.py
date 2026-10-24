@@ -78,6 +78,9 @@ TEXTOS: dict[str, dict[str, str]] = {
 
     # --- ventana de ajustes ----------------------------------------------------------
     "Ajustes de WaveMascot": {"en": "WaveMascot settings", "pt": "Configurações do WaveMascot"},
+    "Minimizar": {"en": "Minimize", "pt": "Minimizar"},  # botones de la ventana (Windows)
+    "Maximizar": {"en": "Maximize", "pt": "Maximizar"},
+    "Restaurar": {"en": "Restore down", "pt": "Restaurar"},
     "Cómo y dónde te avisa cuando Claude Code termina o necesita algo": {
         "en": "How and where it lets you know when Claude Code finishes or needs something",
         "pt": "Como e onde ela avisa quando o Claude Code termina ou precisa de algo"},
@@ -537,4 +540,133 @@ TEXTOS: dict[str, dict[str, str]] = {
               "diálogo de sempre no terminal. As perguntas do Claude são respondidas no terminal."},
     "Permitido desde Telegram ✓": {"en": "Allowed from Telegram ✓", "pt": "Permitido pelo Telegram ✓"},
     "Denegado desde Telegram": {"en": "Denied from Telegram", "pt": "Negado pelo Telegram"},
+    # --- WaveMascot Pro (guia_pro.py) -------------------------------------------------------------------
+    "WaveMascot Pro: tocá para ver cómo desbloquearlo": {"en": "WaveMascot Pro: tap to see how to unlock it",
+                                                         "pt": "WaveMascot Pro: toque para ver como desbloquear"},
+    "Telegram es parte de WaveMascot Pro": {"en": "Telegram is part of WaveMascot Pro",
+                                            "pt": "O Telegram faz parte do WaveMascot Pro"},
+    "Conectalo y probalo gratis {dias} días. Todo lo demás es gratis para siempre.": {
+        "en": "Connect it and try it free for {dias} days. Everything else is free forever.",
+        "pt": "Conecte e teste grátis por {dias} dias. Todo o resto é grátis para sempre."},
+    "{dias} días de prueba gratis": {"en": "{dias}-day free trial", "pt": "{dias} dias de teste grátis"},
+    "Cómo funciona": {"en": "How it works", "pt": "Como funciona"},
+    "Prueba gratis de Pro": {"en": "Pro free trial", "pt": "Teste grátis do Pro"},
+    "Te queda menos de un día de prueba.": {"en": "Less than a day of trial left.",
+                                            "pt": "Falta menos de um dia de teste."},
+    "Te quedan {dias} días (hasta el {fecha}).": {"en": "{dias} days left (until {fecha}).",
+                                                  "pt": "Faltam {dias} dias (até {fecha})."},
+    "Prueba gratis · último día": {"en": "Free trial · last day", "pt": "Teste grátis · último dia"},
+    "Prueba gratis · quedan {dias} días": {"en": "Free trial · {dias} days left",
+                                           "pt": "Teste grátis · faltam {dias} dias"},
+    "Pasarme a Pro": {"en": "Go Pro", "pt": "Virar Pro"},
+    "Sos Pro": {"en": "You're Pro", "pt": "Você é Pro"},
+    "Sos Pro ✓": {"en": "You're Pro ✓", "pt": "Você é Pro ✓"},
+    "Mi plan": {"en": "My plan", "pt": "Meu plano"},
+    "Plan mensual · se renueva el {fecha}": {"en": "Monthly plan · renews on {fecha}",
+                                             "pt": "Plano mensal · renova em {fecha}"},
+    "Plan mensual · termina el {fecha}": {"en": "Monthly plan · ends on {fecha}", "pt": "Plano mensal · termina em {fecha}"},
+    "De regalo hasta el {fecha}": {"en": "A gift until {fecha}", "pt": "De presente até {fecha}"},
+    "Sos Pro de por vida": {"en": "You're Pro for life", "pt": "Você é Pro para sempre"},
+    "Pro de por vida ✓": {"en": "Pro for life ✓", "pt": "Pro vitalício ✓"},
+    "Es tuyo para siempre, en todas tus compus. ¡Gracias por bancar el proyecto!": {
+        "en": "It's yours forever, on all your computers. Thanks for supporting the project!",
+        "pt": "É seu para sempre, em todos os seus computadores. Obrigado por apoiar o projeto!"},
+    "Los avisos a Telegram están en pausa": {"en": "Telegram notifications are paused",
+                                             "pt": "Os avisos pelo Telegram estão pausados"},
+    "Terminó tu prueba de Pro. Activalo y vuelven al instante.": {
+        "en": "Your Pro trial is over. Turn it on and they're back instantly.",
+        "pt": "Seu teste do Pro terminou. Ative e eles voltam na hora."},
+    "Tu prueba terminó": {"en": "Your trial is over", "pt": "Seu teste terminou"},
+    "Desbloquear Pro": {"en": "Unlock Pro", "pt": "Desbloquear o Pro"},
+    "Claude Code te avisa en el celular, y le das permiso desde donde estés.": {
+        "en": "Claude Code notifies you on your phone, and you give it permission from wherever you are.",
+        "pt": "O Claude Code te avisa no celular, e você dá permissão de onde estiver."},
+    "Los tests pasan ✓": {"en": "Tests pass ✓", "pt": "Os testes passam ✓"},
+    "Qué incluye": {"en": "What's included", "pt": "O que inclui"},
+    "Avisos en tu celular": {"en": "Notifications on your phone", "pt": "Avisos no seu celular"},
+    "Cuando Claude Code termina, necesita algo o llega al límite, te escribe Wave.": {
+        "en": "When Claude Code finishes, needs something or hits the limit, Wave messages you.",
+        "pt": "Quando o Claude Code termina, precisa de algo ou chega ao limite, o Wave te escreve."},
+    "Permisos a distancia": {"en": "Remote permissions", "pt": "Permissões a distância"},
+    "Permitir o Denegar con un toque, sin volver a la compu.": {
+        "en": "Allow or Deny with one tap, without going back to the computer.",
+        "pt": "Permitir ou Negar com um toque, sem voltar ao computador."},
+    "Todas tus compus": {"en": "All your computers", "pt": "Todos os seus computadores"},
+    "Un solo Pro para todas las compus que conectes a tu Telegram.": {
+        "en": "One Pro for every computer you connect to your Telegram.",
+        "pt": "Um só Pro para todos os computadores que você conectar ao seu Telegram."},
+    "Bancás el open source": {"en": "You back open source", "pt": "Você apoia o open source"},
+    "Mantenés el bot y el servidor, y la app sigue gratis para todos.": {
+        "en": "You keep the bot and the server running, and the app stays free for everyone.",
+        "pt": "Você mantém o bot e o servidor, e o app continua grátis para todos."},
+    "Siempre gratis": {"en": "Always free", "pt": "Sempre grátis"},
+    "La mascota, los avisos en pantalla, los estilos, el vestuario y todo lo demás. Sin cuentas ni límites.": {
+        "en": "The mascot, on-screen notifications, styles, outfits and everything else. No accounts, no limits.",
+        "pt": "O mascote, os avisos na tela, os estilos, o figurino e todo o resto. Sem contas nem limites."},
+    "Cómo desbloquearlo": {"en": "How to unlock it", "pt": "Como desbloquear"},
+    "Tu plan": {"en": "Your plan", "pt": "Seu plano"},
+    "Conectá tu Telegram": {"en": "Connect your Telegram", "pt": "Conecte seu Telegram"},
+    "Elegí tu plan": {"en": "Pick your plan", "pt": "Escolha seu plano"},
+    "Mensual": {"en": "Monthly", "pt": "Mensal"},
+    "De por vida": {"en": "Lifetime", "pt": "Vitalício"},
+    "/ mes": {"en": "/ month", "pt": "/ mês"},
+    "una vez": {"en": "once", "pt": "uma vez"},
+    "{stars} Stars · mes a mes": {"en": "{stars} Stars · cancel anytime", "pt": "{stars} Stars · mês a mês"},
+    "{stars} Stars · un solo pago": {"en": "{stars} Stars · pay once", "pt": "{stars} Stars · um só pagamento"},
+    "Pagá con Telegram Stars": {"en": "Pay with Telegram Stars", "pt": "Pague com Telegram Stars"},
+    "Ver mi plan en Telegram": {"en": "See my plan on Telegram", "pt": "Ver meu plano no Telegram"},
+    "Listo": {"en": "Done", "pt": "Pronto"},
+    "¿Por qué es pago? WaveMascot es y va a seguir siendo gratis y open source. Pro paga el bot y el servidor que "
+    "llevan los avisos hasta tu celular, y te deja cancelar cuando quieras.": {
+        "en": "Why is it paid? WaveMascot is and will stay free and open source. Pro pays for the bot and the server "
+              "that carry notifications to your phone, and you can cancel anytime.",
+        "pt": "Por que é pago? O WaveMascot é e vai continuar grátis e open source. O Pro paga o bot e o servidor "
+              "que levam os avisos até o seu celular, e você cancela quando quiser."},
+    "¡Ya sos Pro!": {"en": "You're Pro now!", "pt": "Agora você é Pro!"},
+    "Desde el bot ves tu plan y cancelás o reactivás la renovación cuando quieras.": {
+        "en": "In the bot you can see your plan and cancel or turn renewal back on anytime.",
+        "pt": "No bot você vê seu plano e cancela ou reativa a renovação quando quiser."},
+    "Los avisos y los permisos por Telegram ya andan en todas tus compus.": {
+        "en": "Telegram notifications and permissions now work on all your computers.",
+        "pt": "Os avisos e as permissões pelo Telegram já funcionam em todos os seus computadores."},
+    "Conectado al Telegram de {nombre}": {"en": "Connected to {nombre}'s Telegram",
+                                          "pt": "Conectado ao Telegram de {nombre}"},
+    "Conectado a Telegram": {"en": "Connected to Telegram", "pt": "Conectado ao Telegram"},
+    "Tocá «Iniciar» en Telegram (o mandale el código {codigo} al bot).": {
+        "en": "Tap “Start” in Telegram (or send the code {codigo} to the bot).",
+        "pt": "Toque em “Iniciar” no Telegram (ou mande o código {codigo} para o bot)."},
+    "Se abre Telegram y tocás «Iniciar». Ahí arranca tu prueba gratis de {dias} días.": {
+        "en": "Telegram opens and you tap “Start”. That starts your {dias}-day free trial.",
+        "pt": "O Telegram abre e você toca em “Iniciar”. Aí começa seu teste grátis de {dias} dias."},
+    "Abrir Telegram de nuevo": {"en": "Open Telegram again", "pt": "Abrir o Telegram de novo"},
+    "Esperando el pago": {"en": "Waiting for the payment", "pt": "Esperando o pagamento"},
+    "Cuando Telegram lo confirme, WaveMascot se da cuenta solo.": {
+        "en": "As soon as Telegram confirms it, WaveMascot picks it up by itself.",
+        "pt": "Quando o Telegram confirmar, o WaveMascot percebe sozinho."},
+    "Abrir el pago de nuevo": {"en": "Open the payment again", "pt": "Abrir o pagamento de novo"},
+    "Te abro el chat del bot con el botón de pago. Pagás desde el celular o la compu, y las Stars se compran ahí "
+    "mismo.": {
+        "en": "I'll open the bot's chat with the payment button. Pay from your phone or computer; you can buy Stars "
+              "right there.",
+        "pt": "Eu abro o chat do bot com o botão de pagamento. Você paga pelo celular ou pelo computador, e as Stars "
+              "se compram ali mesmo."},
+    "Pagar {precio} en Telegram": {"en": "Pay {precio} on Telegram", "pt": "Pagar {precio} no Telegram"},
+    "Primero conectá tu Telegram": {"en": "Connect your Telegram first", "pt": "Primeiro conecte seu Telegram"},
+    "✓ Ya sos Pro: los avisos a Telegram están activados.": {
+        "en": "✓ You're Pro: Telegram notifications are on.",
+        "pt": "✓ Agora você é Pro: os avisos pelo Telegram estão ativados."},
+    "Abriendo Telegram…": {"en": "Opening Telegram…", "pt": "Abrindo o Telegram…"},
+    "Disponible con WaveMascot Pro": {"en": "Available with WaveMascot Pro", "pt": "Disponível com o WaveMascot Pro"},
+    "Terminó tu prueba gratis. Con Pro vuelven los avisos y los permisos desde el celular, en todas tus compus.": {
+        "en": "Your free trial is over. With Pro, notifications and permissions from your phone come back, on all "
+              "your computers.",
+        "pt": "Seu teste grátis terminou. Com o Pro, os avisos e as permissões pelo celular voltam, em todos os seus "
+              "computadores."},
+    "Conectá Telegram y probalo gratis {dias} días, sin tarjeta.": {
+        "en": "Connect Telegram and try it free for {dias} days, no card needed.",
+        "pt": "Conecte o Telegram e teste grátis por {dias} dias, sem cartão."},
+    "Probar gratis {dias} días": {"en": "Try it free for {dias} days", "pt": "Testar grátis por {dias} dias"},
+    "No se mandó: terminó tu prueba de Pro y los avisos a Telegram están en pausa.": {
+        "en": "Not sent: your Pro trial is over and Telegram notifications are paused.",
+        "pt": "Não foi enviado: seu teste do Pro terminou e os avisos pelo Telegram estão pausados."},
 }
