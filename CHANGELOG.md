@@ -59,6 +59,8 @@ and the project uses [semantic versioning](https://semver.org/).
 ### Changed
 
 - The settings window opens a little wider (980 px) so every tab fits with the PRO badge.
+- On Windows, the settings window draws its own title bar in the app's colors, with minimize, maximize and close
+  buttons that follow the theme. It still snaps to the edges, resizes from the borders and keeps its shadow.
 - The Windows build keeps `libssl`/`libcrypto` (needed for HTTPS to Telegram and GitHub).
 
 ## [1.2.0] - 2026-10-19
