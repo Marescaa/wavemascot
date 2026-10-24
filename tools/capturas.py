@@ -273,17 +273,117 @@ def portada(aviso, celular, ruta):
     guardar_gif(cuadros, 90, ruta)
 
 
+def logo():
+    """El logo del README: Wave quieta, recortada y agrandada sin suavizar (fondo transparente)."""
+    cuadro = cuadros_de(ASPECTOS["clasico"], "idle")[0][0]
+    cuadro = cuadro.crop(cuadro.getbbox())
+    cuadro = cuadro.resize((cuadro.width * 4, cuadro.height * 4), Image.NEAREST)
+    ruta = DOCS / "logo.png"
+    cuadro.save(ruta, optimize=True)
+    print("  ", ruta.relative_to(RAIZ))
+
+
+def aviso_gif(m, estado, mensaje, resumen, meta, botones, ruta):
+    """Un aviso animado: la mascota real arriba y el cartel real abajo, con la barra de tiempo vaciándose."""
+    from PyQt6.QtGui import QColor, QImage, QPainter
+
+    cartel = m.Cartel()
+    cartel.tema = "oscuro"
+    cartel.medir(mensaje, resumen, meta, botones)
+    esc = 2
+    w, h = int(cartel.ancho + 24), int(cartel.alto + 8)
+    cuadros, ms = cuadros_de(ASPECTOS["clasico"], estado)
+    ms = ms if isinstance(ms, int) else ms[0]
+    n = max(len(cuadros), int(3000 / max(ms, 1)))
+    mascota_esc = 3 * esc  # tamaño por defecto (3 px por pixel de arte) a 2x
+    recorte = (0, 8, 56, 56)
+    mw = (recorte[2] - recorte[0]) * mascota_esc
+    mh = (recorte[3] - recorte[1]) * mascota_esc
+    ancho = max(w * esc, mw) + 40
+    alto = mh + h * esc + 24
+    salida = []
+    for i in range(n):
+        fr = QImage(w * esc, h * esc, QImage.Format.Format_RGB32)
+        fr.fill(QColor(*FONDO))
+        p = QPainter(fr)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+        p.scale(esc, esc)
+        cartel.pintar(p, w / 2, 4, QColor(m.ESTADOS[estado]["acento"]), 1 - i / n)
+        p.end()
+        tarjeta = qimagen_a_pil(fr)
+        hoja = Image.new("RGB", (ancho, alto), FONDO)
+        pm = sobre_fondo(cuadros[i % len(cuadros)], mascota_esc).crop(tuple(v * mascota_esc for v in recorte))
+        hoja.paste(pm, ((ancho - mw) // 2, 12))
+        hoja.paste(tarjeta, ((ancho - tarjeta.width) // 2, 12 + mh))
+        salida.append(hoja)
+    guardar_gif(salida, ms, ruta)
+    return salida
+
+
+# Lo que "contesta el servidor" durante las capturas: nada sale a la red.
+PRO = {"cobrando": True, "precios": {"mensual": 100, "vitalicio": 1500}, "dias_prueba": 7}
+SERVIDOR = {"estado": {}}
+
+
+def en_dias(dias: float) -> float:
+    return (time.time() + dias * 86400) * 1000
+
+
+def sin_red():
+    import actualizacion
+    import celular
+
+    def pedir(metodo, ruta, llave="", datos=None, **_):
+        if ruta == "/v1/planes":
+            return dict(PRO)
+        if ruta == "/v1/estado":
+            return dict(PRO, **SERVIDOR["estado"])
+        raise celular.ErrorCelular("sin red durante las capturas")
+
+    celular.pedir = pedir
+    actualizacion.buscar = lambda forzar=False: None
+
+
 def qt_capturas():
     from PyQt6.QtCore import Qt
-    from PyQt6.QtGui import QColor, QImage, QPainter
     from PyQt6.QtWidgets import QApplication
 
     app = QApplication(sys.argv[:1])
     app.setStyle("Fusion")
+    sin_red()
     import ajustes
     import idiomas
     import mascota as m
     from idiomas import t
+
+    def esperar(segundos):
+        fin = time.time() + segundos
+        while time.time() < fin:
+            app.processEvents()
+            time.sleep(0.02)
+
+    def abrir(config, tema="oscuro", estilo="clasico"):
+        base = {"sonido": False, "volumen": 0, "aspecto": {"estilo": "clasico", "cabeza": "chispa"}}
+        base.update(config)
+        (casa / ".wavemascot" / "config.json").write_text(json.dumps(base))
+        ajustes.aplicar_tema(tema, estilo)
+        win = ajustes.Ajustes()
+        win.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen)
+        win.resize(980, 760)
+        win.show()
+        esperar(0.4)  # las respuestas "del servidor" llegan desde otro hilo
+        return win
+
+    def cerrar(win):
+        win.timer_guardar.stop()  # nunca guardar, ni siquiera en la carpeta temporal
+        win.close()
+        win.deleteLater()
+        app.processEvents()
+
+    def guardar(win, ruta):
+        win.grab().save(str(ruta))
+        print("  ", ruta.relative_to(RAIZ), f"{ruta.stat().st_size // 1024} KB")
 
     nombres = ["aviso", "comportamiento", "mascota", "vestuario", "sonido", "celular"]
     for idioma in IDIOMAS:
@@ -293,7 +393,7 @@ def qt_capturas():
         carpeta.mkdir(parents=True, exist_ok=True)
         avisos = {}
 
-        # --- los avisos animados: la mascota real arriba y el cartel real abajo -------------------
+        # --- los avisos animados ------------------------------------------------------------------
         botones = {"listo": ["enfocar"], "permiso": ["permitir", "denegar", "enfocar"], "pensando": [],
                    "subagente": ["enfocar"], "limite": [], "error": ["enfocar"]}
         for estado in ESTADOS:
@@ -301,63 +401,62 @@ def qt_capturas():
             mensaje = t(mensaje, herramienta="Bash") if "{" in mensaje else t(mensaje)
             meta = " · ".join(x for x in ["2 min 05 s" if estado == "listo" else "", t("mi-proyecto"),
                                            t("Título del chat")] if x)
-            cartel = m.Cartel()
-            cartel.tema = "oscuro"
-            cartel.medir(mensaje, t(ajustes.RESUMEN_EJEMPLO[estado]), meta, botones[estado])
-            esc = 2
-            w, h = int(cartel.ancho + 24), int(cartel.alto + 8)
-            # la barra de tiempo se va vaciando, como en la pantalla
-            cuadros, ms = cuadros_de(ASPECTOS["clasico"], estado)
-            ms = ms if isinstance(ms, int) else ms[0]
-            n = max(len(cuadros), int(3000 / max(ms, 1)))
-            mascota_esc = 3 * esc  # tamaño por defecto (3 px por pixel de arte) a 2x
-            recorte = (0, 8, 56, 56)
-            mw = (recorte[2] - recorte[0]) * mascota_esc
-            mh = (recorte[3] - recorte[1]) * mascota_esc
-            ancho = max(w * esc, mw) + 40
-            alto = mh + h * esc + 24
-            salida = []
-            for i in range(n):
-                fr = QImage(w * esc, h * esc, QImage.Format.Format_RGB32)
-                fr.fill(QColor(*FONDO))
-                p = QPainter(fr)
-                p.setRenderHint(QPainter.RenderHint.Antialiasing)
-                p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
-                p.scale(esc, esc)
-                cartel.pintar(p, w / 2, 4, QColor(m.ESTADOS[estado]["acento"]), 1 - i / n)
-                p.end()
-                tarjeta = qimagen_a_pil(fr)
-                hoja = Image.new("RGB", (ancho, alto), FONDO)
-                pm = sobre_fondo(cuadros[i % len(cuadros)], mascota_esc).crop(
-                    tuple(v * mascota_esc for v in recorte))
-                hoja.paste(pm, ((ancho - mw) // 2, 12))
-                hoja.paste(tarjeta, ((ancho - tarjeta.width) // 2, 12 + mh))
-                salida.append(hoja)
-            guardar_gif(salida, ms, carpeta / f"aviso-{estado}.gif")
-            avisos[estado] = salida
+            avisos[estado] = aviso_gif(m, estado, mensaje, t(ajustes.RESUMEN_EJEMPLO[estado]), meta,
+                                       botones[estado], carpeta / f"aviso-{estado}.gif")
+        # el aviso de versión nueva (Actualizar / Ahora no)
+        aviso_gif(m, "listo", t("¡Hay una versión nueva de WaveMascot!"),
+                  t("Versión {version}", version="1.3.0") + ": WaveMascot Pro", "", ["actualizar", "ahora_no"],
+                  carpeta / "aviso-actualizacion.gif")
 
         portada(avisos["permiso"], telegram(idioma, carpeta, t, ajustes), carpeta / "portada.gif")
 
-        # --- la ventana de ajustes, una captura por pestaña ---------------------------------------
-        (casa / ".wavemascot" / "config.json").write_text(json.dumps(
-            {"sonido": False, "volumen": 0, "idioma": idioma, "aspecto": {"estilo": "clasico", "cabeza": "chispa"}}))
-        ajustes.aplicar_tema("oscuro")
-        win = ajustes.Ajustes()
-        win.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen)
-        win.resize(980, 760)
-        win.show()
+        # --- la ventana de ajustes, una captura por pestaña (recién instalada: Telegram sin conectar) --
+        SERVIDOR["estado"] = {}
+        win = abrir({"idioma": idioma})
         for i in range(win.pestanas.count()):
             win.pestanas.setCurrentIndex(i)
             win.ver_estado("permiso" if nombres[i] == "comportamiento" else "listo")
-            for _ in range(40):  # deja que la vista previa entre y muestre el cartel
-                app.processEvents()
-                time.sleep(0.03)
-            win.grab().save(str(carpeta / f"ajustes-{i + 1}-{nombres[i]}.png"))
-            print("  ", (carpeta / f"ajustes-{i + 1}-{nombres[i]}.png").relative_to(RAIZ))
-        win.timer_guardar.stop()  # nunca guardar, ni siquiera en la carpeta temporal
-        win.close()
-        win.deleteLater()
-        app.processEvents()
+            esperar(1.2)  # deja que la vista previa entre y muestre el cartel
+            guardar(win, carpeta / f"ajustes-{i + 1}-{nombres[i]}.png")
+        cerrar(win)
+
+        # --- WaveMascot Pro: conectado y en la prueba gratis -----------------------------------------
+        plan = {"tipo": "prueba", "dias": 5, "hasta": en_dias(5)}
+        SERVIDOR["estado"] = {"conectado": True, "nombre": "Alex", "plan": plan}
+        win = abrir({"idioma": idioma, "celular": {"activo": True, "llave": "demo", "conectado": True,
+                                                    "nombre": "Alex", "plan": plan}})
+        win.pestanas.setCurrentIndex(nombres.index("celular"))
+        win.ver_estado("permiso")
+        esperar(1.2)
+        guardar(win, carpeta / "pro-celular.png")
+        win.abrir_guia()
+        esperar(4.4)  # en el celular de la guía: el permiso aprobado y el «¡Listo!»
+        guardar(win, carpeta / "pro-guia.png")
+        cerrar(win)
+        # ¡pagó! el plan mensual y el festejo. En otra ventana y apenas abre la guía: sin pantalla, después de
+        # unos segundos de animación Qt le cambia la letra al celular dibujado (en la app real no pasa).
+        win = abrir({"idioma": idioma, "celular": {"activo": True, "llave": "demo", "conectado": True,
+                                                    "nombre": "Alex", "plan": plan}})
+        win.pestanas.setCurrentIndex(nombres.index("celular"))
+        win.abrir_guia()
+        esperar(0.9)
+        pago = {"tipo": "mensual", "hasta": en_dias(30), "renueva": True}
+        SERVIDOR["estado"]["plan"] = pago
+        win.config["celular"]["plan"] = pago
+        win.actualizar_pro()
+        win.guia.festejar()
+        esperar(0.55)
+        guardar(win, carpeta / "pro-listo.png")
+        cerrar(win)
+
+        # --- el tema claro, con Sakura ---------------------------------------------------------------
+        SERVIDOR["estado"] = {}
+        win = abrir({"idioma": idioma, "tema": "claro", "aspecto": {"estilo": "sakura"}}, "claro", "sakura")
+        win.pestanas.setCurrentIndex(nombres.index("mascota"))
+        win.ver_estado("listo")
+        esperar(1.2)
+        guardar(win, carpeta / "ajustes-claro-sakura.png")
+        cerrar(win)
 
 
 if __name__ == "__main__":
@@ -366,6 +465,7 @@ if __name__ == "__main__":
     if os.name == "nt":  # sin pantalla, Qt no encuentra solo las fuentes de Windows
         os.environ.setdefault("QT_QPA_FONTDIR", os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts"))
     gifs_mascota()
+    logo()
     if "--solo-gif" not in sys.argv:
         qt_capturas()
     print("listo. carpeta temporal:", casa)
