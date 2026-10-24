@@ -14,6 +14,16 @@ binding = "ASSETS"
 binding = "DATOS"
 id = "9b5fa84dcefa40e3aa6f7d402eb48bcb"
 
+# WaveMascot Pro (avisos y permisos por Telegram). COBRAR = "no" apaga el cobro y todo vuelve a ser gratis.
+# Precios en Telegram Stars. Opcionales, como secretos (npx wrangler secret put ...):
+#   DUENO        tu id de chat (mandale /id al bot): te llegan los pagos y el soporte, y usás /regalar etc.
+#   CLAVE_SETUP  si está, /setup pide ?clave=...
+[vars]
+COBRAR = "si"
+DIAS_PRUEBA = "7"
+PRECIO_MENSUAL = "100"
+PRECIO_VITALICIO = "1500"
+
 # Máximo 20 avisos por minuto por instalación.
 [[ratelimits]]
 name = "LIMITE"

@@ -45,10 +45,11 @@ from PyQt6.QtNetwork import QLocalServer, QLocalSocket  # noqa: E402
 from PyQt6.QtCore import QFileSystemWatcher, QTime  # noqa: E402
 from PyQt6.QtWidgets import (QAbstractButton, QAbstractSpinBox, QApplication, QButtonGroup, QCheckBox, QComboBox,  # noqa: E402
                              QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget,
-                             QListWidgetItem, QMenu, QMessageBox, QPushButton, QScrollArea, QSlider, QTabWidget,
+                             QListWidgetItem, QMenu, QMessageBox, QPushButton, QScrollArea, QSlider, QTabBar, QTabWidget,
                              QTimeEdit, QToolButton, QVBoxLayout, QWidget)
 
 import bandeja  # noqa: E402
+import guia_pro  # noqa: E402
 
 CANAL_AJUSTES = m.CANAL + "-ajustes"
 NOMBRES_ESTADO = {"listo": "Listo", "permiso": "Permiso", "pensando": "Pensando", "subagente": "Subagente",
@@ -101,6 +102,7 @@ PALETAS = {
                                       "#39B6D6", "#121820")), flecha=C_CLARO["flecha"])),
 }
 C = dict(C_OSCURO)  # colores en uso: el tema y el estilo los reemplazan en el lugar
+guia_pro.usar_colores(C)  # el cartel PRO y la guía pintan con los mismos colores
 ESTILO = """
 QWidget { color: %(texto)s; font-family: "Segoe UI"; font-size: 10pt; }
 QWidget#raiz { background: %(fondo)s; }
@@ -114,7 +116,7 @@ QLabel#codigo { color: %(acento)s; font-size: 22pt; font-weight: 700; }
 QFrame#franja { background: %(panel)s; border: 1px solid %(acento)s; border-radius: 12px; }
 QLabel#franja_titulo { font-size: 11pt; font-weight: 600; }
 QTabWidget::pane { border: 1px solid %(borde)s; border-radius: 12px; background: %(panel)s; top: -1px; }
-QTabBar::tab { background: transparent; color: %(suave)s; padding: 8px 9px; border: none;
+QTabBar::tab { background: transparent; color: %(suave)s; padding: 8px 8px; border: none;
                border-bottom: 2px solid transparent; margin-right: 3px; font-weight: 600; }
 QTabBar::tab:selected { color: %(texto)s; border-bottom: 2px solid %(acento)s; }
 QTabBar::tab:hover { color: %(texto)s; }
@@ -124,6 +126,7 @@ QPushButton:pressed { background: %(borde)s; }
 QPushButton:disabled { color: #6E605A; border-color: %(borde)s; }
 QPushButton#primario { background: %(acento)s; border-color: %(acento)s; color: %(sobre)s; font-weight: 600; }
 QPushButton#primario:hover { background: %(acento2)s; border-color: %(acento2)s; }
+QPushButton#primario:disabled { background: %(campo)s; border-color: %(borde)s; color: %(suave)s; }
 QPushButton#segmento { border-radius: 0; padding: 6px 0; min-width: 88px; }
 QPushButton#segmento[pos="ini"] { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
 QPushButton#segmento[pos="fin"] { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
@@ -167,6 +170,20 @@ QMenu { background: %(campo)s; border: 1px solid %(borde)s; padding: 4px; }
 QMenu::item { padding: 6px 18px 6px 10px; border-radius: 6px; }
 QMenu::item:selected { background: %(acento)s; color: %(sobre)s; }
 QMenu::icon { padding-left: 6px; }
+QFrame#tarjeta_plan { background: %(campo)s; border: 1px solid %(borde)s; border-radius: 12px; }
+QFrame#tarjeta_plan:hover { border-color: %(acento)s; }
+QFrame#tarjeta_plan[aviso="true"] { border: 1px solid %(acento)s; }
+QFrame#tarjeta_plan QLabel { background: transparent; }
+QLabel#plan_titulo { font-size: 11pt; font-weight: 700; }
+QFrame#guia { background: %(panel)s; border: 1px solid %(borde)s; border-radius: 18px; }
+QFrame#guia QScrollArea, QFrame#guia QScrollArea > QWidget > QWidget { background: transparent; }
+QFrame#gratis { background: %(campo)s; border: 1px solid %(borde)s; border-radius: 12px; }
+QFrame#gratis QLabel { background: transparent; }
+QFrame#linea { background: %(borde)s; border: none; }
+QLabel#beneficio { font-weight: 700; }
+QLabel#paso_titulo { font-size: 11pt; font-weight: 700; }
+QLabel#paso_titulo[apagado="true"] { color: %(suave)s; }
+QLabel#guia_estado { font-size: 15pt; font-weight: 700; }
 """  # se completa con C (ver aplicar_tema)
 if m.MAC:
     # La letra del sistema y los mismos píxeles que en Windows (macOS cuenta 72 puntos por pulgada, no 96).
@@ -819,6 +836,10 @@ class Ajustes(QWidget):
         self.respuesta_telegram.connect(self.al_responder_telegram)
         self.version, self.actualizando = None, False
         self.respuesta_version.connect(self.al_responder_version)
+        # WaveMascot Pro: precios y prueba (los del servidor cuando lleguen) y la guía para desbloquearlo.
+        self.info_pro = {"cobrando": True, "precios": dict(celular.PRECIOS), "dias_prueba": celular.DIAS_PRUEBA}
+        self.guia, self.tipo_antes_pago, self.fin_espera_pago = None, None, 0.0
+        self.timer_plan = QTimer(self, interval=3000, timeout=self.consultar_plan)
 
         raiz = QVBoxLayout(self)
         raiz.setContentsMargins(22, 18, 22, 16)
@@ -836,11 +857,17 @@ class Ajustes(QWidget):
             area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             area.setWidget(pagina)  # si la pantalla es chica, la pestaña se desplaza en vez de cortarse
             self.pestanas.addTab(area, t(titulo))
+        # El cartel PRO en la pestaña Celular: tocarlo abre la guía para desbloquearlo.
+        self.insignia_pro = guia_pro.InsigniaPro(15)
+        self.insignia_pro.setToolTip(t("WaveMascot Pro: tocá para ver cómo desbloquearlo"))
+        self.insignia_pro.clicked.connect(self.abrir_guia)
+        self.pestanas.tabBar().setTabButton(self.pestanas.count() - 1, QTabBar.ButtonPosition.RightSide,
+                                            self.insignia_pro)
         cuerpo.addWidget(self.pestanas, 1)
         cuerpo.addLayout(self.panel_vista())
         raiz.addLayout(cuerpo, 1)
         raiz.addLayout(self.pie())
-        QShortcut(QKeySequence("Esc"), self, activated=self.close)
+        QShortcut(QKeySequence("Esc"), self, activated=self.al_escape)
         if m.MAC:
             QShortcut(QKeySequence("Ctrl+W"), self, activated=self.close)  # Qt lo muestra como ⌘W
 
@@ -849,7 +876,9 @@ class Ajustes(QWidget):
         self.buscar_version()
         if self.config["celular"]["llave"] and self.config["celular"]["conectado"]:
             llave = self.config["celular"]["llave"]  # ¿sigue conectado? (pudo mandar /stop desde Telegram)
-            self.en_segundo_plano("inicial", lambda: celular.estado(llave))
+            self.en_segundo_plano("inicial", lambda: celular.estado(llave))  # y cómo está su plan de Pro
+        else:
+            self.en_segundo_plano("planes", celular.planes)  # precios y días de prueba, para la guía
         m.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         self.vigia = QFileSystemWatcher([str(m.CONFIG_DIR)], self)
         self.vigia.directoryChanged.connect(lambda _: QTimer.singleShot(300, self.sincronizar))
@@ -1265,6 +1294,10 @@ class Ajustes(QWidget):
         caja.setContentsMargins(22, 18, 22, 18)
         caja.setSpacing(6)
 
+        self.tarjeta_plan = guia_pro.TarjetaPlan()
+        self.tarjeta_plan.abrir.connect(self.abrir_guia)
+        caja.addWidget(self.tarjeta_plan)
+        caja.addSpacing(10)
         caja.addWidget(seccion("Telegram"))
         caja.addWidget(ayuda("Te manda los avisos a Telegram, con Wave animada: te enterás aunque no estés en la "
                              "compu. Te escribe el bot oficial, @WaveNotificationBot."))
@@ -1508,6 +1541,7 @@ class Ajustes(QWidget):
             control.setEnabled(cel["permisos"])
         for control in (self.cel_minutos, self.cel_valor_minutos, self.cel_etiqueta_minutos):
             control.setEnabled(cel["solo_ausente"])
+        self.actualizar_pro()
 
     def mensaje_de_ejemplo(self) -> str:
         automatico = t(AUTOMATICO[self.estado_vista])
@@ -1673,7 +1707,7 @@ class Ajustes(QWidget):
         self.config = json.loads(json.dumps(m.CONFIG_DEFECTO))  # copia profunda
         self.config["idioma"] = idioma  # el idioma elegido se queda
         self.config["aspecto"] = sprites.normalizar(self.config["aspecto"])
-        for clave in ("llave", "conectado", "nombre"):  # y Telegram sigue conectado
+        for clave in ("llave", "conectado", "nombre", "plan"):  # y Telegram sigue conectado
             self.config["celular"][clave] = cel[clave]
         self.config["actualizaciones"]["ignorada"] = ""
         aplicar_tema(self.config["tema"], self.config["aspecto"]["estilo"])
@@ -1901,13 +1935,23 @@ class Ajustes(QWidget):
             if resultado.get("conectado") and self.timer_estado.isActive():
                 self.timer_estado.stop()
                 self.codigo = ""
+                self.config["celular"]["plan"] = resultado.get("plan") or {}
                 self.marcar_conexion(True, resultado.get("nombre") or "")
+                self.recibir_plan(resultado)
         elif tipo == "estado_error":
             self.consultando = False  # se reintenta en la próxima vuelta del timer
         elif tipo == "inicial" and not resultado.get("conectado"):
             self.marcar_conexion(False)
             self.cel_estado.setText(t("Telegram se desconectó (¿le mandaste /stop al bot?). Conectalo de nuevo "
                                       "cuando quieras."))
+            self.recibir_plan(resultado)
+        elif tipo in ("inicial", "plan"):
+            self.recibir_plan(resultado)
+        elif tipo == "planes":
+            self.recibir_plan(resultado, con_plan=False)
+        elif tipo == "prueba_error" and celular.sin_pro(resultado):
+            self.recibir_plan(resultado.datos)
+            self.cel_estado.setText(t("No se mandó: terminó tu prueba de Pro y los avisos a Telegram están en pausa."))
         elif tipo == "inicial_error" and resultado.estado == 401:
             self.config["celular"]["llave"] = ""
             self.marcar_conexion(False)
@@ -1934,9 +1978,81 @@ class Ajustes(QWidget):
             return
         llave = self.config["celular"]["llave"]
         self.en_segundo_plano("desconectar", lambda: celular.desconectar(llave))
-        self.config["celular"].update(llave="", conectado=False, nombre="", activo=False)
+        self.config["celular"].update(llave="", conectado=False, nombre="", activo=False, plan={})
         self.cargar_en_controles()
         self.cambio()
+
+    # WaveMascot Pro
+
+    def conectado_a_telegram(self) -> bool:
+        cel = self.config["celular"]
+        return bool(cel["llave"] and cel["conectado"])
+
+    def actualizar_pro(self) -> None:
+        """El cartel de la pestaña, la tarjeta del plan y (si está abierta) la guía, con lo último que se sabe."""
+        if not hasattr(self, "tarjeta_plan"):
+            return
+        cel, conectado = self.config["celular"], self.conectado_a_telegram()
+        datos = guia_pro.describir(cel["plan"], self.info_pro, conectado)
+        self.tarjeta_plan.mostrar(datos)
+        self.insignia_pro.setVisible(not datos["oculto"])
+        if self.guia:
+            self.guia.actualizar(conectado, cel["nombre"], self.codigo, cel["plan"], self.info_pro)
+
+    def recibir_plan(self, respuesta: dict, con_plan: bool = True) -> None:
+        """Lo que contestó el servidor: precios, días de prueba y el plan de la cuenta de Telegram."""
+        for clave in ("cobrando", "precios", "dias_prueba"):
+            if clave in respuesta:
+                self.info_pro[clave] = respuesta[clave]
+        cel = self.config["celular"]
+        if con_plan and self.conectado_a_telegram():
+            plan = respuesta.get("plan") or {}
+            if plan != cel["plan"]:
+                cel["plan"] = plan
+                self.cambio()
+            pago = plan.get("tipo") in guia_pro.PAGOS and plan.get("tipo") != self.tipo_antes_pago
+            if self.timer_plan.isActive() and pago:  # ¡llegó el pago!
+                self.timer_plan.stop()
+                self.cel_estado.setText(t("✓ Ya sos Pro: los avisos a Telegram están activados."))
+                if self.guia and self.guia.isVisible():
+                    self.actualizar_pro()
+                    self.guia.festejar()
+                    return
+        self.actualizar_pro()
+
+    def abrir_guia(self) -> None:
+        if self.guia is None:
+            self.guia = guia_pro.GuiaPro(self, self.config["aspecto"])
+            self.guia.conectar.connect(self.conectar_telegram)
+            self.guia.pagar.connect(self.pagar_pro)
+            self.guia.gestionar.connect(lambda: self.abrir_enlace(celular.enlace_pro()))
+        self.actualizar_pro()
+        self.guia.abrir(self.config["aspecto"])
+        if self.conectado_a_telegram() and not self.timer_plan.isActive():
+            self.consultar_plan()  # que la guía muestre el plan de ahora, no el de la última vez
+
+    def pagar_pro(self, plan: str) -> None:
+        """Abre el bot con el botón de pago y se queda preguntando hasta que llegue el pago (20 minutos)."""
+        self.abrir_enlace(celular.enlace_pro(plan))
+        self.tipo_antes_pago = self.config["celular"]["plan"].get("tipo")
+        self.fin_espera_pago = time.time() + 20 * 60
+        self.timer_plan.start()
+        if self.guia:
+            self.guia.esperar_pago()
+
+    def consultar_plan(self) -> None:
+        if self.timer_plan.isActive() and time.time() > self.fin_espera_pago:
+            self.timer_plan.stop()
+            return
+        if self.conectado_a_telegram():
+            llave = self.config["celular"]["llave"]
+            self.en_segundo_plano("plan", lambda: celular.estado(llave))
+
+    def al_escape(self) -> None:
+        if self.guia and self.guia.isVisible():
+            self.guia.cerrar()
+        else:
+            self.close()
 
     def cambiar_idioma(self, idioma: str) -> None:
         """Guarda el idioma y pide rearmar la ventana con los textos nuevos."""
@@ -1993,7 +2109,7 @@ def ejecutar_ventana() -> int:
         ventana = Ajustes()
         ventana.idioma_cambiado.connect(lambda idioma: (traducir_qt(app, idioma), abrir(ventana)))
         if anterior is None:
-            ventana.resize(940, 760)
+            ventana.resize(980, 760)  # con el cartel PRO, las pestañas entran en los tres idiomas
         else:
             ventana.setGeometry(anterior.geometry())
             ventana.pestanas.setCurrentIndex(anterior.pestanas.currentIndex())

@@ -27,7 +27,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $Origen = $PSScriptRoot
-$Archivos = 'mascota.py', 'ajustes.py', 'bandeja.py', 'sprites.py', 'ventanas.py', 'instalador.py', 'idiomas.py', 'celular.py', 'actualizacion.py',
+$Archivos = 'mascota.py', 'ajustes.py', 'bandeja.py', 'sprites.py', 'ventanas.py', 'instalador.py', 'idiomas.py', 'celular.py', 'actualizacion.py', 'guia_pro.py',
             'uninstall.ps1', 'requirements.txt', 'LICENSE'
 
 function Correr([string]$exe, [string[]]$argumentos, [switch]$Callado) {

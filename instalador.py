@@ -61,7 +61,7 @@ HOOKS = {
     "PermissionRequest": ("permiso", 600, False),  # espera tu Permitir/Denegar en la mascota o en Telegram
 }
 ARCHIVOS_FUENTE = ("mascota.py", "ajustes.py", "bandeja.py", "sprites.py", "ventanas.py", "instalador.py",
-                   "idiomas.py", "celular.py", "actualizacion.py")
+                   "idiomas.py", "celular.py", "actualizacion.py", "guia_pro.py")
 
 
 class ErrorInstalacion(Exception):

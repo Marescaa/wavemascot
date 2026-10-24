@@ -26,6 +26,7 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import idiomas  # noqa: E402
 import mascota as m  # noqa: E402
 import sprites  # noqa: E402
 
@@ -97,12 +98,47 @@ def nuevo_codigo(llave: str) -> dict:
 
 
 def estado(llave: str) -> dict:
-    """{"conectado": bool, "nombre": nombre en Telegram}."""
+    """{"conectado": bool, "nombre": nombre en Telegram, "plan": {...} o None, "precios", "dias_prueba"}."""
     return pedir("GET", "/v1/estado", llave)
 
 
 def desconectar(llave: str) -> None:
     pedir("DELETE", "/v1/registro", llave)
+
+
+# --- WaveMascot Pro ------------------------------------------------------------------
+# Los avisos y los permisos por Telegram son de Pro (con días de prueba). Lo decide siempre el servidor,
+# según la cuenta de Telegram vinculada: acá solo se muestra.
+
+PRECIOS = {"mensual": 100, "vitalicio": 1500}  # en Telegram Stars; los de verdad los manda el servidor
+DIAS_PRUEBA = 7
+
+
+def planes() -> dict:
+    """Precios y días de prueba (sin llave): {"cobrando", "precios", "dias_prueba"}."""
+    return pedir("GET", "/v1/planes", espera=10)
+
+
+def enlace_pro(plan: str = "", bot: str = BOT) -> str:
+    """Abre el bot con los planes; con "mensual" o "vitalicio", ese plan primero."""
+    return f"https://t.me/{bot}?start=pro" + (f"_{plan}" if plan in PRECIOS else "")
+
+
+def precio(stars: int, idioma: str | None = None) -> str:
+    """100 -> "US$ 1,99": lo que salen esas Stars en la tienda de Telegram (100 = 1,99; 1.500 = 29,99)."""
+    valor = f"{stars * 0.02 - 0.01:.2f}"
+    return "US$ " + (valor if (idioma or idiomas.actual()) == "en" else valor.replace(".", ","))
+
+
+def estrellas(stars: int, idioma: str | None = None) -> str:
+    """1500 -> "1.500" (o "1,500" en inglés)."""
+    numero = f"{stars:,}"
+    return numero if (idioma or idiomas.actual()) == "en" else numero.replace(",", ".")
+
+
+def sin_pro(error: ErrorCelular) -> bool:
+    """¿El servidor frenó el aviso porque hace falta Pro (terminó la prueba)?"""
+    return error.estado == 402
 
 
 # --- permisos (Permitir / Denegar desde Telegram) --------------------------------------
@@ -238,7 +274,10 @@ def main(argv: list[str]) -> int:
         enviar(cel["llave"], aviso)
         m.log(f"[celular] aviso «{aviso.get('estado')}» mandado a Telegram")
     except ErrorCelular as e:
-        m.log(f"[celular] no se pudo mandar a Telegram: {e}")
+        if sin_pro(e):  # el bot ya le explicó a la persona qué pasó (una sola vez)
+            m.log("[celular] no va a Telegram: hace falta WaveMascot Pro (terminó la prueba)")
+        else:
+            m.log(f"[celular] no se pudo mandar a Telegram: {e}")
     return 0
 
 

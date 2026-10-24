@@ -96,6 +96,12 @@ Abrí la pestaña **Celular**, tocá **Conectar con Telegram** y después **Inic
 Por defecto solo te escribe si hace 3 minutos que no estás en la compu. Los pedidos de permiso llegan con
 **Permitir** y **Denegar**, y gana la primera respuesta: el celular, Wave o la terminal.
 
+**Telegram es parte de WaveMascot Pro**, con 7 días de prueba gratis que arrancan al conectarlo. Todo lo demás (la
+mascota, los avisos en pantalla, los estilos, el vestuario) es gratis para siempre. Tocá el cartel **PRO** de la
+pestaña Celular para ver cómo desbloquearlo: se paga con Telegram Stars dentro del bot (mensual, lo cancelás cuando
+quieras con `/pro`, o una sola vez de por vida) y sirve en todas las compus que conectes a tu Telegram. Si termina la
+prueba, la mascota te sigue avisando en pantalla y los permisos vuelven a la terminal.
+
 ## Privacidad
 
 Todo corre en tu compu. El resumen se lee localmente del transcript que Claude Code ya guarda en tu disco. WaveMascot
@@ -105,7 +111,8 @@ conectás, para mandar avisos a Telegram. Las dos cosas se pueden apagar.
 Para Telegram, la clave del bot vive solo en un pequeño [Worker de Cloudflare](servidor/) que pasa cada mensaje sin
 guardarlo, y cada instalación tiene su propia llave, que solo puede escribirle al chat que vinculó. Se manda lo que
 muestra el aviso (mensaje, resumen, proyecto, título del chat, comando a aprobar). Mandale `/stop` al bot o tocá
-**Desconectar** para cortarlo.
+**Desconectar** para cortarlo. Para Pro, el servidor guarda solo tu id de chat de Telegram, tu plan y los ids de pago
+que manda Telegram; los pagos los cobra Telegram, así que WaveMascot nunca ve datos de tarjetas.
 
 ## Colaborar
 

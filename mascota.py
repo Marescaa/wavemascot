@@ -131,7 +131,10 @@ CONFIG_DEFECTO = {
                 "gif": True, "estados": {"listo": True, "permiso": True, "subagente": False, "limite": True,
                                          "error": True},
                 # Permitir / Denegar desde Telegram, y cuántos segundos se espera tu respuesta.
-                "permisos": True, "espera_permisos": 240},
+                "permisos": True, "espera_permisos": 240,
+                # Lo último que dijo el servidor de WaveMascot Pro (solo para mostrarlo en los ajustes; quien
+                # decide si un aviso sale es el servidor).
+                "plan": {}},
     # Buscar versiones nuevas (actualizacion.py); "ignorada": la versión a la que le dijiste "Ahora no".
     "actualizaciones": {"buscar": True, "ignorada": ""},
 }

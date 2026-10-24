@@ -7,10 +7,22 @@ and the project uses [semantic versioning](https://semver.org/).
 
 ### Changed
 
+- The settings window opens a little wider (980 px) so every tab fits with the PRO badge.
 - The Windows build keeps `libssl`/`libcrypto` (needed for HTTPS to Telegram and GitHub).
 
 ### Added
 
+- **WaveMascot Pro**: Telegram notifications and Allow/Deny from the phone are now part of Pro, with a 7-day free
+  trial that starts when you connect. Everything else stays free and open source.
+  - A **PRO** badge on the Phone tab and a plan card at the top of it. Tapping either opens a guide: what Pro
+    includes, what stays free, and three steps to unlock it (connect Telegram, pick a plan, pay with Telegram Stars).
+    It detects the payment by itself and celebrates with confetti.
+  - Plans: monthly (Telegram renews it; cancel anytime with `/pro`) or lifetime. One Pro covers every computer
+    linked to the same Telegram account.
+  - Without Pro, the mascot keeps notifying on screen and permission requests go back to the terminal; the bot
+    explains it once and reminds you a day before the trial ends.
+  - New bot commands: `/pro`, `/paysupport`, `/terms`. The server decides who is Pro; `COBRAR = "no"` turns billing
+    off.
 - **Mascot styles (beta)**: Classic, Sakura, Ninja and Robot, in the **Mascot** tab. A style changes the mascot's
   face and how it shows up, celebrates and leaves; the settings window only takes its colors.
   - **Sakura**: big shiny eyes with lashes, a cherry blossom on the antenna, a heart-shaped shine and a flower clip.

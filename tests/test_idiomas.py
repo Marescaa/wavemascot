@@ -16,7 +16,8 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 import idiomas  # noqa: E402
 
-ARCHIVOS = ("mascota.py", "ajustes.py", "bandeja.py", "instalador.py", "celular.py", "actualizacion.py")
+ARCHIVOS = ("mascota.py", "ajustes.py", "bandeja.py", "instalador.py", "celular.py", "actualizacion.py",
+            "guia_pro.py")
 TRADUCEN = {"t", "seccion", "ayuda", "opcion"}  # su primer argumento se traduce
 # Tablas cuyos valores se traducen donde se usan: (archivo, nombre, cómo sacar el texto de cada valor)
 TABLAS = [
