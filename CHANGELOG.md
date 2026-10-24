@@ -5,10 +5,7 @@ and the project uses [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Changed
-
-- The settings window opens a little wider (980 px) so every tab fits with the PRO badge.
-- The Windows build keeps `libssl`/`libcrypto` (needed for HTTPS to Telegram and GitHub).
+## [1.3.0] - 2026-10-23
 
 ### Added
 
@@ -20,7 +17,8 @@ and the project uses [semantic versioning](https://semver.org/).
   - Plans: monthly (Telegram renews it; cancel anytime with `/pro`) or lifetime. One Pro covers every computer
     linked to the same Telegram account.
   - Without Pro, the mascot keeps notifying on screen and permission requests go back to the terminal; the bot
-    explains it once and reminds you a day before the trial ends.
+    explains it once and reminds you a day before the trial ends. The Phone tab's options show up locked, with a
+    padlock card to try it free or unlock Pro.
   - New bot commands: `/pro`, `/paysupport`, `/terms`. The server decides who is Pro; `COBRAR = "no"` turns billing
     off.
 - **Mascot styles (beta)**: Classic, Sakura, Ninja and Robot, in the **Mascot** tab. A style changes the mascot's
@@ -57,6 +55,11 @@ and the project uses [semantic versioning](https://semver.org/).
   the tray menu offers **Update to version…**. On Windows, **Update** downloads the installer, checks it against
   `SHA256SUMS.txt` and installs it silently, keeping your settings; on macOS it opens the download page. Releases now
   include this version's CHANGELOG section, which the app shows as "what's new".
+
+### Changed
+
+- The settings window opens a little wider (980 px) so every tab fits with the PRO badge.
+- The Windows build keeps `libssl`/`libcrypto` (needed for HTTPS to Telegram and GitHub).
 
 ## [1.2.0] - 2026-10-19
 
@@ -125,6 +128,7 @@ First public release of WaveMascot.
 - `WaveMascot-Setup.exe` installer (PyInstaller, no Python or administrator rights needed) and a GitHub Actions
   workflow that publishes it on every `v*` tag.
 
+[1.3.0]: ../../releases/tag/v1.3.0
 [1.2.0]: ../../releases/tag/v1.2.0
 [1.1.0]: ../../releases/tag/v1.1.0
 [1.0.0]: ../../releases/tag/v1.0.0

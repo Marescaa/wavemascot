@@ -41,7 +41,7 @@ except ImportError:  # sin idiomas.py al lado (p. ej. un desinstalador copiado s
     def t(texto: str, **datos) -> str:
         return texto.format(**datos) if datos else texto
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 NOMBRE = "WaveMascot"
 CONGELADO = getattr(sys, "frozen", False)
 MAC = sys.platform == "darwin"

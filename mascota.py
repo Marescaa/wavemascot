@@ -39,7 +39,7 @@ import sprites
 import ventanas
 from idiomas import t
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 CONGELADO = getattr(sys, "frozen", False)  # corriendo como WaveMascot.exe o WaveMascot.app (PyInstaller)
 MAC = ventanas.ES_MAC
 DIR = Path(__file__).resolve().parent
