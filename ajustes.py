@@ -175,6 +175,8 @@ QFrame#tarjeta_plan:hover { border-color: %(acento)s; }
 QFrame#tarjeta_plan[aviso="true"] { border: 1px solid %(acento)s; }
 QFrame#tarjeta_plan QLabel { background: transparent; }
 QLabel#plan_titulo { font-size: 11pt; font-weight: 700; }
+QFrame#bloqueo { background: %(panel)s; border: 1px solid %(acento)s; border-radius: 14px; }
+QFrame#bloqueo QLabel { background: transparent; border: none; }
 QFrame#guia { background: %(panel)s; border: 1px solid %(borde)s; border-radius: 18px; }
 QFrame#guia QScrollArea, QFrame#guia QScrollArea > QWidget > QWidget { background: transparent; }
 QFrame#gratis { background: %(campo)s; border: 1px solid %(borde)s; border-radius: 12px; }
@@ -1335,49 +1337,58 @@ class Ajustes(QWidget):
         caja.addWidget(self.cel_esperando)
 
         self.cel_conectado = QWidget()
-        conectado = fila(QPushButton(t("Mandar un aviso de prueba"), clicked=self.probar_telegram),
+        self.cel_probar = QPushButton(t("Mandar un aviso de prueba"), clicked=self.probar_telegram)
+        conectado = fila(self.cel_probar,
                          QPushButton(t("Desconectar"), clicked=self.desconectar_telegram), espacio=8)
         conectado.setContentsMargins(0, 4, 0, 0)
         conectado.addStretch(1)
         self.cel_conectado.setLayout(conectado)
         caja.addWidget(self.cel_conectado)
 
-        caja.addSpacing(10)
-        caja.addWidget(seccion("Cuándo"))
+        # Cuándo, qué avisos y permisos: sin Pro quedan bloqueados (atenuados, con un cartel con candado).
+        self.cel_opciones = QWidget()
+        opciones = QVBoxLayout(self.cel_opciones)
+        opciones.setContentsMargins(0, 0, 0, 0)
+        opciones.setSpacing(6)
+        opciones.addSpacing(10)
+        opciones.addWidget(seccion("Cuándo"))
         self.cel_ausente, fila_ausente = opcion("Solo si no estoy usando la compu",
                                                 lambda v: self.cambiar_grupo("celular", "solo_ausente", v))
-        caja.addLayout(fila_ausente)
+        opciones.addLayout(fila_ausente)
         self.cel_etiqueta_minutos = QLabel(t("Sin tocar el mouse ni el teclado por"))
         self.cel_minutos = QSlider(Qt.Orientation.Horizontal, minimum=1, maximum=30, pageStep=5)
         self.cel_valor_minutos = valor()
         self.cel_minutos.valueChanged.connect(lambda v: self.cambiar_grupo("celular", "minutos", v))
-        caja.addLayout(fila(self.cel_etiqueta_minutos, self.cel_minutos, self.cel_valor_minutos))
-        caja.addWidget(ayuda("Si estás en la compu te avisa solo la mascota, así no te llega todo dos veces. "
+        opciones.addLayout(fila(self.cel_etiqueta_minutos, self.cel_minutos, self.cel_valor_minutos))
+        opciones.addWidget(ayuda("Si estás en la compu te avisa solo la mascota, así no te llega todo dos veces. "
                              "El silencio y el «no molestar» también valen para Telegram."))
 
-        caja.addSpacing(10)
-        caja.addWidget(seccion("Qué avisos"))
+        opciones.addSpacing(10)
+        opciones.addWidget(seccion("Qué avisos"))
         self.cel_estados = {}
         for estado, texto in NOMBRES_CELULAR.items():
             interruptor, fila_estado = opcion(texto, lambda v, e=estado: self.cambiar_estado_celular(e, v))
             self.cel_estados[estado] = interruptor
-            caja.addLayout(fila_estado)
+            opciones.addLayout(fila_estado)
         self.cel_gif, fila_gif = opcion("Con Wave animada (GIF)", lambda v: self.cambiar_grupo("celular", "gif", v))
-        caja.addLayout(fila_gif)
+        opciones.addLayout(fila_gif)
 
-        caja.addSpacing(10)
-        caja.addWidget(seccion("Permisos"))
+        opciones.addSpacing(10)
+        opciones.addWidget(seccion("Permisos"))
         self.cel_permisos, fila_permisos = opcion("Aprobar o denegar permisos desde Telegram",
                                                   lambda v: self.cambiar_grupo("celular", "permisos", v))
-        caja.addLayout(fila_permisos)
+        opciones.addLayout(fila_permisos)
         self.cel_etiqueta_espera = QLabel(t("Esperar mi respuesta"))
         self.cel_espera = QSlider(Qt.Orientation.Horizontal, minimum=1, maximum=m.ESPERA_TELEGRAM_MAX // 60, pageStep=1)
         self.cel_valor_espera = valor()
         self.cel_espera.valueChanged.connect(lambda v: self.cambiar_grupo("celular", "espera_permisos", v * 60))
-        caja.addLayout(fila(self.cel_etiqueta_espera, self.cel_espera, self.cel_valor_espera))
-        caja.addWidget(ayuda("Te llega el comando completo con los botones Permitir y Denegar. Si no contestás a "
+        opciones.addLayout(fila(self.cel_etiqueta_espera, self.cel_espera, self.cel_valor_espera))
+        opciones.addWidget(ayuda("Te llega el comando completo con los botones Permitir y Denegar. Si no contestás a "
                              "tiempo, queda el diálogo de siempre en la terminal. Las preguntas de Claude se "
                              "contestan en la terminal."))
+        caja.addWidget(self.cel_opciones)
+        self.cel_candado = guia_pro.CapaBloqueo(self.cel_opciones)
+        self.cel_candado.accion.connect(self.accion_candado)
         caja.addSpacing(6)
         caja.addWidget(ayuda("Los avisos pasan por el servidor de WaveMascot para llegar a Telegram; no se guardan. "
                              "Para dejar de recibirlos: Desconectar, o mandale /stop al bot."))
@@ -1996,6 +2007,21 @@ class Ajustes(QWidget):
         datos = guia_pro.describir(cel["plan"], self.info_pro, conectado)
         self.tarjeta_plan.mostrar(datos)
         self.insignia_pro.setVisible(not datos["oculto"])
+        # Sin Pro (todavía sin conectar, o terminó la prueba) las opciones de Telegram quedan bloqueadas.
+        bloqueado = datos["tipo"] in ("nuevo", "vencido")
+        if datos["tipo"] == "vencido":
+            self.cel_candado.bloquear(True, t("Disponible con WaveMascot Pro"),
+                                      t("Terminó tu prueba gratis. Con Pro vuelven los avisos y los permisos desde "
+                                        "el celular, en todas tus compus."), t("Desbloquear Pro"))
+        elif datos["tipo"] == "nuevo":
+            dias = self.info_pro.get("dias_prueba", celular.DIAS_PRUEBA)
+            self.cel_candado.bloquear(True, t("Disponible con WaveMascot Pro"),
+                                      t("Conectá Telegram y probalo gratis {dias} días, sin tarjeta.", dias=dias),
+                                      t("Probar gratis {dias} días", dias=dias))
+        else:
+            self.cel_candado.bloquear(False)
+        self.cel_activo.setEnabled(conectado and not bloqueado)
+        self.cel_probar.setEnabled(not bloqueado)
         if self.guia:
             self.guia.actualizar(conectado, cel["nombre"], self.codigo, cel["plan"], self.info_pro)
 
@@ -2019,6 +2045,13 @@ class Ajustes(QWidget):
                     self.guia.festejar()
                     return
         self.actualizar_pro()
+
+    def accion_candado(self) -> None:
+        """El botón del candado: sin conectar, conecta (y arranca la prueba); si terminó la prueba, la guía."""
+        if self.conectado_a_telegram() or self.codigo:
+            self.abrir_guia()
+        else:
+            self.conectar_telegram()
 
     def abrir_guia(self) -> None:
         if self.guia is None:

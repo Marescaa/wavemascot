@@ -652,6 +652,16 @@ TEXTOS: dict[str, dict[str, str]] = {
     "✓ Ya sos Pro: los avisos a Telegram están activados.": {
         "en": "✓ You're Pro: Telegram notifications are on.",
         "pt": "✓ Agora você é Pro: os avisos pelo Telegram estão ativados."},
+    "Disponible con WaveMascot Pro": {"en": "Available with WaveMascot Pro", "pt": "Disponível com o WaveMascot Pro"},
+    "Terminó tu prueba gratis. Con Pro vuelven los avisos y los permisos desde el celular, en todas tus compus.": {
+        "en": "Your free trial is over. With Pro, notifications and permissions from your phone come back, on all "
+              "your computers.",
+        "pt": "Seu teste grátis terminou. Com o Pro, os avisos e as permissões pelo celular voltam, em todos os seus "
+              "computadores."},
+    "Conectá Telegram y probalo gratis {dias} días, sin tarjeta.": {
+        "en": "Connect Telegram and try it free for {dias} days, no card needed.",
+        "pt": "Conecte o Telegram e teste grátis por {dias} dias, sem cartão."},
+    "Probar gratis {dias} días": {"en": "Try it free for {dias} days", "pt": "Testar grátis por {dias} dias"},
     "No se mandó: terminó tu prueba de Pro y los avisos a Telegram están en pausa.": {
         "en": "Not sent: your Pro trial is over and Telegram notifications are paused.",
         "pt": "Não foi enviado: seu teste do Pro terminou e os avisos pelo Telegram estão pausados."},

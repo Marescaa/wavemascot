@@ -16,7 +16,8 @@ from datetime import datetime
 from PyQt6.QtCore import QEasingCurve, QElapsedTimer, QEvent, QPointF, QRectF, QSize, Qt, QTimer, QVariantAnimation, pyqtSignal
 from PyQt6.QtGui import (QColor, QFont, QFontMetrics, QImage, QLinearGradient, QPainter, QPainterPath, QPen,
                          QPolygonF, QRadialGradient)
-from PyQt6.QtWidgets import (QAbstractButton, QButtonGroup, QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel,
+from PyQt6.QtWidgets import (QAbstractButton, QButtonGroup, QFrame, QGraphicsDropShadowEffect, QGraphicsOpacityEffect,
+                             QHBoxLayout, QLabel,
                              QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget)
 
 import celular
@@ -259,6 +260,96 @@ class TarjetaPlan(QFrame):
 
     def mousePressEvent(self, evento) -> None:
         self.abrir.emit()
+
+
+# --- el candado de las opciones de Telegram ----------------------------------------------------------
+
+class IconoCandado(QWidget):
+    """Un candado cerrado dentro de un círculo del acento."""
+
+    def __init__(self):
+        super().__init__()
+        self.setFixedSize(44, 44)
+
+    def paintEvent(self, evento) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(color("acento", 0.16))
+        p.drawEllipse(QRectF(0, 0, 44, 44))
+        lapiz = QPen(QColor(C["acento"]), 2.2)
+        lapiz.setCapStyle(Qt.PenCapStyle.RoundCap)
+        p.setPen(lapiz)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        arco = QPainterPath()  # el arco de arriba
+        arco.moveTo(16, 21)
+        arco.lineTo(16, 17)
+        arco.arcTo(QRectF(16, 11, 12, 12), 180, -180)
+        arco.lineTo(28, 21)
+        p.drawPath(arco)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(C["acento"]))
+        p.drawRoundedRect(QRectF(13, 20, 18, 14), 3.5, 3.5)
+        p.setBrush(QColor(C["sobre"]))
+        p.drawEllipse(QPointF(22, 26), 2, 2)
+        p.drawRect(QRectF(21.2, 26, 1.6, 4))
+
+
+class CapaBloqueo(QFrame):
+    """Sin Pro, las opciones de Telegram quedan atenuadas y sin tocar; encima, este cartel con un candado y
+    el botón para desbloquearlas. Sigue a las opciones cuando cambian de tamaño o de lugar."""
+
+    accion = pyqtSignal()
+
+    def __init__(self, cubre: QWidget):
+        super().__init__(cubre.parentWidget(), objectName="bloqueo")
+        self.cubre = cubre
+        cubre.installEventFilter(self)
+        caja = QVBoxLayout(self)
+        caja.setContentsMargins(24, 18, 24, 20)
+        caja.setSpacing(6)
+        caja.addWidget(IconoCandado(), 0, Qt.AlignmentFlag.AlignHCenter)
+        self.titulo = QLabel(objectName="plan_titulo", wordWrap=True, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.texto = QLabel(objectName="ayuda", wordWrap=True, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.boton = QPushButton(objectName="primario", clicked=self.accion)
+        self.boton.setCursor(Qt.CursorShape.PointingHandCursor)
+        caja.addWidget(self.titulo)
+        caja.addWidget(self.texto)
+        caja.addSpacing(6)
+        caja.addWidget(self.boton, 0, Qt.AlignmentFlag.AlignHCenter)
+        sombra = QGraphicsDropShadowEffect(self, blurRadius=28, offset=QPointF(0, 6))
+        sombra.setColor(QColor(0, 0, 0, 110))
+        self.setGraphicsEffect(sombra)
+        self.hide()
+
+    def bloquear(self, bloqueado: bool, titulo: str = "", texto: str = "", boton: str = "") -> None:
+        self.cubre.setEnabled(not bloqueado)
+        if bloqueado:
+            if not isinstance(self.cubre.graphicsEffect(), QGraphicsOpacityEffect):
+                self.cubre.setGraphicsEffect(QGraphicsOpacityEffect(self.cubre, opacity=0.32))
+            self.titulo.setText(titulo)
+            self.texto.setText(texto)
+            self.boton.setText(boton)
+            self.show()
+            self.colocar()
+            self.raise_()
+        else:
+            self.cubre.setGraphicsEffect(None)
+            self.hide()
+
+    def colocar(self) -> None:
+        if not self.isVisible():
+            return
+        g = self.cubre.geometry()
+        ancho = max(260, min(430, g.width() - 40))
+        self.setFixedWidth(ancho)
+        self.adjustSize()
+        self.move(g.x() + (g.width() - ancho) // 2, g.y() + 40)
+
+    def eventFilter(self, objeto, evento) -> bool:
+        if objeto is self.cubre and evento.type() in (QEvent.Type.Resize, QEvent.Type.Move):
+            self.colocar()
+        return False
 
 
 # --- piezas de la guía ---------------------------------------------------------------------
@@ -625,7 +716,7 @@ class Paso(QWidget):
         super().__init__()
         self.numero, self.ultimo, self.estado = numero, ultimo, "pendiente"
         caja = QVBoxLayout(self)
-        caja.setContentsMargins(44, 3, 0, 0 if ultimo else 20)
+        caja.setContentsMargins(50, 8, 0, 0 if ultimo else 20)
         caja.setSpacing(5)
         self.titulo = QLabel(titulo, objectName="paso_titulo")
         self.detalle = QLabel(objectName="ayuda", wordWrap=True)
@@ -649,10 +740,10 @@ class Paso(QWidget):
     def paintEvent(self, evento) -> None:
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        centro = QPointF(15, 15)
+        centro = QPointF(20, 20)  # con lugar para el halo del paso actual (radio 18)
         if not self.ultimo:
             p.setPen(QPen(QColor(C["acento"]) if self.estado == "hecho" else QColor(C["borde"]), 2))
-            p.drawLine(QPointF(15, 33), QPointF(15, self.height() - 4))
+            p.drawLine(QPointF(20, 38), QPointF(20, self.height() - 2))
         if self.estado == "hecho":
             p.setPen(Qt.PenStyle.NoPen)
             p.setBrush(QColor(C["acento"]))
@@ -661,7 +752,7 @@ class Paso(QWidget):
             lapiz.setCapStyle(Qt.PenCapStyle.RoundCap)
             lapiz.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
             p.setPen(lapiz)
-            p.drawPolyline([QPointF(9.5, 15.5), QPointF(13.5, 19.5), QPointF(20.5, 11.5)])
+            p.drawPolyline([QPointF(14.5, 20.5), QPointF(18.5, 24.5), QPointF(25.5, 16.5)])
             return
         actual = self.estado == "actual"
         if actual:
@@ -673,7 +764,7 @@ class Paso(QWidget):
         p.drawEllipse(centro, 13, 13)
         p.setPen(QColor(C["acento"] if actual else C["suave"]))
         p.setFont(fuente(self.font(), 10, QFont.Weight.Bold))
-        p.drawText(QRectF(0, 0, 30, 30), int(Qt.AlignmentFlag.AlignCenter), str(self.numero))
+        p.drawText(QRectF(5, 5, 30, 30), int(Qt.AlignmentFlag.AlignCenter), str(self.numero))
 
 
 class Confeti(QWidget):
