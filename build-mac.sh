@@ -37,7 +37,7 @@ mkdir -p "$dist"
   --name WaveMascot --icon "$raiz/assets/icono.icns" --osx-bundle-identifier io.github.marescaa.wavemascot \
   --distpath "$build/dist-mac" --workpath "$build/work-mac" --specpath "$build" \
   --add-data "$raiz/assets:assets" \
-  --hidden-import ajustes --hidden-import bandeja --hidden-import instalador --hidden-import idiomas --hidden-import celular --hidden-import actualizacion --hidden-import guia_pro \
+  --hidden-import ajustes --hidden-import bandeja --hidden-import instalador --hidden-import idiomas --hidden-import celular --hidden-import actualizacion --hidden-import guia_pro --hidden-import marco \
   --exclude-module tkinter \
   "$raiz/principal.py"
 app="$build/dist-mac/WaveMascot.app"

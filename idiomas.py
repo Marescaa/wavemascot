@@ -78,6 +78,9 @@ TEXTOS: dict[str, dict[str, str]] = {
 
     # --- ventana de ajustes ----------------------------------------------------------
     "Ajustes de WaveMascot": {"en": "WaveMascot settings", "pt": "Configurações do WaveMascot"},
+    "Minimizar": {"en": "Minimize", "pt": "Minimizar"},  # botones de la ventana (Windows)
+    "Maximizar": {"en": "Maximize", "pt": "Maximizar"},
+    "Restaurar": {"en": "Restore down", "pt": "Restaurar"},
     "Cómo y dónde te avisa cuando Claude Code termina o necesita algo": {
         "en": "How and where it lets you know when Claude Code finishes or needs something",
         "pt": "Como e onde ela avisa quando o Claude Code termina ou precisa de algo"},

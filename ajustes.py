@@ -46,10 +46,11 @@ from PyQt6.QtCore import QFileSystemWatcher, QTime  # noqa: E402
 from PyQt6.QtWidgets import (QAbstractButton, QAbstractSpinBox, QApplication, QButtonGroup, QCheckBox, QComboBox,  # noqa: E402
                              QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget,
                              QListWidgetItem, QMenu, QMessageBox, QPushButton, QScrollArea, QSlider, QTabBar, QTabWidget,
-                             QTimeEdit, QToolButton, QVBoxLayout, QWidget)
+                             QSpacerItem, QTimeEdit, QToolButton, QVBoxLayout, QWidget)
 
 import bandeja  # noqa: E402
 import guia_pro  # noqa: E402
+import marco  # noqa: E402
 
 CANAL_AJUSTES = m.CANAL + "-ajustes"
 NOMBRES_ESTADO = {"listo": "Listo", "permiso": "Permiso", "pensando": "Pensando", "subagente": "Subagente",
@@ -103,6 +104,7 @@ PALETAS = {
 }
 C = dict(C_OSCURO)  # colores en uso: el tema y el estilo los reemplazan en el lugar
 guia_pro.usar_colores(C)  # el cartel PRO y la guía pintan con los mismos colores
+marco.usar_colores(C)  # y los botones de la ventana (Windows)
 ESTILO = """
 QWidget { color: %(texto)s; font-family: "Segoe UI"; font-size: 10pt; }
 QWidget#raiz { background: %(fondo)s; }
@@ -824,6 +826,7 @@ class Ajustes(QWidget):
     def __init__(self):
         super().__init__()
         self.setObjectName("raiz")
+        marco.preparar(self)  # Windows: sin la barra de título del sistema, con los colores de la app
         self.config = m.cargar_config()
         idiomas.usar(self.config["idioma"])  # antes de cualquier texto
         self.setWindowTitle(t("Ajustes de WaveMascot"))
@@ -846,7 +849,8 @@ class Ajustes(QWidget):
         raiz = QVBoxLayout(self)
         raiz.setContentsMargins(22, 18, 22, 16)
         raiz.setSpacing(14)
-        raiz.addLayout(self.cabecera())
+        self.caja_cabecera = self.cabecera()
+        raiz.addLayout(self.caja_cabecera)
         self.franja_version()  # el cartelito de la versión nueva (se abre desde el Wave con "!")
         cuerpo = QHBoxLayout()
         cuerpo.setSpacing(18)
@@ -869,6 +873,8 @@ class Ajustes(QWidget):
         cuerpo.addLayout(self.panel_vista())
         raiz.addLayout(cuerpo, 1)
         raiz.addLayout(self.pie())
+        if marco.ACTIVO:
+            self.botones_ventana = marco.BotonesVentana(self)  # minimizar, maximizar y cerrar, arriba a la derecha
         QShortcut(QKeySequence("Esc"), self, activated=self.al_escape)
         if m.MAC:
             QShortcut(QKeySequence("Ctrl+W"), self, activated=self.close)  # Qt lo muestra como ⌘W
@@ -906,10 +912,36 @@ class Ajustes(QWidget):
         caja.addWidget(self.boton_novedad, 0, Qt.AlignmentFlag.AlignTop)
         idioma = QVBoxLayout()
         idioma.setContentsMargins(0, 4, 0, 0)  # a la altura de la píldora (su puntito sobresale arriba)
-        idioma.addWidget(self.selector_idioma())
+        if marco.ACTIVO:  # debajo de los botones de la ventana, que ocupan la esquina
+            idioma.setContentsMargins(0, marco.ALTO_BOTON - 18 + 4, 0, 0)
+            idioma.addItem(QSpacerItem(marco.ANCHO_BOTONES - 22, 0))
+        idioma.addWidget(self.selector_idioma(), 0, Qt.AlignmentFlag.AlignRight)
         idioma.addStretch(1)
         caja.addLayout(idioma)
         return caja
+
+    # sin la barra del sistema (Windows): la cabecera hace de barra para arrastrar la ventana
+
+    def en_cabecera(self, evento) -> bool:
+        return (marco.ACTIVO and evento.button() == Qt.MouseButton.LeftButton
+                and evento.position().y() < self.caja_cabecera.geometry().bottom() + 8)
+
+    def mousePressEvent(self, evento) -> None:
+        if self.en_cabecera(evento):
+            marco.arrastrar(self)
+        else:
+            super().mousePressEvent(evento)
+
+    def mouseDoubleClickEvent(self, evento) -> None:
+        if self.en_cabecera(evento):
+            marco.alternar_maximizada(self)
+        else:
+            super().mouseDoubleClickEvent(evento)
+
+    def nativeEvent(self, tipo, mensaje):
+        # (False, 0) y no super().nativeEvent: en PyQt6 llamar al original rompe el programa.
+        respuesta = marco.evento_nativo(self, tipo, mensaje)
+        return respuesta if respuesta is not None else (False, 0)
 
     def franja_version(self) -> QFrame:
         """El cartelito que se abre al tocar el Wave con "!": qué trae la versión nueva y el botón para actualizar."""
@@ -2061,6 +2093,8 @@ class Ajustes(QWidget):
             self.guia.gestionar.connect(lambda: self.abrir_enlace(celular.enlace_pro()))
         self.actualizar_pro()
         self.guia.abrir(self.config["aspecto"])
+        if marco.ACTIVO:
+            self.botones_ventana.raise_()  # por encima de la guía, para poder cerrar o mover la ventana
         if self.conectado_a_telegram() and not self.timer_plan.isActive():
             self.consultar_plan()  # que la guía muestre el plan de ahora, no el de la última vez
 
@@ -2144,8 +2178,10 @@ def ejecutar_ventana() -> int:
         if anterior is None:
             ventana.resize(980, 760)  # con el cartel PRO, las pestañas entran en los tres idiomas
         else:
-            ventana.setGeometry(anterior.geometry())
+            ventana.setGeometry(anterior.normalGeometry() if anterior.isMaximized() else anterior.geometry())
             ventana.pestanas.setCurrentIndex(anterior.pestanas.currentIndex())
+            if anterior.isMaximized():
+                ventana.setWindowState(Qt.WindowState.WindowMaximized)
         actual["ventana"] = ventana
         traer_al_frente(ventana)
         if anterior is not None:  # recién ahora: si se cerrara antes, la app terminaría
