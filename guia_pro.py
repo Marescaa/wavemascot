@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 
 from PyQt6.QtCore import QEasingCurve, QElapsedTimer, QEvent, QPointF, QRectF, QSize, Qt, QTimer, QVariantAnimation, pyqtSignal
 from PyQt6.QtGui import (QColor, QFont, QFontMetrics, QImage, QLinearGradient, QPainter, QPainterPath, QPen,
@@ -79,7 +79,7 @@ def tam(puntos: float) -> str:
 
 def fecha(ms: float) -> str:
     """23 de noviembre / November 23 / 23 de novembro."""
-    d = datetime.fromtimestamp(ms / 1000)
+    d = datetime.fromtimestamp(ms / 1000, tz=timezone.utc)  # igual que el bot, así las dos fechas coinciden
     idioma = idiomas.actual()
     mes = MESES.get(idioma, MESES["en"])[d.month - 1]
     return f"{mes} {d.day}" if idioma == "en" else f"{d.day} de {mes}"
@@ -939,7 +939,9 @@ class GuiaPro(QWidget):
         panel.setSpacing(8)
         self.pro_titulo = QLabel(objectName="guia_estado", wordWrap=True)
         self.pro_detalle = self.ayuda("")
-        self.boton_gestionar = QPushButton(t("Ver mi plan en Telegram"), objectName="primario", clicked=self.gestionar)
+        self.boton_gestionar = QPushButton(t("Ver mi plan en Telegram"), objectName="primario",
+                                           clicked=self.al_gestionar)
+        self.boton_gestionar.setCursor(Qt.CursorShape.PointingHandCursor)
         self.pro_nota = self.ayuda("")
         panel.addWidget(self.pro_titulo)
         panel.addWidget(self.pro_detalle)
@@ -984,6 +986,14 @@ class GuiaPro(QWidget):
             fila.addWidget(w)
         fila.addStretch(1)
         return fila
+
+    def al_gestionar(self) -> None:
+        """Abre el bot con tu plan; mientras Telegram se abre, el botón lo dice (si no, parece que no hizo nada)."""
+        self.gestionar.emit()
+        self.boton_gestionar.setText(t("Abriendo Telegram…"))
+        self.boton_gestionar.setEnabled(False)
+        QTimer.singleShot(2500, lambda: (self.boton_gestionar.setText(t("Ver mi plan en Telegram")),
+                                         self.boton_gestionar.setEnabled(True)))
 
     def plan_elegido(self) -> str:
         return "vitalicio" if self.opciones["vitalicio"].isChecked() else "mensual"

@@ -652,6 +652,7 @@ TEXTOS: dict[str, dict[str, str]] = {
     "✓ Ya sos Pro: los avisos a Telegram están activados.": {
         "en": "✓ You're Pro: Telegram notifications are on.",
         "pt": "✓ Agora você é Pro: os avisos pelo Telegram estão ativados."},
+    "Abriendo Telegram…": {"en": "Opening Telegram…", "pt": "Abrindo o Telegram…"},
     "Disponible con WaveMascot Pro": {"en": "Available with WaveMascot Pro", "pt": "Disponível com o WaveMascot Pro"},
     "Terminó tu prueba gratis. Con Pro vuelven los avisos y los permisos desde el celular, en todas tus compus.": {
         "en": "Your free trial is over. With Pro, notifications and permissions from your phone come back, on all "
