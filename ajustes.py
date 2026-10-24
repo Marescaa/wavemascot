@@ -2006,7 +2006,7 @@ class Ajustes(QWidget):
         cel, conectado = self.config["celular"], self.conectado_a_telegram()
         datos = guia_pro.describir(cel["plan"], self.info_pro, conectado)
         self.tarjeta_plan.mostrar(datos)
-        self.insignia_pro.setVisible(not datos["oculto"])
+        self.insignia_pro.setVisible(datos["tipo"] != "libre")  # el cartel queda aunque el plan no se sepa
         # Sin Pro (todavía sin conectar, o terminó la prueba) las opciones de Telegram quedan bloqueadas.
         bloqueado = datos["tipo"] in ("nuevo", "vencido")
         if datos["tipo"] == "vencido":

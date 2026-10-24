@@ -122,6 +122,11 @@ def describir(plan: dict | None, info: dict, conectado: bool) -> dict:
     tipo = (plan or {}).get("tipo") if conectado else None
     if not info.get("cobrando", True) or tipo == "libre":
         return {"tipo": "libre", "oculto": True, "titulo": "", "detalle": "", "chip": "", "boton": "", "aviso": False}
+    if conectado and tipo not in ("prueba", "mensual", "regalo", "vitalicio", "vencido"):
+        # Conectado pero todavía no se sabe el plan (primera vez sin internet, o un servidor viejo que no lo
+        # manda): no se muestra nada ni se bloquea. El servidor igual decide en cada aviso.
+        return {"tipo": "desconocido", "oculto": True, "titulo": "", "detalle": "", "chip": "", "boton": "",
+                "aviso": False}
     d = {"tipo": tipo or "nuevo", "oculto": False, "aviso": False}
     if tipo is None:
         d.update(titulo=t("Telegram es parte de WaveMascot Pro"),
@@ -1085,7 +1090,8 @@ class GuiaPro(QWidget):
         """Lo que sabe la ventana de ajustes: si Telegram está conectado (o esperando el código) y el plan."""
         self.estado = {"conectado": conectado, "nombre": nombre, "codigo": codigo, "plan": plan, "info": info}
         d = describir(plan, info, conectado)
-        self.hero.chip.setText(d["chip"] or t("Sos Pro ✓"))
+        self.hero.chip.setText(d["chip"])
+        self.hero.chip.setVisible(bool(d["chip"]))
         precios = info.get("precios") or celular.PRECIOS
         self.opciones["mensual"].poner(celular.precio(precios["mensual"]), t("/ mes"),
                                        t("{stars} Stars · mes a mes",
