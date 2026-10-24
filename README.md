@@ -42,18 +42,18 @@ own. If you're away from the computer, it messages your phone instead.
 
 <table>
   <tr>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/capturas/en/aviso-listo.gif" alt="Done notice with a one-line summary" width="220"><br>
+    <td align="center" width="33%">
+      <img src="docs/capturas/en/aviso-listo.gif" alt="Done notice with a one-line summary" height="200"><br>
       <b>Knows when it's done</b><br>
       <sub>Chat, project, how long it took and a one-line summary of what changed.</sub>
     </td>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/capturas/en/aviso-permiso.gif" alt="Permission notice with Allow and Deny buttons" width="220"><br>
+    <td align="center" width="33%">
+      <img src="docs/capturas/en/aviso-permiso.gif" alt="Permission notice with Allow and Deny buttons" height="200"><br>
       <b>Asks before acting</b><br>
       <sub>Allow or Deny right on the notice, without going back to the terminal.</sub>
     </td>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/capturas/en/aviso-limite.gif" alt="Usage limit notice" width="220"><br>
+    <td align="center" width="33%">
+      <img src="docs/capturas/en/aviso-limite.gif" alt="Usage limit notice" height="200"><br>
       <b>Tells you when to stop</b><br>
       <sub>Usage limit and API errors get their own notice, animation and sound.</sub>
     </td>

@@ -43,18 +43,18 @@ computador, ele manda mensagem no seu celular.
 
 <table>
   <tr>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/capturas/pt/aviso-listo.gif" alt="Aviso de pronto com um resumo de uma linha" width="220"><br>
+    <td align="center" width="33%">
+      <img src="docs/capturas/pt/aviso-listo.gif" alt="Aviso de pronto com um resumo de uma linha" height="200"><br>
       <b>Sabe quando terminou</b><br>
       <sub>Chat, projeto, quanto demorou e um resumo de uma linha do que ele fez.</sub>
     </td>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/capturas/pt/aviso-permiso.gif" alt="Aviso de permissão com os botões Permitir e Negar" width="220"><br>
+    <td align="center" width="33%">
+      <img src="docs/capturas/pt/aviso-permiso.gif" alt="Aviso de permissão com os botões Permitir e Negar" height="200"><br>
       <b>Pergunta antes de agir</b><br>
       <sub>Permitir ou Negar no próprio aviso, sem voltar ao terminal.</sub>
     </td>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/capturas/pt/aviso-limite.gif" alt="Aviso de limite de uso" width="220"><br>
+    <td align="center" width="33%">
+      <img src="docs/capturas/pt/aviso-limite.gif" alt="Aviso de limite de uso" height="200"><br>
       <b>Avisa quando parar</b><br>
       <sub>O limite de uso e os erros da API têm seu próprio aviso, animação e som.</sub>
     </td>

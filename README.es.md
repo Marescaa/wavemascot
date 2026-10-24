@@ -42,18 +42,18 @@ escribe al celular.
 
 <table>
   <tr>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/capturas/es/aviso-listo.gif" alt="Aviso de listo con un resumen de una línea" width="220"><br>
+    <td align="center" width="33%">
+      <img src="docs/capturas/es/aviso-listo.gif" alt="Aviso de listo con un resumen de una línea" height="200"><br>
       <b>Sabe cuándo terminó</b><br>
       <sub>Chat, proyecto, cuánto tardó y un resumen de una línea de lo que hizo.</sub>
     </td>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/capturas/es/aviso-permiso.gif" alt="Aviso de permiso con los botones Permitir y Denegar" width="220"><br>
+    <td align="center" width="33%">
+      <img src="docs/capturas/es/aviso-permiso.gif" alt="Aviso de permiso con los botones Permitir y Denegar" height="200"><br>
       <b>Pregunta antes de actuar</b><br>
       <sub>Permitir o Denegar ahí mismo, sin volver a la terminal.</sub>
     </td>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/capturas/es/aviso-limite.gif" alt="Aviso de límite de uso" width="220"><br>
+    <td align="center" width="33%">
+      <img src="docs/capturas/es/aviso-limite.gif" alt="Aviso de límite de uso" height="200"><br>
       <b>Te avisa cuándo parar</b><br>
       <sub>El límite de uso y los errores de la API tienen su aviso, su animación y su sonido.</sub>
     </td>
