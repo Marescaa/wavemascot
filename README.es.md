@@ -24,15 +24,14 @@ En tu escritorio, y en tu celular cuando no estás.
 
 <br>
 
-[Qué hace](#qué-hace) · [Instalación](#instalación) · [WaveMascot Pro](#wavemascot-pro) · [Ajustes](#ajustes) ·
+[Qué hace](#qué-hace) · [Instalación](#instalación) · [Celular](#en-tu-celular) · [Ajustes](#ajustes) ·
 [Galería](docs/README.es.md) · [Preguntas](#preguntas-frecuentes) · [Cambios](CHANGELOG.md)
 
 </div>
 
 > [!NOTE]
-> **Nuevo en la 1.3:** [WaveMascot Pro](#wavemascot-pro) lleva los avisos y el Permitir/Denegar a tu celular por
-> Telegram (7 días de prueba gratis), y suma cuatro estilos de mascota, el aviso de versión nueva y una barra de título
-> nueva en Windows. [Ver todos los cambios →](CHANGELOG.md#130---2026-10-23)
+> **Nuevo en la 1.3.1:** los avisos por Telegram y el Permitir/Denegar desde el celular ahora son **gratis para
+> todos**: se terminó Pro. [Ver todos los cambios →](CHANGELOG.md#131---2026-11-03)
 
 ## Qué hace
 
@@ -71,8 +70,8 @@ escribe al celular.
 - **A tu gusto**: cuatro estilos (Clásico, Sakura, Ninja, Robot), colores, vestuario, tema claro u oscuro, tu propia
   imagen y sonidos.
 - **Modo compañera**: Wave vive chiquita sobre la barra de tareas o el Dock, pasea y se duerme cuando llegás al límite.
-- **En tu celular** con [WaveMascot Pro](#wavemascot-pro): avisos por Telegram con Wave animada, y Permitir/Denegar
-  desde donde estés.
+- **En tu celular**: [avisos por Telegram](#en-tu-celular) con Wave animada, y Permitir/Denegar desde donde estés.
+  Gratis.
 - **Siempre al día**: Wave te avisa cuando hay una versión nueva; en Windows se instala con un click.
 - **Inglés, español y portugués**, varios monitores, Windows y macOS (chip Apple e Intel).
 
@@ -106,33 +105,14 @@ Listo: la próxima vez que Claude Code termine, aparece Wave. No hace falta rein
 [guía de instalación](docs/install.es.md) explica cómo instalar desde el código, qué cambia el instalador, cómo
 desinstalar y los problemas frecuentes.
 
-## WaveMascot Pro
+## En tu celular
 
-**WaveMascot es gratis y open source, y lo va a seguir siendo.** Pro suma tu celular: cuando no estás en la compu,
-Wave te escribe por Telegram desde [@WaveNotificationBot](https://t.me/WaveNotificationBot), y los pedidos de permiso
-llegan con los botones **Permitir** y **Denegar**, que le contestan a Claude Code al instante.
+Cuando no estás en la compu, Wave te escribe por Telegram desde
+[@WaveNotificationBot](https://t.me/WaveNotificationBot), y los pedidos de permiso traen los botones **Permitir** y
+**Denegar**, que le contestan a Claude Code al instante. Es gratis, como todo WaveMascot.
 
-<p align="center">
-  <img src="docs/capturas/es/pro-guia.png" alt="La guía de WaveMascot Pro: qué incluye y los tres pasos para desbloquearlo" width="760">
-</p>
-
-| | Gratis | Pro |
-|---|:---:|:---:|
-| Avisos en pantalla para cada evento, con Permitir/Denegar | ✓ | ✓ |
-| Estilos, colores, vestuario, temas, tu propia imagen y sonidos | ✓ | ✓ |
-| Modo compañera, no molestar, actualizaciones | ✓ | ✓ |
-| Avisos por Telegram con Wave animada | | ✓ |
-| Permitir o denegar desde el celular | | ✓ |
-| Un solo plan para todas las compus de tu Telegram | | ✓ |
-| **Precio** | **Gratis para siempre** | **US$ 1,99** por mes<br>o **US$ 29,99** una vez |
-
-**Cómo conseguirlo:** abrí la pestaña **Celular**, tocá **Conectar con Telegram** y después **Iniciar** en el bot. No
-hay nada que crear ni pegar, y ahí arrancan tus **7 días de prueba gratis**, sin tarjeta. Para quedártelo, tocá el
-cartel **PRO** y pagá con Telegram Stars dentro del bot (100 Stars por mes, lo cancelás cuando quieras con `/pro`, o
-1.500 Stars una sola vez). Wave se da cuenta sola del pago.
-
-Si termina la prueba, no se rompe nada: la mascota te sigue avisando en pantalla y los pedidos de permiso vuelven a la
-terminal.
+Abrí la pestaña **Celular**, tocá **Conectar con Telegram** y después **Iniciar** en el bot. No hay nada que crear ni
+pegar. Por defecto solo te escribe si no tocaste el mouse ni el teclado en unos minutos.
 
 ## Ajustes
 
@@ -156,7 +136,7 @@ aparecer.
 | Mascota | Estilo, color, tono de piel, tamaño y tu propia imagen |
 | Vestuario | Cabeza, ropa y accesorios |
 | Sonido y estilo | Volumen, sonido por evento, tema, ícono junto al reloj, actualizaciones |
-| Celular **PRO** | Telegram: cuándo mandar, qué avisos, Permitir/Denegar desde el celular, tu plan |
+| Celular | Telegram: cuándo mandar, qué avisos, Permitir/Denegar desde el celular |
 
 Todo se guarda en `~/.wavemascot/config.json`. Todas las pestañas están en la [galería](docs/README.es.md#ajustes).
 
@@ -177,9 +157,6 @@ La clave del bot vive solo en un pequeño [Worker de Cloudflare](servidor/) que 
 instalación tiene su propia llave, que solo puede escribirle al chat que vinculó. Se manda lo que muestra el aviso
 (mensaje, resumen, proyecto, título del chat, comando a aprobar). Mandale `/stop` al bot o tocá **Desconectar** para
 cortar.
-
-Para Pro, el servidor guarda solo tu id de chat de Telegram, tu plan y los ids de pago que manda Telegram. El cobro lo
-hace Telegram, así que WaveMascot nunca ve datos de tarjetas.
 
 </details>
 

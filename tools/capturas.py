@@ -398,7 +398,7 @@ def qt_capturas():
                                        botones[estado], carpeta / f"aviso-{estado}.gif")
         # el aviso de versión nueva (Actualizar / Ahora no)
         aviso_gif(m, "listo", t("¡Hay una versión nueva de WaveMascot!"),
-                  t("Versión {version}", version="1.4.0"), "", ["actualizar", "ahora_no"],
+                  t("Versión {version}", version="1.3.1"), "", ["actualizar", "ahora_no"],
                   carpeta / "aviso-actualizacion.gif")
 
         portada(avisos["permiso"], telegram(idioma, carpeta, t, ajustes), carpeta / "portada.gif")

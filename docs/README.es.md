@@ -6,7 +6,7 @@ Todo lo de acá lo dibuja la app misma ([`tools/capturas.py`](../tools/capturas.
 ventana de ajustes reales.
 
 **Contenido:** [Avisos](#avisos) · [Estilos](#estilos) · [Vestuario](#vestuario) · [En tu celular](#en-tu-celular) ·
-[WaveMascot Pro](#wavemascot-pro) · [Ajustes](#ajustes) · [Tema claro](#tema-claro)
+[Conectar Telegram](#conectar-telegram) · [Ajustes](#ajustes) · [Tema claro](#tema-claro)
 
 ## Avisos
 
@@ -45,24 +45,18 @@ Las cabezas, la ropa y los accesorios funcionan con todos los estilos.
 
 ## En tu celular
 
-Con [WaveMascot Pro](#wavemascot-pro), los avisos llegan a Telegram con Wave animada, y los pedidos de permiso traen
-**Permitir** y **Denegar**.
+Los avisos llegan a Telegram con Wave animada, y los pedidos de permiso traen **Permitir** y **Denegar**. Gratis
+para todos.
 
 <img src="capturas/es/telegram.gif" width="320" alt="Chat de Telegram: un aviso con Wave animada y un permiso aprobado">
 
 <sub>Ilustración: el aspecto de Telegram está recreado; el GIF de Wave y los textos son los reales.</sub>
 
-## WaveMascot Pro
-
-Tocá el cartel **PRO** de la pestaña Celular y se abre la guía: qué incluye, qué sigue gratis y tres pasos para
-desbloquearlo. Se da cuenta sola cuando llega el pago.
-
-<img src="capturas/es/pro-guia.png" width="760" alt="La guía de WaveMascot Pro durante la prueba gratis">
+## Conectar Telegram
 
 | | |
 |:---:|:---:|
-| <img src="capturas/es/ajustes-6-celular.png" width="380" alt="Pestaña Celular antes de conectar, con el candado de Pro"><br>**Antes de conectar**: probalo gratis 7 días | <img src="capturas/es/pro-celular.png" width="380" alt="Pestaña Celular conectada, durante la prueba gratis"><br>**Durante la prueba**: los días que quedan y todas las opciones |
-| <img src="capturas/es/pro-listo.png" width="380" alt="La guía después de pagar: ¡Ya sos Pro!, con papelitos"><br>**Después de pagar**: tu plan, con papelitos | |
+| <img src="capturas/es/ajustes-6-celular.png" width="380" alt="Pestaña Celular antes de conectar"><br>**Antes de conectar**: un botón y tocás Iniciar en el bot | <img src="capturas/es/celular-conectado.png" width="380" alt="Pestaña Celular conectada"><br>**Conectado**: cuándo mandar, qué avisos, Permitir/Denegar |
 
 ## Ajustes
 
@@ -70,7 +64,7 @@ desbloquearlo. Se da cuenta sola cuando llega el pago.
 |:---:|:---:|
 | <img src="capturas/es/ajustes-1-aviso.png" width="380" alt="Pestaña Aviso"><br>**Aviso** | <img src="capturas/es/ajustes-2-comportamiento.png" width="380" alt="Pestaña Comportamiento"><br>**Comportamiento** |
 | <img src="capturas/es/ajustes-3-mascota.png" width="380" alt="Pestaña Mascota"><br>**Mascota** | <img src="capturas/es/ajustes-4-vestuario.png" width="380" alt="Pestaña Vestuario"><br>**Vestuario** |
-| <img src="capturas/es/ajustes-5-sonido.png" width="380" alt="Pestaña Sonido y estilo"><br>**Sonido y estilo** | <img src="capturas/es/pro-celular.png" width="380" alt="Pestaña Celular"><br>**Celular** |
+| <img src="capturas/es/ajustes-5-sonido.png" width="380" alt="Pestaña Sonido y estilo"><br>**Sonido y estilo** | <img src="capturas/es/celular-conectado.png" width="380" alt="Pestaña Celular"><br>**Celular** |
 
 ## Tema claro
 

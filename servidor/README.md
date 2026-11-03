@@ -22,7 +22,7 @@ cambiar por la API: va con `/setdescriptionpic` en @BotFather.
 ## Todo gratis
 
 Los avisos y los permisos por Telegram son gratis para todos. La 1.3.0 tenía un plan **Pro** pago (Telegram Stars) que
-se sacó en la 1.4.0. Para que las instalaciones 1.3.0 no muestren candados, `/v1/estado` y `/v1/planes` siguen
+se sacó en la 1.3.1. Para que las instalaciones 1.3.0 no muestren candados, `/v1/estado` y `/v1/planes` siguen
 contestando `cobrando: false` y un plan `libre`, y los comandos viejos `/pro`, `/paysupport` y `/terms` responden que
 ya no hace falta ningún plan. Después de deployar, abrir `/setup` para que el menú del bot quede con `/help` y `/stop`.
 
