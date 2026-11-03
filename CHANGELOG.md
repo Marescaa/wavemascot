@@ -5,6 +5,19 @@ and the project uses [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-03
+
+### Changed
+
+- **Telegram is free for everyone again**: WaveMascot Pro is gone. Notifications and Allow/Deny from the phone work
+  with no plan, trial or payment. Installations still on 1.3.0 get it too, without updating: the server now tells
+  them everything is free, so the PRO badge and the padlocks disappear.
+- The bot's `/pro`, `/paysupport` and `/terms` commands only say it's free now; the menu is back to `/help` and `/stop`.
+
+### Removed
+
+- The Pro guide, the plan card and the padlock on the Phone tab (`guia_pro.py`), and the server's payments.
+
 ## [1.3.0] - 2026-10-23
 
 ### Added
@@ -130,6 +143,7 @@ First public release of WaveMascot.
 - `WaveMascot-Setup.exe` installer (PyInstaller, no Python or administrator rights needed) and a GitHub Actions
   workflow that publishes it on every `v*` tag.
 
+[1.3.1]: ../../releases/tag/v1.3.1
 [1.3.0]: ../../releases/tag/v1.3.0
 [1.2.0]: ../../releases/tag/v1.2.0
 [1.1.0]: ../../releases/tag/v1.1.0

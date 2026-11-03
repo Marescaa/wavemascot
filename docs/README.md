@@ -6,7 +6,7 @@ Everything here is drawn by the app itself ([`tools/capturas.py`](../tools/captu
 real notice and the real settings window.
 
 **Contents:** [Notices](#notices) · [Styles](#styles) · [Outfits](#outfits) · [On your phone](#on-your-phone) ·
-[WaveMascot Pro](#wavemascot-pro) · [Settings](#settings) · [Light theme](#light-theme)
+[Connecting Telegram](#connecting-telegram) · [Settings](#settings) · [Light theme](#light-theme)
 
 ## Notices
 
@@ -45,24 +45,18 @@ Heads, clothes and accessories work with every style.
 
 ## On your phone
 
-With [WaveMascot Pro](#wavemascot-pro), notices reach Telegram with Wave animated, and permission requests come with
-**Allow** and **Deny**.
+Notices reach Telegram with Wave animated, and permission requests come with **Allow** and **Deny**. Free for
+everyone.
 
 <img src="capturas/en/telegram.gif" width="320" alt="Telegram chat: a notice with Wave animated and a permission approved">
 
 <sub>Illustration: Telegram's look is recreated; Wave's GIF and the texts are the real ones.</sub>
 
-## WaveMascot Pro
-
-Tap the **PRO** badge on the Phone tab to open the guide: what's included, what stays free and three steps to unlock
-it. It notices the payment by itself.
-
-<img src="capturas/en/pro-guia.png" width="760" alt="The WaveMascot Pro guide during the free trial">
+## Connecting Telegram
 
 | | |
 |:---:|:---:|
-| <img src="capturas/en/ajustes-6-celular.png" width="380" alt="Phone tab before connecting, with the Pro padlock"><br>**Before connecting**: try it free for 7 days | <img src="capturas/en/pro-celular.png" width="380" alt="Phone tab connected, during the free trial"><br>**During the trial**: days left and every option |
-| <img src="capturas/en/pro-listo.png" width="380" alt="The guide after paying: You're Pro now, with confetti"><br>**After paying**: your plan, with confetti | |
+| <img src="capturas/en/ajustes-6-celular.png" width="380" alt="Phone tab before connecting"><br>**Before connecting**: one button and you tap Start in the bot | <img src="capturas/en/celular-conectado.png" width="380" alt="Phone tab connected"><br>**Connected**: when to send, which notices, Allow/Deny |
 
 ## Settings
 
@@ -70,7 +64,7 @@ it. It notices the payment by itself.
 |:---:|:---:|
 | <img src="capturas/en/ajustes-1-aviso.png" width="380" alt="Notice tab"><br>**Notice** | <img src="capturas/en/ajustes-2-comportamiento.png" width="380" alt="Behavior tab"><br>**Behavior** |
 | <img src="capturas/en/ajustes-3-mascota.png" width="380" alt="Mascot tab"><br>**Mascot** | <img src="capturas/en/ajustes-4-vestuario.png" width="380" alt="Outfits tab"><br>**Outfits** |
-| <img src="capturas/en/ajustes-5-sonido.png" width="380" alt="Sound and style tab"><br>**Sound and style** | <img src="capturas/en/pro-celular.png" width="380" alt="Phone tab"><br>**Phone** |
+| <img src="capturas/en/ajustes-5-sonido.png" width="380" alt="Sound and style tab"><br>**Sound and style** | <img src="capturas/en/celular-conectado.png" width="380" alt="Phone tab"><br>**Phone** |
 
 ## Light theme
 

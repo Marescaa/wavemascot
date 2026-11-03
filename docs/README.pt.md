@@ -6,7 +6,7 @@ Tudo aqui é desenhado pelo próprio app ([`tools/capturas.py`](../tools/captura
 de configurações reais.
 
 **Conteúdo:** [Avisos](#avisos) · [Estilos](#estilos) · [Roupas](#roupas) · [No seu celular](#no-seu-celular) ·
-[WaveMascot Pro](#wavemascot-pro) · [Configurações](#configurações) · [Tema claro](#tema-claro)
+[Conectar o Telegram](#conectar-o-telegram) · [Configurações](#configurações) · [Tema claro](#tema-claro)
 
 ## Avisos
 
@@ -45,24 +45,18 @@ Cabeças, roupas e acessórios funcionam com todos os estilos.
 
 ## No seu celular
 
-Com o [WaveMascot Pro](#wavemascot-pro), os avisos chegam ao Telegram com o Wave animado, e os pedidos de permissão
-trazem **Permitir** e **Negar**.
+Os avisos chegam ao Telegram com o Wave animado, e os pedidos de permissão trazem **Permitir** e **Negar**.
+Grátis para todos.
 
 <img src="capturas/pt/telegram.gif" width="320" alt="Chat do Telegram: um aviso com o Wave animado e uma permissão aprovada">
 
 <sub>Ilustração: o visual do Telegram é recriado; o GIF do Wave e os textos são os reais.</sub>
 
-## WaveMascot Pro
-
-Toque no selo **PRO** da aba Celular para abrir o guia: o que inclui, o que continua grátis e três passos para
-desbloquear. Ele percebe o pagamento sozinho.
-
-<img src="capturas/pt/pro-guia.png" width="760" alt="O guia do WaveMascot Pro durante o teste grátis">
+## Conectar o Telegram
 
 | | |
 |:---:|:---:|
-| <img src="capturas/pt/ajustes-6-celular.png" width="380" alt="Aba Celular antes de conectar, com o cadeado do Pro"><br>**Antes de conectar**: teste grátis por 7 dias | <img src="capturas/pt/pro-celular.png" width="380" alt="Aba Celular conectada, durante o teste grátis"><br>**Durante o teste**: os dias que faltam e todas as opções |
-| <img src="capturas/pt/pro-listo.png" width="380" alt="O guia depois de pagar: agora você é Pro, com confete"><br>**Depois de pagar**: o seu plano, com confete | |
+| <img src="capturas/pt/ajustes-6-celular.png" width="380" alt="Aba Celular antes de conectar"><br>**Antes de conectar**: um botão e você toca em Iniciar no bot | <img src="capturas/pt/celular-conectado.png" width="380" alt="Aba Celular conectada"><br>**Conectado**: quando mandar, quais avisos, Permitir/Negar |
 
 ## Configurações
 
@@ -70,7 +64,7 @@ desbloquear. Ele percebe o pagamento sozinho.
 |:---:|:---:|
 | <img src="capturas/pt/ajustes-1-aviso.png" width="380" alt="Aba Aviso"><br>**Aviso** | <img src="capturas/pt/ajustes-2-comportamiento.png" width="380" alt="Aba Comportamento"><br>**Comportamento** |
 | <img src="capturas/pt/ajustes-3-mascota.png" width="380" alt="Aba Mascote"><br>**Mascote** | <img src="capturas/pt/ajustes-4-vestuario.png" width="380" alt="Aba Roupas"><br>**Roupas** |
-| <img src="capturas/pt/ajustes-5-sonido.png" width="380" alt="Aba Som e estilo"><br>**Som e estilo** | <img src="capturas/pt/pro-celular.png" width="380" alt="Aba Celular"><br>**Celular** |
+| <img src="capturas/pt/ajustes-5-sonido.png" width="380" alt="Aba Som e estilo"><br>**Som e estilo** | <img src="capturas/pt/celular-conectado.png" width="380" alt="Aba Celular"><br>**Celular** |
 
 ## Tema claro
 

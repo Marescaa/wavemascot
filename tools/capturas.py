@@ -322,12 +322,7 @@ def aviso_gif(m, estado, mensaje, resumen, meta, botones, ruta):
 
 
 # Lo que "contesta el servidor" durante las capturas: nada sale a la red.
-PRO = {"cobrando": True, "precios": {"mensual": 100, "vitalicio": 1500}, "dias_prueba": 7}
 SERVIDOR = {"estado": {}}
-
-
-def en_dias(dias: float) -> float:
-    return (time.time() + dias * 86400) * 1000
 
 
 def sin_red():
@@ -335,10 +330,8 @@ def sin_red():
     import celular
 
     def pedir(metodo, ruta, llave="", datos=None, **_):
-        if ruta == "/v1/planes":
-            return dict(PRO)
         if ruta == "/v1/estado":
-            return dict(PRO, **SERVIDOR["estado"])
+            return dict(SERVIDOR["estado"])
         raise celular.ErrorCelular("sin red durante las capturas")
 
     celular.pedir = pedir
@@ -405,7 +398,7 @@ def qt_capturas():
                                        botones[estado], carpeta / f"aviso-{estado}.gif")
         # el aviso de versión nueva (Actualizar / Ahora no)
         aviso_gif(m, "listo", t("¡Hay una versión nueva de WaveMascot!"),
-                  t("Versión {version}", version="1.3.0") + ": WaveMascot Pro", "", ["actualizar", "ahora_no"],
+                  t("Versión {version}", version="1.3.1"), "", ["actualizar", "ahora_no"],
                   carpeta / "aviso-actualizacion.gif")
 
         portada(avisos["permiso"], telegram(idioma, carpeta, t, ajustes), carpeta / "portada.gif")
@@ -420,33 +413,14 @@ def qt_capturas():
             guardar(win, carpeta / f"ajustes-{i + 1}-{nombres[i]}.png")
         cerrar(win)
 
-        # --- WaveMascot Pro: conectado y en la prueba gratis -----------------------------------------
-        plan = {"tipo": "prueba", "dias": 5, "hasta": en_dias(5)}
-        SERVIDOR["estado"] = {"conectado": True, "nombre": "Alex", "plan": plan}
+        # --- Telegram conectado ---------------------------------------------------------------------
+        SERVIDOR["estado"] = {"conectado": True, "nombre": "Alex"}
         win = abrir({"idioma": idioma, "celular": {"activo": True, "llave": "demo", "conectado": True,
-                                                    "nombre": "Alex", "plan": plan}})
+                                                    "nombre": "Alex"}})
         win.pestanas.setCurrentIndex(nombres.index("celular"))
         win.ver_estado("permiso")
         esperar(1.2)
-        guardar(win, carpeta / "pro-celular.png")
-        win.abrir_guia()
-        esperar(4.4)  # en el celular de la guía: el permiso aprobado y el «¡Listo!»
-        guardar(win, carpeta / "pro-guia.png")
-        cerrar(win)
-        # ¡pagó! el plan mensual y el festejo. En otra ventana y apenas abre la guía: sin pantalla, después de
-        # unos segundos de animación Qt le cambia la letra al celular dibujado (en la app real no pasa).
-        win = abrir({"idioma": idioma, "celular": {"activo": True, "llave": "demo", "conectado": True,
-                                                    "nombre": "Alex", "plan": plan}})
-        win.pestanas.setCurrentIndex(nombres.index("celular"))
-        win.abrir_guia()
-        esperar(0.9)
-        pago = {"tipo": "mensual", "hasta": en_dias(30), "renueva": True}
-        SERVIDOR["estado"]["plan"] = pago
-        win.config["celular"]["plan"] = pago
-        win.actualizar_pro()
-        win.guia.festejar()
-        esperar(0.55)
-        guardar(win, carpeta / "pro-listo.png")
+        guardar(win, carpeta / "celular-conectado.png")
         cerrar(win)
 
         # --- el tema claro, con Sakura ---------------------------------------------------------------

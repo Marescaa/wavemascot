@@ -24,15 +24,14 @@ On your desktop, and on your phone when you're away.
 
 <br>
 
-[Features](#features) · [Install](#install) · [WaveMascot Pro](#wavemascot-pro) · [Settings](#settings) ·
+[Features](#features) · [Install](#install) · [Phone](#on-your-phone) · [Settings](#settings) ·
 [Gallery](docs/README.md) · [FAQ](#faq) · [Changelog](CHANGELOG.md)
 
 </div>
 
 > [!NOTE]
-> **New in 1.3:** [WaveMascot Pro](#wavemascot-pro) brings notifications and Allow/Deny to your phone through Telegram
-> (7-day free trial), plus four mascot styles, an update notice and a new title bar on Windows.
-> [See everything that changed →](CHANGELOG.md#130---2026-10-23)
+> **New in 1.3.1:** Telegram notifications and Allow/Deny from your phone are now **free for everyone**: Pro is gone.
+> [See everything that changed →](CHANGELOG.md#131---2026-11-03)
 
 ## What it does
 
@@ -70,8 +69,8 @@ own. If you're away from the computer, it messages your phone instead.
 - **Make it yours**: four styles (Classic, Sakura, Ninja, Robot), colors, outfits, light or dark theme, your own image
   and sounds.
 - **Companion mode**: Wave lives small on your taskbar or Dock, wanders around and naps when you hit the limit.
-- **On your phone** with [WaveMascot Pro](#wavemascot-pro): Telegram notifications with Wave animated, and Allow/Deny
-  from anywhere.
+- **On your phone**: [Telegram notifications](#on-your-phone) with Wave animated, and Allow/Deny from anywhere.
+  Free.
 - **Always up to date**: Wave tells you when there's a new version; on Windows it installs it in one click.
 - **English, Spanish and Portuguese**, multiple monitors, Windows and macOS (Apple chip and Intel).
 
@@ -104,33 +103,14 @@ That's it: the next time Claude Code finishes, Wave shows up. No restart needed.
 [installation guide](docs/install.md) covers installing from source, what the installer changes, uninstalling and
 troubleshooting.
 
-## WaveMascot Pro
+## On your phone
 
-**WaveMascot is free and open source, and it stays that way.** Pro adds your phone: when you're away from the
-computer, Wave messages you on Telegram from [@WaveNotificationBot](https://t.me/WaveNotificationBot), and permission
-requests come with **Allow** and **Deny** buttons that answer Claude Code right away.
+When you're away from the computer, Wave messages you on Telegram from
+[@WaveNotificationBot](https://t.me/WaveNotificationBot), and permission requests come with **Allow** and **Deny**
+buttons that answer Claude Code right away. It's free, like the rest of WaveMascot.
 
-<p align="center">
-  <img src="docs/capturas/en/pro-guia.png" alt="The WaveMascot Pro guide: what's included and the three steps to unlock it" width="760">
-</p>
-
-| | Free | Pro |
-|---|:---:|:---:|
-| On-screen notices for every event, with Allow/Deny | ✓ | ✓ |
-| Styles, colors, outfits, themes, your own image and sounds | ✓ | ✓ |
-| Companion mode, do not disturb, updates | ✓ | ✓ |
-| Telegram notifications with Wave animated | | ✓ |
-| Allow or deny permissions from your phone | | ✓ |
-| One plan for every computer linked to your Telegram | | ✓ |
-| **Price** | **Free forever** | **US$ 1.99** a month<br>or **US$ 29.99** once |
-
-**How to get it:** open the **Phone** tab, tap **Connect Telegram** and then **Start** in the bot. Nothing to create
-or paste, and your **7-day free trial** starts right there, no card needed. To keep it, tap the **PRO** badge and pay
-with Telegram Stars inside the bot (100 Stars a month, cancel anytime with `/pro`, or 1,500 Stars once). Wave notices
-the payment by itself.
-
-If the trial ends, nothing breaks: the mascot keeps notifying you on screen and permission requests go back to the
-terminal.
+Open the **Phone** tab, tap **Connect Telegram** and then **Start** in the bot. Nothing to create or paste. By default
+it only messages you when there's been no mouse or keyboard activity for a few minutes.
 
 ## Settings
 
@@ -153,7 +133,7 @@ Changes save on their own, and the preview shows exactly how the notice will loo
 | Mascot | Style, color, skin tone, size and your own image |
 | Outfits | Head, clothes and accessories |
 | Sound and style | Volume, sound per event, theme, tray icon, updates |
-| Phone **PRO** | Telegram: when to send, which notices, Allow/Deny from the phone, your plan |
+| Phone | Telegram: when to send, which notices, Allow/Deny from the phone |
 
 Everything is stored in `~/.wavemascot/config.json`. Every tab is in the [gallery](docs/README.md#settings).
 
@@ -173,9 +153,6 @@ send notices to Telegram. Both can be turned off.
 The bot's token lives only on a small [Cloudflare Worker](servidor/) that relays each message without storing it, and
 each installation gets its own key that can only message the chat it linked. What gets sent is what the notice shows
 (message, summary, project, chat title, command to approve). Send `/stop` to the bot or tap **Disconnect** to stop.
-
-For Pro, the server only keeps your Telegram chat id, your plan and the payment ids Telegram sends. Payments are
-handled by Telegram, so WaveMascot never sees card details.
 
 </details>
 
