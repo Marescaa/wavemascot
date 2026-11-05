@@ -363,7 +363,7 @@ def qt_capturas():
         ajustes.aplicar_tema(tema, estilo)
         win = ajustes.Ajustes()
         win.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen)
-        win.resize(980, 760)
+        win.resize(1080, 760)
         win.show()
         esperar(0.4)  # las respuestas "del servidor" llegan desde otro hilo
         return win
@@ -378,7 +378,7 @@ def qt_capturas():
         win.grab().save(str(ruta))
         print("  ", ruta.relative_to(RAIZ), f"{ruta.stat().st_size // 1024} KB")
 
-    nombres = ["aviso", "comportamiento", "mascota", "vestuario", "sonido", "celular"]
+    nombres = list(ajustes.PAGINAS)  # avisos, mascota, celular, general
     for idioma in IDIOMAS:
         print("Idioma", idioma)
         idiomas.usar(idioma)
@@ -403,21 +403,21 @@ def qt_capturas():
 
         portada(avisos["permiso"], telegram(idioma, carpeta, t, ajustes), carpeta / "portada.gif")
 
-        # --- la ventana de ajustes, una captura por pestaña (recién instalada: Telegram sin conectar) --
+        # --- la ventana de ajustes, una captura por sección (recién instalada: Telegram sin conectar) --
         SERVIDOR["estado"] = {}
         win = abrir({"idioma": idioma})
-        for i in range(win.pestanas.count()):
-            win.pestanas.setCurrentIndex(i)
-            win.ver_estado("permiso" if nombres[i] == "comportamiento" else "listo")
+        for i, nombre in enumerate(nombres):
+            win.ir_a(i, animar=False)
+            win.ver_estado("permiso" if nombre == "celular" else "listo")
             esperar(1.2)  # deja que la vista previa entre y muestre el cartel
-            guardar(win, carpeta / f"ajustes-{i + 1}-{nombres[i]}.png")
+            guardar(win, carpeta / f"ajustes-{i + 1}-{nombre}.png")
         cerrar(win)
 
         # --- Telegram conectado ---------------------------------------------------------------------
         SERVIDOR["estado"] = {"conectado": True, "nombre": "Alex"}
         win = abrir({"idioma": idioma, "celular": {"activo": True, "llave": "demo", "conectado": True,
                                                     "nombre": "Alex"}})
-        win.pestanas.setCurrentIndex(nombres.index("celular"))
+        win.ir_a(nombres.index("celular"), animar=False)
         win.ver_estado("permiso")
         esperar(1.2)
         guardar(win, carpeta / "celular-conectado.png")
@@ -426,7 +426,7 @@ def qt_capturas():
         # --- el tema claro, con Sakura ---------------------------------------------------------------
         SERVIDOR["estado"] = {}
         win = abrir({"idioma": idioma, "tema": "claro", "aspecto": {"estilo": "sakura"}}, "claro", "sakura")
-        win.pestanas.setCurrentIndex(nombres.index("mascota"))
+        win.ir_a(nombres.index("mascota"), animar=False)
         win.ver_estado("listo")
         esperar(1.2)
         guardar(win, carpeta / "ajustes-claro-sakura.png")

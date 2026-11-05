@@ -1414,11 +1414,112 @@ def sonido_grave():
     return m
 
 
+def tono(muestras, inicio, frec, dur, vol=1.0, parciales=((1, 1.0),), ataque=0.004, caida=2.2, frec_fin=None):
+    """Una nota con sus parciales (múltiplo de la frecuencia, volumen): los que no son enteros suenan a
+    metal o vidrio. ataque: segundos hasta el máximo; caida: cuánto más rápido se apaga (más = más seco)."""
+    i0, n = int(inicio * TASA), int(dur * TASA)
+    techo = max(frec, frec_fin or frec)
+    # Lo que pasa de la mitad de la tasa de muestreo no se puede grabar: sonaría como otro tono, más grave.
+    parciales = [(multiplo, v) for multiplo, v in parciales if techo * multiplo < TASA / 2 * 0.95] or [(1, 1.0)]
+    fases = [0.0] * len(parciales)
+    for i in range(min(n, len(muestras) - i0)):
+        f = frec if frec_fin is None else frec * (frec_fin / frec) ** (i / n)  # barrido exponencial (suena parejo)
+        envolvente = min(1.0, i / max(1.0, ataque * TASA)) * (1 - i / n) ** caida
+        valor = 0.0
+        for j, (multiplo, v) in enumerate(parciales):
+            fases[j] += 2 * math.pi * f * multiplo / TASA
+            valor += v * math.sin(fases[j])
+        muestras[i0 + i] += vol * envolvente * valor
+
+
+def sonido_cristal():
+    m = [0.0] * int(1.3 * TASA)
+    vidrio = ((1, 1.0), (2.76, 0.32), (5.4, 0.12), (8.93, 0.05))  # parciales de una copa
+    tono(m, 0, 1760.0, 1.25, parciales=vidrio, caida=3.0)
+    tono(m, 0.004, 1764.0, 1.2, vol=0.5, parciales=vidrio, caida=3.2)  # un poquito desafinada: brilla
+    return m
+
+
+def sonido_marimba():
+    m = [0.0] * int(0.75 * TASA)
+    madera = ((1, 1.0), (3.93, 0.22), (9.2, 0.04))  # la barra de una marimba
+    for k, (frec, t) in enumerate(((523.25, 0), (659.25, 0.09), (783.99, 0.18))):
+        tono(m, t, frec, 0.5 if k == 2 else 0.3, vol=1.0 if k == 2 else 0.8, parciales=madera, caida=4.0)
+    return m
+
+
+def sonido_gota():
+    m = [0.0] * int(0.3 * TASA)
+    tono(m, 0, 620.0, 0.11, parciales=((1, 1.0), (2, 0.08)), caida=1.4, frec_fin=1900.0)
+    tono(m, 0.1, 1500.0, 0.16, vol=0.18, caida=3.0, frec_fin=1700.0)  # el eco del agua
+    return m
+
+
+def sonido_fanfarria():
+    m = [0.0] * int(0.95 * TASA)
+    bronce = ((1, 1.0), (2, 0.45), (3, 0.25), (4, 0.12))
+    for frec, t, d in ((783.99, 0, 0.1), (783.99, 0.11, 0.1), (1046.5, 0.22, 0.6)):
+        tono(m, t, frec, d, vol=0.8, parciales=bronce, ataque=0.012, caida=1.6)
+    for frec in (1318.5, 1568.0):  # el acorde del final
+        tono(m, 0.22, frec, 0.6, vol=0.45, parciales=bronce, ataque=0.012, caida=1.8)
+    return m
+
+
+def sonido_ding_dong():
+    m = [0.0] * int(1.4 * TASA)
+    timbre = ((1, 1.0), (2.0, 0.3), (3.01, 0.1))
+    tono(m, 0, 659.25, 0.75, parciales=timbre, caida=2.0)
+    tono(m, 0.45, 523.25, 0.95, parciales=timbre, caida=2.0)
+    return m
+
+
+def sonido_pajarito():
+    m = [0.0] * int(0.5 * TASA)
+    for t in (0, 0.16):
+        tono(m, t, 2600.0, 0.055, vol=0.9, caida=0.8, frec_fin=3900.0)
+        tono(m, t + 0.055, 3900.0, 0.06, vol=0.7, caida=1.6, frec_fin=3100.0)
+    return m
+
+
+def sonido_retro():
+    m = [0.0] * int(0.5 * TASA)
+    cuadrada = ((1, 1.0), (3, 1 / 3), (5, 1 / 5), (7, 1 / 7))  # casi una onda cuadrada: suena a 8 bits
+    for k, frec in enumerate((1046.5, 1318.5, 1568.0, 2093.0)):
+        tono(m, k * 0.06, frec, 0.07 if k < 3 else 0.26, vol=0.55, parciales=cuadrada, ataque=0.001,
+             caida=0.6 if k < 3 else 1.8)
+    return m
+
+
+def sonido_toc_toc():
+    import random
+    azar = random.Random(7)  # siempre el mismo golpe
+    m = [0.0] * int(0.45 * TASA)
+    for t in (0, 0.17):
+        tono(m, t, 210.0, 0.09, parciales=((1, 1.0), (2.3, 0.35)), ataque=0.001, caida=3.5, frec_fin=150.0)
+        i0 = int(t * TASA)
+        for i in range(int(0.012 * TASA)):  # el chasquido de los nudillos contra la madera
+            m[i0 + i] += 0.35 * (azar.random() * 2 - 1) * (1 - i / (0.012 * TASA)) ** 2
+    return m
+
+
+def sonido_cuenco():
+    m = [0.0] * int(2.0 * TASA)
+    cuenco = ((1, 1.0), (2.71, 0.45), (5.03, 0.2), (8.1, 0.07))  # los parciales de un cuenco tibetano
+    tono(m, 0, 392.0, 1.95, parciales=cuenco, ataque=0.03, caida=1.6)
+    tono(m, 0, 394.5, 1.9, vol=0.6, parciales=cuenco, ataque=0.05, caida=1.7)  # el batido lento del metal
+    return m
+
+
 # Sonidos para elegir en ajustes: id -> (nombre visible, generador).
 SONIDOS = {"arpegio": ("Arpegio", sonido_arpegio), "doble": ("Doble tono", sonido_doble),
            "pop": ("Pop", sonido_pop), "campana": ("Campanita", sonido_campana),
            "burbuja": ("Burbujas", sonido_burbuja), "suave": ("Suave", sonido_suave),
-           "triste": ("Triste", sonido_triste), "grave": ("Grave", sonido_grave)}
+           "triste": ("Triste", sonido_triste), "grave": ("Grave", sonido_grave),
+           "cristal": ("Cristal", sonido_cristal), "marimba": ("Marimba", sonido_marimba),
+           "gota": ("Gota", sonido_gota), "fanfarria": ("Fanfarria", sonido_fanfarria),
+           "ding_dong": ("Ding dong", sonido_ding_dong), "pajarito": ("Pajarito", sonido_pajarito),
+           "retro": ("Retro", sonido_retro), "toc_toc": ("Toc toc", sonido_toc_toc),
+           "cuenco": ("Cuenco", sonido_cuenco)}
 
 
 def guardar_wav(muestras, ruta):
