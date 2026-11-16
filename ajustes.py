@@ -40,7 +40,7 @@ import html  # noqa: E402
 
 from PyQt6.QtCore import (QEasingCurve, QElapsedTimer, QEvent, QLibraryInfo, QObject, QPoint, QPointF, QRectF, QSize,  # noqa: E402
                           Qt, QTimer, QTranslator, QUrl, pyqtSignal)
-from PyQt6.QtGui import (QColor, QDesktopServices, QFont, QFontMetrics, QIcon, QImageReader,  # noqa: E402
+from PyQt6.QtGui import (QBrush, QColor, QDesktopServices, QFont, QFontMetrics, QIcon, QImageReader,  # noqa: E402
                          QKeySequence, QLinearGradient, QPainter, QPainterPath, QPalette, QPen, QPixmap,
                          QRadialGradient, QShortcut)
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket  # noqa: E402
@@ -52,6 +52,8 @@ from PyQt6.QtWidgets import (QAbstractButton, QAbstractSpinBox, QApplication, QB
 
 import bandeja  # noqa: E402
 import marco  # noqa: E402
+import ojos  # noqa: E402
+import paneles  # noqa: E402
 from animacion import Resorte, Velo, mezcla, reducir_movimiento  # noqa: E402
 
 CANAL_AJUSTES = m.CANAL + "-ajustes"
@@ -61,7 +63,10 @@ ESTADOS_ORDEN = ("listo", "permiso", "pensando", "subagente", "limite", "error")
 ESTADOS_CELULAR = ("listo", "permiso", "subagente", "limite", "error")  # "pensando" no llega al celular
 # Las secciones de la barra lateral: (clave, nombre, ícono). La última va abajo de todo.
 PAGINAS = {"avisos": ("Avisos", "campana"), "mascota": ("Mascota", "cara"), "celular": ("Celular", "celular"),
+           "isla": ("Dynamic Island", "isla"), "dashboard": ("Dashboard", "barras"), "uso": ("Uso", "medidor"),
            "general": ("General", "engranaje")}
+DE_DATOS = ("dashboard", "uso")  # las secciones que muestran el análisis de uso (a todo el ancho)
+SIN_VISTA = ("mascota", "isla", *DE_DATOS)  # donde no va la vista previa del aviso
 PARTES = {"estilo": "Estilo", "color": "Color", "cabeza": "Cabeza", "ropa": "Ropa", "accesorio": "Accesorio",
           "imagen": "Imagen"}
 ANCHO_VISTA = 310  # la columna de la vista previa, con su margen
@@ -107,10 +112,11 @@ PALETAS = {
                                       "#39B6D6", "#121820")), flecha=C_CLARO["flecha"])),
 }
 C = dict(C_OSCURO)  # colores en uso: el tema y el estilo los reemplazan en el lugar
+paneles.C = C  # las tarjetas de Dashboard y Uso usan los mismos
 marco.usar_colores(C)  # los botones de la ventana (Windows)
 ESTILO = """
 QWidget { color: %(texto)s; font-family: "Segoe UI"; font-size: 10pt; }
-QWidget#raiz { background: %(fondo)s; }
+QWidget#raiz { background: %(raiz)s; }
 QLabel#marca { font-size: 11pt; font-weight: 700; }
 QLabel#ayuda, QLabel#estado, QLabel#valor, QLabel#detalle, QLabel#columna { color: %(suave)s; }
 QLabel#ayuda { font-size: 9pt; }
@@ -123,18 +129,16 @@ QPushButton#enlace { background: transparent; border: none; color: %(acento)s; p
 QPushButton#enlace:hover { color: %(acento2)s; }
 QLabel#beta { background: %(acento)s; color: %(sobre)s; font-size: 7pt; font-weight: 700; border-radius: 4px;
               padding: 0 5px; }
-QLabel#pronto { background: %(campo)s; color: %(suave)s; border: 1px solid %(borde)s; font-size: 8pt;
-                font-weight: 600; border-radius: 6px; padding: 3px 8px; }
 QLabel#codigo { color: %(acento)s; font-size: 22pt; font-weight: 700; }
 QFrame#franja { background: %(panel)s; border: 1px solid %(acento)s; border-radius: 12px; }
 QLabel#franja_titulo { font-size: 11pt; font-weight: 600; }
-QPushButton { background: %(campo)s; border: 1px solid %(borde)s; border-radius: 8px; padding: 7px 14px; }
+QPushButton { background: %(campo)s; border: 1px solid %(borde)s; border-radius: 16px; padding: 7px 16px; }
 QPushButton:hover { border-color: %(acento)s; }
 QPushButton:pressed { background: %(borde)s; }
 QPushButton:disabled { color: #6E605A; border-color: %(borde)s; }
 QPushButton#primario { background: %(acento)s; border-color: %(acento)s; color: %(sobre)s; font-weight: 600; }
 QPushButton#primario:hover { background: %(acento2)s; border-color: %(acento2)s; }
-QLineEdit { background: %(campo)s; border: 1px solid %(borde)s; border-radius: 8px; padding: 6px 9px;
+QLineEdit { background: %(campo)s; border: 1px solid %(borde)s; border-radius: 10px; padding: 6px 10px;
             selection-background-color: %(acento)s; }
 QLineEdit:focus { border-color: %(acento)s; }
 QSlider { min-height: 22px; }
@@ -152,9 +156,10 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 QListWidget::item { border: 1px solid transparent; border-radius: 10px; padding: 2px; color: %(texto)s; }
 QListWidget::item:hover { background: %(campo)s; }
 QListWidget::item:selected { background: %(campo)s; border-color: %(acento)s; color: %(texto)s; }
-QToolTip { background: %(campo)s; color: %(texto)s; border: 1px solid %(borde)s; padding: 4px; }
+QToolTip { background: %(campo)s; color: %(texto)s; border: 1px solid %(borde)s; border-radius: 8px;
+           padding: 5px 8px; }
 QMessageBox { background: %(fondo)s; }
-QComboBox, QTimeEdit { background: %(campo)s; border: 1px solid %(borde)s; border-radius: 8px; padding: 5px 9px; }
+QComboBox, QTimeEdit { background: %(campo)s; border: 1px solid %(borde)s; border-radius: 10px; padding: 5px 10px; }
 QComboBox { padding-right: 30px; }
 QComboBox:hover, QTimeEdit:hover, QTimeEdit:focus { border-color: %(acento)s; }
 QComboBox:disabled, QTimeEdit:disabled { color: %(suave)s; }
@@ -182,6 +187,8 @@ def aplicar_tema(tema: str, estilo: str = "clasico") -> None:
     C.clear()
     C.update(claro if tema == "claro" else oscuro)
     C["apagado"] = mezcla(C["suave"], C["fondo"], 0.45).name()  # textos de opciones desactivadas
+    # De vidrio, la ventana no tiene fondo propio: el tinte lo pinta Ajustes sobre el desenfoque de atrás.
+    C["raiz"] = "transparent" if paneles.VIDRIO else C["fondo"]
     app = QApplication.instance()
     paleta = QPalette()
     for rol, color in ((QPalette.ColorRole.Window, C["fondo"]), (QPalette.ColorRole.WindowText, C["texto"]),
@@ -458,6 +465,70 @@ class Interruptor(QCheckBox):
         p.drawRoundedRect(perilla.translated(0, 1), 9, 9)
         p.setBrush(QColor("#FFF9F4"))  # la perilla siempre clara, en cualquier tema
         p.drawRoundedRect(perilla, 9, 9)
+
+
+class BotonNoMolestar(QAbstractButton):
+    """El botón rápido de No molestar, arriba en la barra lateral (a la vista en todas las secciones):
+    silencia todos los avisos hasta que se lo apague. Prendido se llena con el color de la mascota."""
+
+    ALTO = 40
+
+    def __init__(self):
+        super().__init__()
+        self.setCheckable(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedHeight(self.ALTO)
+        self.letra = fuente(13.5, QFont.Weight.DemiBold)
+        self.prendido = Resorte(self, 0.0, 0.3, 0.86, al_paso=lambda _: self.update())
+        self.brillo = Resorte(self, 0.0, 0.16, 1.0, al_paso=lambda _: self.update())
+        self.toggled.connect(lambda v: self.prendido.ir_a(1.0 if v else 0.0))
+
+    def marcar(self, prendido: bool) -> None:
+        """Refleja lo guardado (lo pudo cambiar el ícono o la compañera), sin avisar que cambió."""
+        if prendido != self.isChecked():
+            self.blockSignals(True)
+            self.setChecked(prendido)
+            self.blockSignals(False)
+            destino = 1.0 if prendido else 0.0
+            self.prendido.ir_a(destino) if self.isVisible() else self.prendido.fijar(destino)
+
+    def enterEvent(self, evento) -> None:
+        self.brillo.ir_a(1.0)
+
+    def leaveEvent(self, evento) -> None:
+        self.brillo.ir_a(0.0)
+
+    def paintEvent(self, evento) -> None:
+        k = min(1.0, max(0.0, self.prendido.x))
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        caja = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        apagado = con_alfa(C["texto"], 0.07 + 0.05 * self.brillo.x)
+        p.setPen(QPen(mezcla(con_alfa(C["texto"], 0.10), con_alfa(C["acento"], 0.0), k), 1))
+        p.setBrush(mezcla(apagado, mezcla(C["acento"], C["acento2"], 0.5 * self.brillo.x), k))
+        p.drawRoundedRect(caja, 10, 10)
+        tinta = mezcla(C["texto"], "#FFF9F4", k)
+        # la luna
+        centro, radio = QPointF(caja.left() + 20, caja.center().y()), 6.5
+        luna, hueco = QPainterPath(), QPainterPath()
+        luna.addEllipse(centro, radio, radio)
+        hueco.addEllipse(centro + QPointF(radio * 0.55, -radio * 0.45), radio * 0.85, radio * 0.85)
+        p.fillPath(luna.subtracted(hueco), mezcla(C["suave"], "#FFF9F4", k))
+        p.setFont(self.letra)
+        p.setPen(tinta)
+        p.drawText(caja.adjusted(40, 0, -44, 0), int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
+                   p.fontMetrics().elidedText(t("No molestar"), Qt.TextElideMode.ElideRight, int(caja.width() - 84)))
+        # un interruptor chiquito a la derecha: se ve de un vistazo si está puesto
+        pista = QRectF(caja.right() - 38, caja.center().y() - 8, 28, 16)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(mezcla(con_alfa(C["texto"], 0.16), con_alfa("#000000", 0.22), k))
+        p.drawRoundedRect(pista, 8, 8)
+        p.setBrush(QColor("#FFF9F4"))
+        p.drawEllipse(QPointF(pista.left() + 8 + 12 * k, pista.center().y()), 6, 6)
+        if self.hasFocus():
+            p.setPen(QPen(con_alfa(C["acento"], 0.6), 1))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawRoundedRect(caja.adjusted(-0.0, 0, 0, 0), 10, 10)
 
 
 class BotonNovedad(QAbstractButton):
@@ -821,17 +892,24 @@ class Segmentos(QWidget):
         p.setFont(self.letra)
         r = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         p.setPen(Qt.PenStyle.NoPen if self.suave else QPen(QColor(C["borde"]), 1))
-        p.setBrush(QColor(C["campo"]))
-        p.drawRoundedRect(r, 9, 9)
+        # En cápsula, como los controles de iOS: el fondo y la marca con los extremos bien redondos.
+        redondo = r.height() / 2
+        p.setBrush(con_alfa(C["texto"], 0.08) if paneles.VIDRIO else QColor(C["campo"]))
+        p.drawRoundedRect(r, redondo, redondo)
         rects = self.rects()
         p.setPen(Qt.PenStyle.NoPen)
         if (0 <= self.encima < len(rects) and self.claves[self.encima] != self.actual
                 and self.claves[self.encima] not in self.desactivadas):
             p.setBrush(con_alfa(C["texto"], 0.06))
-            p.drawRoundedRect(rects[self.encima], 7, 7)
+            p.drawRoundedRect(rects[self.encima].adjusted(0, 2, 0, -2), redondo - 2, redondo - 2)
         marca = QRectF(self.izq.x, 2, max(0.0, self.der.x - self.izq.x), self.height() - 4)
-        p.setBrush(mezcla(C["campo"], C["texto"], 0.16) if self.suave else QColor(C["acento"]))
-        p.drawRoundedRect(marca, 7, 7)
+        if self.suave:  # la marca es una gota de vidrio: clara, con sombra abajo
+            p.setBrush(QColor(0, 0, 0, 40))
+            p.drawRoundedRect(marca.translated(0, 1), redondo - 2, redondo - 2)
+            p.setBrush(mezcla(C["campo"], C["texto"], 0.22))
+        else:
+            p.setBrush(QColor(C["acento"]))
+        p.drawRoundedRect(marca, redondo - 2, redondo - 2)
         normal = QColor(C["suave"] if self.suave else C["texto"])
         elegido = QColor(C["texto"] if self.suave else C["sobre"])
         for color, recorte in ((normal, None), (elegido, marca)):
@@ -854,7 +932,7 @@ class Segmentos(QWidget):
         if self.hasFocus():
             p.setPen(QPen(con_alfa(C["acento"], 0.6), 1))
             p.setBrush(Qt.BrushStyle.NoBrush)
-            p.drawRoundedRect(r, 9, 9)
+            p.drawRoundedRect(r, r.height() / 2, r.height() / 2)
 
 
 def pintar_icono(p: QPainter, nombre: str, centro: QPointF, color) -> None:
@@ -884,6 +962,22 @@ def pintar_icono(p: QPainter, nombre: str, centro: QPointF, color) -> None:
     elif nombre == "celular":
         p.drawRoundedRect(QRectF(-4.8, -7.5, 9.6, 15), 2.4, 2.4)
         p.drawLine(QPointF(-1.4, 4.6), QPointF(1.4, 4.6))
+    elif nombre == "isla":  # la pastilla, con sus dos ojitos
+        p.drawRoundedRect(QRectF(-8, -4.5, 16, 9), 4.5, 4.5)
+        p.setBrush(QColor(color))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(QPointF(-3, 0), 1.2, 1.4)
+        p.drawEllipse(QPointF(3, 0), 1.2, 1.4)
+    elif nombre == "barras":
+        for x, alto in ((-5.2, 5.0), (0.0, 11.0), (5.2, 8.0)):
+            p.drawLine(QPointF(x, 6.5), QPointF(x, 6.5 - alto))
+        p.setPen(lapiz(color, 1.2))
+        p.drawLine(QPointF(-8, 6.9), QPointF(8, 6.9))
+    elif nombre == "medidor":
+        p.drawArc(QRectF(-7.5, -6, 15, 15), 0, 180 * 16)
+        p.drawLine(QPointF(0, 1.5), QPointF(3.6, -3.2))
+        p.setBrush(QColor(color))
+        p.drawEllipse(QPointF(0, 1.5), 1.2, 1.2)
     else:  # engranaje
         import math
         for i in range(8):
@@ -983,13 +1077,38 @@ class Navegacion(QWidget):
 
 
 class Lateral(QWidget):
-    """El fondo de la barra lateral: un poco más claro que la ventana, con una línea finita a la derecha."""
+    """La barra lateral: un panel que flota sobre la ventana, separado de los bordes y con las esquinas bien
+    redondas (como las de iPadOS). De vidrio deja pasar más de lo de atrás que el contenido y tiene el canto
+    de arriba iluminado; sin vidrio es un panel apenas más claro que la ventana."""
+
+    AIRE = 8  # lo que la separa de los bordes de la ventana
+
+    def forma(self) -> QPainterPath:
+        camino = QPainterPath()
+        camino.addRoundedRect(QRectF(self.rect()).adjusted(self.AIRE + 0.5, self.AIRE + 0.5, -self.AIRE - 0.5,
+                                                           -self.AIRE - 0.5), 20, 20)
+        return camino
 
     def paintEvent(self, evento) -> None:
         p = QPainter(self)
-        p.fillRect(self.rect(), mezcla(C["fondo"], C["panel"], 0.6))
-        p.setPen(QPen(con_alfa(C["borde"], 0.7), 1))
-        p.drawLine(QPointF(self.width() - 0.5, 0), QPointF(self.width() - 0.5, self.height()))
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        forma = self.forma()
+        base = mezcla(C["fondo"], C["panel"], 0.6)
+        if not paneles.VIDRIO:
+            p.fillPath(forma, base)
+            p.strokePath(forma, QPen(con_alfa(C["borde"], 0.7), 1))
+            return
+        r = forma.boundingRect()
+        p.fillPath(forma, con_alfa(mezcla(base, C["texto"], 0.04), 0.82))
+        brillo = QLinearGradient(0, r.top(), 0, r.top() + 120)
+        brillo.setColorAt(0.0, con_alfa(C["texto"], 0.07))
+        brillo.setColorAt(1.0, con_alfa(C["texto"], 0.0))
+        p.fillPath(forma, QBrush(brillo))
+        borde = QLinearGradient(0, r.top(), 0, r.bottom())
+        borde.setColorAt(0.0, con_alfa(C["texto"], 0.34))
+        borde.setColorAt(0.08, con_alfa(C["texto"], 0.10))
+        borde.setColorAt(1.0, con_alfa(C["texto"], 0.14))
+        p.strokePath(forma, QPen(QBrush(borde), 1))
 
 
 class TextoSuave(QWidget):
@@ -1087,7 +1206,9 @@ class Fila(QWidget):
                  alto: int = 46):
         super().__init__()
         self.setMinimumHeight(alto)
-        self.etiqueta = Etiqueta(t(texto), wordWrap=True)
+        # Con la fila como padre desde el vamos: un widget sin padre al que se le pide mostrarse aparece un
+        # instante como ventanita suelta (se veían parpadear al abrir los ajustes).
+        self.etiqueta = Etiqueta(t(texto), self, wordWrap=True)
         self.etiqueta.setVisible(bool(texto))
         cabeza = QHBoxLayout()
         cabeza.setSpacing(6)
@@ -1100,7 +1221,7 @@ class Fila(QWidget):
         self.textos.addStretch(1)
         self.textos.addLayout(cabeza)
         if texto or not detalle:
-            self.detalle = Etiqueta(detalle, objectName="detalle", wordWrap=True)
+            self.detalle = Etiqueta(detalle, self, objectName="detalle", wordWrap=True)
             self.detalle.setVisible(bool(detalle))
             self.textos.addWidget(self.detalle)
         else:  # solo un texto chico: va en el lugar del título
@@ -1165,9 +1286,7 @@ class Grupo(Filas):
     """Una tarjeta redondeada con filas adentro."""
 
     def pintar_fondo(self, p: QPainter) -> None:
-        p.setPen(QPen(QColor(C["borde"]), 1))
-        p.setBrush(QColor(C["panel"]))
-        p.drawRoundedRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5), 12, 12)
+        paneles.pintar_tarjeta(p, self.rect(), 16)
 
 
 class Plegable(QWidget):
@@ -1845,8 +1964,8 @@ class Ajustes(QWidget):
     def __init__(self):
         super().__init__()
         self.setObjectName("raiz")
-        marco.preparar(self)  # Windows: sin la barra de título del sistema, con los colores de la app
         self.config = m.cargar_config()
+        self.preparar_vidrio()  # y el marco: sin la barra de título del sistema, con los colores de la app
         idiomas.usar(self.config["idioma"])  # antes de cualquier texto
         self.setWindowTitle(t("Ajustes de WaveMascot"))
         self.setWindowIcon(bandeja.icono_mascota("terracota", grande=m.MAC))
@@ -1873,7 +1992,7 @@ class Ajustes(QWidget):
         principal.setSpacing(10)
         arriba = QHBoxLayout()
         arriba.setSpacing(10)
-        self.titulo = TextoSuave(24, QFont.Weight.Bold)
+        self.titulo = TextoSuave(30, QFont.Weight.Bold)  # título grande, como en iOS
         arriba.addWidget(self.titulo, 1, Qt.AlignmentFlag.AlignVCenter)
         self.boton_novedad = BotonNovedad()  # flecha de descarga + versión: solo si hay una nueva
         self.boton_novedad.setToolTip(t("Hay una versión nueva"))
@@ -1887,7 +2006,12 @@ class Ajustes(QWidget):
         cuerpo = QHBoxLayout()
         cuerpo.setSpacing(0)
         self.paginas = Paginas()
-        for armar in (self.pagina_avisos, self.pagina_mascota, self.pagina_celular, self.pagina_general):
+        self.analista = paneles.Analista(self)
+        self.analista.listo.connect(self.al_analizar)
+        self.timer_uso = QTimer(self, timeout=self.analizar)
+        self.analizado: float | None = None  # cuándo se pidió el último análisis
+        for armar in (self.pagina_avisos, self.pagina_mascota, self.pagina_celular, self.pagina_isla,
+                      self.pagina_dashboard, self.pagina_uso, self.pagina_general):
             self.paginas.agregar(ScrollSuave(armar()))
         cuerpo.addWidget(self.paginas, 1)
         cuerpo.addWidget(self.panel_vista())
@@ -1908,6 +2032,7 @@ class Ajustes(QWidget):
 
         self.titulo.setText(t(PAGINAS["avisos"][0]), animar=False)
         self.cargar_en_controles()
+        self.nav.setFocus()  # el foco inicial va a las secciones, no al botón de No molestar de arriba
         self.estado_guardado.setText(t("Los cambios se guardan solos"), animar=False)
         self.buscar_version()
         if self.config["celular"]["llave"] and self.config["celular"]["conectado"]:
@@ -1916,6 +2041,30 @@ class Ajustes(QWidget):
         m.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         self.vigia = QFileSystemWatcher([str(m.CONFIG_DIR)], self)
         self.vigia.directoryChanged.connect(lambda _: QTimer.singleShot(300, self.sincronizar))
+
+    def preparar_vidrio(self) -> None:
+        """La ventana de vidrio (Windows): translúcida, con el desenfoque del sistema detrás y un tinte encima.
+        Si el sistema no lo da (o es macOS, o una captura fuera de pantalla), queda opaca como siempre."""
+        posible = (ventanas.ES_WINDOWS and QApplication.platformName() == "windows"
+                   and not os.environ.get("WAVEMASCOT_SIN_VIDRIO"))  # la variable: para comparar o si molesta
+        if posible:
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        marco.preparar(self)
+        paneles.VIDRIO = posible and ventanas.desenfocar_detras(int(self.winId()))
+        if posible and not paneles.VIDRIO:
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+            marco.preparar(self)
+            m.log("[ajustes] Windows no dio el desenfoque: ventana opaca")
+        aplicar_tema(self.config["tema"], self.config["aspecto"]["estilo"])
+
+    def paintEvent(self, evento) -> None:
+        if paneles.VIDRIO:  # el tinte sobre el desenfoque; la barra lateral flota encima con el suyo, más liviano
+            p = QPainter(self)
+            p.setRenderHint(QPainter.RenderHint.Antialiasing)
+            todo = QPainterPath()
+            todo.addRect(QRectF(self.rect()))
+            p.fillPath(todo.subtracted(self.lateral.forma().translated(QPointF(self.lateral.pos()))),
+                       con_alfa(C["fondo"], 0.88))
 
     def showEvent(self, evento) -> None:
         super().showEvent(evento)
@@ -1930,15 +2079,14 @@ class Ajustes(QWidget):
     # armado
 
     def barra_lateral(self) -> QWidget:
-        barra = Lateral()
-        barra.setFixedWidth(204)
+        barra = self.lateral = Lateral()
+        barra.setFixedWidth(204 + 2 * Lateral.AIRE)
         caja = QVBoxLayout(barra)
-        caja.setContentsMargins(14, 16, 14, 14)
+        caja.setContentsMargins(14 + Lateral.AIRE, 16 + Lateral.AIRE, 14 + Lateral.AIRE, 14 + Lateral.AIRE)
         caja.setSpacing(0)
         marca = QHBoxLayout()
         marca.setSpacing(8)
-        self.icono_cabecera = QLabel()
-        self.icono_cabecera.setFixedSize(48, 42)
+        self.icono_cabecera = ojos.Ojos(52, 42)  # solo los ojos de tu mascota, mirando para los costados
         marca.addWidget(self.icono_cabecera)
         nombre = QVBoxLayout()
         nombre.setSpacing(0)
@@ -1946,7 +2094,14 @@ class Ajustes(QWidget):
         nombre.addWidget(QLabel(f"v{m.__version__}", objectName="detalle"))
         marca.addLayout(nombre, 1)
         caja.addLayout(marca)
-        caja.addSpacing(20)
+        caja.addSpacing(16)
+        # El botón rápido: silencia todo hasta apagarlo. (El silencio por horario está en Avisos.)
+        self.boton_nm = BotonNoMolestar()
+        self.boton_nm.setToolTip(t("Silencia todos los avisos (pantalla, sonido y Telegram) hasta que lo apagues"))
+        self.boton_nm.toggled.connect(self.cambiar_no_molestar)
+        self.boton_nm.marcar(m.no_molestar_ahora(self.config))
+        caja.addWidget(self.boton_nm)
+        caja.addSpacing(14)
         self.nav = Navegacion([(t(texto), icono) for texto, icono in PAGINAS.values()])
         self.nav.elegido.connect(self.ir_a)
         caja.addWidget(self.nav, 1)
@@ -1954,6 +2109,21 @@ class Ajustes(QWidget):
         self.estado_guardado = TextoSuave(11.5, color="suave")
         caja.addWidget(self.estado_guardado)
         return barra
+
+    def cambiar_no_molestar(self, activo: bool) -> None:
+        """No molestar se guarda al instante y sobre lo que haya en disco: es el mismo interruptor que el
+        del ícono y el de la compañera (guardar() nunca pisa silenciado_hasta)."""
+        try:
+            disco = m.cargar_config()
+            disco["silenciado_hasta"] = m.INDEFINIDO if activo else 0
+            m.guardar_config(disco)
+        except OSError as e:
+            self.boton_nm.marcar(not activo)
+            self.estado_guardado.setText(t("No se pudo guardar: {error}", error=e))
+            m.log(f"[ajustes] no se pudo guardar: {e}")
+            return
+        self.config["silenciado_hasta"] = disco["silenciado_hasta"]
+        m.log(f"[ajustes] no molestar {'activado' if activo else 'apagado'}")
 
     def ir_a(self, i: int, animar: bool = True) -> None:
         """Cambia de sección: la marca de la barra se desliza, el título se funde y la página llega desde
@@ -1966,8 +2136,152 @@ class Ajustes(QWidget):
         clave = list(PAGINAS)[i]
         self.nav.elegir(i, animar)
         self.titulo.setText(t(PAGINAS[clave][0]), direccion, animar)
-        self.paginas.mostrar(i, direccion, animar, C["fondo"])
-        self.columna_vista.plegar(clave == "mascota", animar)
+        self.paginas.mostrar(i, direccion, animar, None if paneles.VIDRIO else C["fondo"])
+        self.columna_vista.plegar(clave in SIN_VISTA, animar)
+        self.programar_uso()
+
+    # Dynamic Island: las opciones de la isla de sesiones (barra.py), que las aplica al instante
+
+    def pagina_isla(self) -> QWidget:
+        pagina, caja = self.hoja()
+        self.isla: dict[str, QWidget] = {}
+
+        def interruptor(grupo: Grupo, clave: str, texto: str, info: str = "") -> None:
+            self.isla[clave], fila = opcion(texto, lambda v, clave=clave: self.cambiar_isla(clave, v), info)
+            grupo.agregar(fila)
+
+        def segmentos(grupo: Grupo, clave: str, texto: str, opciones: dict[str, str]) -> None:
+            self.isla[clave] = Segmentos(opciones, suave=True)  # (los textos ya vienen traducidos)
+            self.isla[clave].elegido.connect(lambda v, clave=clave: self.cambiar_isla(clave, v))
+            grupo.agregar(Fila(texto, self.isla[clave]))
+
+        caja.addWidget(ayuda("La pastilla de vidrio de arriba de la pantalla: muestra tus sesiones de Claude Code y "
+                             "se estira para ver el detalle. Los cambios se ven al instante."))
+        caja.addSpacing(6)
+        caja.addWidget(seccion("General"))
+        grupo = Grupo()
+        caja.addWidget(grupo)
+        interruptor(grupo, "activa", t("Mostrar la Dynamic Island"))
+        interruptor(grupo, "pantalla_completa", t("Esconderla si hay algo en pantalla completa"),
+                    t("Juegos, videos y presentaciones. Una ventana maximizada no cuenta."))
+        segmentos(grupo, "posicion", t("Dónde va"), {"izquierda": t("Izquierda"), "centro": t("Centro"), "derecha": t("Derecha")})
+        segmentos(grupo, "abrir", t("Se estira"), {"mouse": t("Al pasar el mouse"), "clic": t("Al hacer clic")})
+
+        caja.addSpacing(16)
+        caja.addWidget(seccion("En la pastilla"))
+        grupo = Grupo()
+        caja.addWidget(grupo)
+        interruptor(grupo, "ojos", t("Los ojos de tu mascota"),
+                    t("Despiertos si Claude trabaja, tranquilos si espera y cerrados si no hay sesiones. "
+                      "Apagado, queda un punto de color."))
+        interruptor(grupo, "seguir_mouse", t("Los ojos siguen al mouse"))
+        interruptor(grupo, "tiempo", t("Tiempo que falta"),
+                    t("Una estimación con tus turnos anteriores; se corrige sola mientras Claude trabaja."))
+        interruptor(grupo, "sesiones", t("Cantidad de sesiones"))
+
+        caja.addSpacing(16)
+        caja.addWidget(seccion("Al estirarla"))
+        grupo = Grupo()
+        caja.addWidget(grupo)
+        segmentos(grupo, "filas", t("Sesiones a la vista"), {"3": "3", "5": "5", "8": "8"})
+        interruptor(grupo, "uso", t("Uso de 5 horas y 7 días"), t("Al pie, con un clic se abre la sección Uso."))
+        interruptor(grupo, "saltar", t("Un clic en una sesión trae su ventana al frente"))
+
+        caja.addSpacing(16)
+        caja.addWidget(seccion("Vidrio y movimiento"))
+        grupo = Grupo()
+        caja.addWidget(grupo)
+        interruptor(grupo, "desenfoque", t("Desenfocar lo de atrás"),
+                    t("En Windows. Apagado, el vidrio es casi opaco para que el texto de atrás no se mezcle."))
+        self.isla["opacidad"] = QSlider(Qt.Orientation.Horizontal, minimum=40, maximum=95, singleStep=1, pageStep=5)
+        self.valor_opacidad = valor()
+        self.isla["opacidad"].valueChanged.connect(lambda v: self.cambiar_isla("opacidad", v))
+        self.fila_opacidad = Fila("Cuánto tapa el vidrio", self.isla["opacidad"], self.valor_opacidad)
+        grupo.agregar(self.fila_opacidad)
+        interruptor(grupo, "rebote", t("Estirarse rebotando, como un líquido"))
+        interruptor(grupo, "latido", t("Latido de color mientras Claude trabaja"))
+        caja.addStretch(1)
+        self.cargar_isla()
+        return pagina
+
+    def cargar_isla(self) -> None:
+        """Pone en los controles lo que dice la config (al abrir, al restablecer y si el ícono la apaga)."""
+        if not hasattr(self, "fila_opacidad"):
+            return
+        isla = self.config["barra"]
+        for clave, control in self.isla.items():
+            control.blockSignals(True)
+            if isinstance(control, Segmentos):
+                control.elegir(str(isla[clave]), animar=False)
+            elif isinstance(control, QSlider):
+                control.setValue(isla[clave])
+            else:
+                control.setChecked(isla[clave])
+            control.blockSignals(False)
+        self.reflejar_isla()
+
+    def reflejar_isla(self) -> None:
+        isla = self.config["barra"]
+        self.valor_opacidad.setText(f"{isla['opacidad']} %")
+        self.fila_opacidad.setEnabled(isla["desenfoque"])
+        self.isla["seguir_mouse"].setEnabled(isla["ojos"])
+
+    def cambiar_isla(self, clave: str, nuevo) -> None:
+        if clave == "filas":
+            nuevo = int(nuevo)
+        self.config["barra"][clave] = nuevo
+        self.reflejar_isla()
+        if clave == "activa":  # como el ícono: al instante y sobre lo que haya en disco
+            try:
+                disco = m.cargar_config()
+                disco["barra"]["activa"] = bool(nuevo)
+                m.guardar_config(disco)
+            except OSError as e:
+                m.log(f"[ajustes] no se pudo guardar: {e}")
+            return
+        self.cambio()
+
+    # Dashboard y Uso: el análisis de los transcripts corre en un hilo y llega por al_analizar
+
+    def pagina_dashboard(self) -> QWidget:
+        pagina, caja = self.hoja()
+        self.dashboard = paneles.Dashboard()
+        caja.addWidget(self.dashboard)
+        return pagina
+
+    def pagina_uso(self) -> QWidget:
+        pagina, caja = self.hoja()
+        self.seg_lapso = Segmentos({clave: t(texto) for clave, texto in paneles.BOTON_LAPSO.items()}, suave=True)
+        self.seg_lapso.elegir(self.config["uso"]["lapso"], animar=False)
+        self.seg_lapso.elegido.connect(self.cambiar_lapso)
+        self.uso = paneles.Uso(self.seg_lapso, self.config["uso"]["lapso"])
+        caja.addWidget(self.uso)
+        return pagina
+
+    def cambiar_lapso(self, clave: str) -> None:
+        self.uso.elegir(clave)
+        self.cambiar_grupo("uso", "lapso", clave)
+
+    def programar_uso(self) -> None:
+        """Mientras se mira Dashboard o Uso, los datos se vuelven a leer cada pocos segundos (solo lo nuevo
+        de cada transcript: es barato). Afuera de esas secciones, nada."""
+        if list(PAGINAS)[self.pagina] not in DE_DATOS:
+            self.timer_uso.stop()
+            return
+        if not self.timer_uso.isActive():
+            self.timer_uso.start(paneles.VIVO * 1000)
+        if self.analizado is None or time.monotonic() - self.analizado >= paneles.VIVO:
+            self.analizar()
+
+    def analizar(self) -> None:
+        if self.sender() is self.timer_uso and (self.isMinimized() or not self.isVisible()):
+            return  # minimizada no hace falta
+        if self.analista.pedir():
+            self.analizado = time.monotonic()
+
+    def al_analizar(self, informe) -> None:
+        self.dashboard.mostrar(informe)
+        self.uso.mostrar(informe)
 
     @staticmethod
     def hoja() -> tuple[QWidget, QVBoxLayout]:
@@ -2154,7 +2468,7 @@ class Ajustes(QWidget):
         caja.addWidget(self.desplegable_mensajes)
 
         caja.addSpacing(10)
-        self.desplegable_silencio = Desplegable("No molestar")
+        self.desplegable_silencio = Desplegable("Silencio automático")
         self.no_molestar = Interruptor()
         self.no_molestar.toggled.connect(lambda v: self.cambiar_grupo("no_molestar", "activo", v))
         self.desde, self.hasta = QTimeEdit(displayFormat="HH:mm"), QTimeEdit(displayFormat="HH:mm")
@@ -2188,14 +2502,8 @@ class Ajustes(QWidget):
         pagina, caja = self.hoja()
         caja.setSpacing(10)
 
-        # Wave Classic (la mascota dibujada, con sus estilos). Wave NextGen (personajes más grandes, con sus
-        # propias animaciones y sonidos) se ve en gris: todavía no se puede elegir.
         arriba = QHBoxLayout()
         arriba.setSpacing(8)
-        self.seg_familia = segmentado({"clasico": "Wave Classic", "nextgen": "Wave NextGen"}, lambda _: None)
-        self.seg_familia.desactivar("nextgen", t("Próximamente"))
-        arriba.addWidget(self.seg_familia)
-        arriba.addWidget(QLabel(t("Próximamente"), objectName="pronto", alignment=Qt.AlignmentFlag.AlignCenter))
         arriba.addStretch(1)
         self.botones_vestuario = QWidget()
         botones = QHBoxLayout(self.botones_vestuario)
@@ -2504,6 +2812,7 @@ class Ajustes(QWidget):
 
     def cargar_en_controles(self) -> None:
         c = self.config
+        self.cargar_isla()
         grupos = {"contenido": self.contenido, "vida": self.vida}
         controles = [self.duracion, self.sonido, self.volumen, self.tamano, self.inicio, self.no_molestar,
                      self.desde, self.hasta, self.pantalla_completa, self.enfocada, self.umbral, self.permisos,
@@ -2584,11 +2893,7 @@ class Ajustes(QWidget):
                 muestra.setChecked(clave == elegido and not usando_imagen)
             grupo.setExclusive(True)
         self.bloque_piel.setVisible(aspecto["estilo"] == "ninja")
-        if usando_imagen:
-            icono = miniatura_imagen(m.IMAGENES / self.config["imagen"], QSize(48, 42), dpr)
-        else:
-            icono = miniatura(aspecto, "entera", dpr, escala=1)
-        self.icono_cabecera.setPixmap(icono)
+        self.icono_cabecera.poner(aspecto)  # los ojos de la mascota elegida
         if usando_imagen:
             nombre = Path(self.config["imagen"]).stem
         else:
@@ -2822,13 +3127,19 @@ class Ajustes(QWidget):
         for clave in ("llave", "conectado", "nombre"):  # y Telegram sigue conectado
             self.config["celular"][clave] = cel[clave]
         self.config["actualizaciones"]["ignorada"] = ""
+        self.config["barra"]["activa"] = m.cargar_config()["barra"]["activa"]  # prendida o apagada, como estaba
         aplicar_tema(self.config["tema"], self.config["aspecto"]["estilo"])
         self.cargar_en_controles()
         self.cambio()
 
     def sincronizar(self) -> None:
-        """El modo también se cambia desde el ícono o el menú de la compañera: se refleja acá."""
+        """El modo y No molestar también se cambian desde el ícono o el menú de la compañera: se reflejan
+        acá."""
         disco = m.cargar_config()
+        self.config["silenciado_hasta"] = disco["silenciado_hasta"]
+        self.boton_nm.marcar(m.no_molestar_ahora(disco))
+        self.config["barra"]["activa"] = disco["barra"]["activa"]
+        self.cargar_isla()
         if disco["modo"] != self.config["modo"] and not self.timer_guardar.isActive():
             self.config["modo"] = disco["modo"]
             self.seg_modo.elegir(disco["modo"])
@@ -2837,10 +3148,12 @@ class Ajustes(QWidget):
     def guardar(self) -> None:
         self.timer_guardar.stop()
         try:
-            # El silencio (ícono del reloj) y la posición (arrastrar la compañera) se manejan
-            # en otro lado: se respeta lo que esté guardado.
+            # El silencio y la barra de sesiones (ícono del reloj) y la posición (arrastrar la compañera) se
+            # manejan en otro lado: se respeta lo que esté guardado.
             disco = m.cargar_config()
-            self.config["silenciado_hasta"], self.config["posicion"] = disco["silenciado_hasta"], disco["posicion"]
+            for clave in ("silenciado_hasta", "posicion"):
+                self.config[clave] = disco[clave]
+            self.config["barra"]["activa"] = disco["barra"]["activa"]  # también la prende y apaga el ícono
             m.guardar_config(self.config)
         except OSError as e:
             self.estado_guardado.setText(t("No se pudo guardar: {error}", error=e))
@@ -3097,6 +3410,8 @@ class Ajustes(QWidget):
             self.aplicar_modo()
         if self.timer_guardar.isActive():
             self.guardar()
+        self.timer_uso.stop()
+        self.analista.cerrar()
         super().closeEvent(evento)
 
 
@@ -3123,11 +3438,15 @@ def ejecutar_ventana() -> int:
     aplicar_tema(config["tema"], config["aspecto"]["estilo"])
     traducir_qt(app, config["idioma"])
 
+    # --seccion=uso: abrir directo en esa sección (lo usa la barra de sesiones).
+    seccion = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--seccion=")), "")
+    seccion = seccion if seccion in PAGINAS else ""
     # Una sola ventana de ajustes: si ya hay una abierta, se la trae al frente.
     s = QLocalSocket()
     s.connectToServer(CANAL_AJUSTES)
     if s.waitForConnected(300):
-        s.write(b"actualizar\n" if "--actualizar" in sys.argv[1:] else b"mostrar\n")
+        pedido = f"seccion:{seccion}\n".encode() if seccion else b"mostrar\n"
+        s.write(b"actualizar\n" if "--actualizar" in sys.argv[1:] else pedido)
         s.flush()
         s.waitForBytesWritten(300)
         return 0
@@ -3158,12 +3477,17 @@ def ejecutar_ventana() -> int:
         conexion = servidor.nextPendingConnection()
         traer_al_frente(actual["ventana"])
         if conexion and (conexion.bytesAvailable() or conexion.waitForReadyRead(300)):
-            if bytes(conexion.readAll()).startswith(b"actualizar"):
+            pedido = bytes(conexion.readAll()).decode("utf-8", "replace").strip()
+            if pedido.startswith("actualizar"):
                 actual["ventana"].empezar_actualizacion()
+            elif pedido.startswith("seccion:") and pedido[8:] in PAGINAS:
+                actual["ventana"].ir_a(list(PAGINAS).index(pedido[8:]))
 
     servidor.newConnection.connect(al_conectarse)
     ventanas.al_reabrir(lambda: traer_al_frente(actual["ventana"]))  # macOS: click en el Dock o abrir la app
     abrir()
+    if seccion:
+        actual["ventana"].ir_a(list(PAGINAS).index(seccion), animar=False)
     m.log("[ajustes] ventana abierta")
     if "--actualizar" in sys.argv[1:]:  # desde el cartel de Wave o el menú del ícono
         actual["ventana"].empezar_actualizacion()

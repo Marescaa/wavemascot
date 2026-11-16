@@ -39,7 +39,7 @@ import sprites
 import ventanas
 from idiomas import t
 
-__version__ = "1.3.1"
+__version__ = "1.4.0"
 CONGELADO = getattr(sys, "frozen", False)  # corriendo como WaveMascot.exe o WaveMascot.app (PyInstaller)
 MAC = ventanas.ES_MAC
 DIR = Path(__file__).resolve().parent
@@ -52,6 +52,7 @@ CONFIG = CONFIG_DIR / "config.json"
 LOG = CONFIG_DIR / "mascota.log"  # junto a la config: la carpeta del programa puede no ser escribible
 IMAGENES = CONFIG_DIR / "imagenes"  # PNG/GIF propios subidos desde ajustes
 SESIONES = CONFIG_DIR / "sesiones"  # cuándo empezó la tarea de cada sesión (para la duración)
+INDEFINIDO = 4_102_444_800  # 1/1/2100: "silenciada hasta que la reactive" (el botón No molestar)
 
 
 def migrar_config_anterior() -> None:
@@ -134,6 +135,26 @@ CONFIG_DEFECTO = {
                 "permisos": True, "espera_permisos": 240},
     # Buscar versiones nuevas (actualizacion.py); "ignorada": la versión a la que le dijiste "Ahora no".
     "actualizaciones": {"buscar": True, "ignorada": ""},
+    # La barra de sesiones arriba al centro (barra.py): siempre a la vista (menos en pantalla completa);
+    # se puede apagar desde el menú del ícono.
+    # Sus opciones se eligen en los ajustes (sección Dynamic Island).
+    "barra": {"activa": True,
+              "pantalla_completa": True,   # esconderse si hay algo en pantalla completa
+              "abrir": "mouse",            # se estira al pasarle el mouse ("mouse") o recién al tocarla ("clic")
+              "posicion": "centro",        # arriba al centro, a la izquierda o a la derecha
+              "ojos": True,                # los ojos de la mascota (si no, un punto de color)
+              "seguir_mouse": True,        # los ojos miran al mouse cuando anda cerca
+              "tiempo": True,              # el tiempo que falta, en la pastilla
+              "sesiones": True,            # cuántas sesiones hay, en la pastilla
+              "uso": True,                 # el uso de 5 horas y 7 días, al pie de la isla abierta
+              "filas": 5,                  # cuántas sesiones se listan como mucho (3, 5 u 8)
+              "saltar": True,              # un clic en una sesión trae su ventana al frente
+              "desenfoque": True,          # el vidrio desenfoca lo de atrás (Windows)
+              "opacidad": 68,              # cuánto tapa el vidrio, en % (40 a 95)
+              "rebote": True,              # se estira rebotando, como un líquido
+              "latido": True},             # el color de la mascota late mientras Claude trabaja
+    # La sección Uso de los ajustes: el lapso que se estaba mirando (5h, 1d, 7d, 30d o 180d).
+    "uso": {"lapso": "5h"},
 }
 CANAL = "wavemascot-" + re.sub(r"\W", "", os.environ.get("USERNAME") or os.environ.get("USER") or "yo")
 
@@ -191,11 +212,19 @@ def cargar_config(ruta: Path = CONFIG) -> dict:
         if texto.strip() in ("¡Listo! Terminé", "{mensaje}"):
             config["mensajes"][evento] = ""
     # Grupos de opciones: se copia cada valor que tenga el mismo tipo que el de por defecto.
-    for grupo in ("contenido", "eventos", "no_molestar", "vida", "sonidos", "actualizaciones"):
+    for grupo in ("contenido", "eventos", "no_molestar", "vida", "sonidos", "actualizaciones", "barra", "uso"):
         if isinstance(datos.get(grupo), dict):
             for clave, defecto in config[grupo].items():
                 if type(datos[grupo].get(clave)) is type(defecto):
                     config[grupo][clave] = datos[grupo][clave]
+    isla, isla_defecto = config["barra"], CONFIG_DEFECTO["barra"]
+    for clave, validos in (("abrir", ("mouse", "clic")), ("posicion", ("centro", "izquierda", "derecha")),
+                           ("filas", (3, 5, 8))):
+        if isla[clave] not in validos:
+            isla[clave] = isla_defecto[clave]
+    isla["opacidad"] = max(40, min(95, isla["opacidad"]))
+    if config["uso"]["lapso"] not in ("5h", "1d", "7d", "30d", "180d"):
+        config["uso"]["lapso"] = CONFIG_DEFECTO["uso"]["lapso"]
     for clave in ("desde", "hasta"):
         if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", config["no_molestar"][clave]):
             config["no_molestar"][clave] = CONFIG_DEFECTO["no_molestar"][clave]
@@ -244,6 +273,11 @@ def guardar_config(config: dict, ruta: Path = CONFIG) -> None:
 
 def silenciada(config: dict) -> bool:
     return config["silenciado_hasta"] > time.time()
+
+
+def no_molestar_ahora(config: dict) -> bool:
+    """El botón No molestar: silenciada sin hora de fin (el horario de No molestar de los ajustes es otra cosa)."""
+    return config["silenciado_hasta"] >= INDEFINIDO
 
 
 def listar_imagenes() -> list[Path]:
@@ -437,14 +471,17 @@ def archivo_sesion(evento: dict) -> Path | None:
     return SESIONES / f"{sesion}.json" if sesion else None
 
 
-def registrar_inicio(evento: dict) -> None:
-    """UserPromptSubmit: anota cuándo empezó la tarea y limpia sesiones viejas."""
+def registrar_inicio(evento: dict, ventana: int = 0) -> None:
+    """UserPromptSubmit: anota cuándo empezó la tarea (y en qué ventana corre la sesión, para que la barra
+    de sesiones pueda saltar a ella) y limpia sesiones viejas."""
     archivo = archivo_sesion(evento)
     if not archivo:
         return
     try:
         SESIONES.mkdir(parents=True, exist_ok=True)
-        archivo.write_text(json.dumps({"inicio": time.time()}), encoding="utf-8")
+        proceso = ventanas.pid_de_ventana(ventana) if ventana and ventanas.ES_WINDOWS else 0
+        archivo.write_text(json.dumps({"inicio": time.time(), "ventana": int(ventana or 0), "proceso": proceso}),
+                           encoding="utf-8")
         for viejo in SESIONES.glob("*.json"):
             if time.time() - viejo.stat().st_mtime > 3 * 86400:
                 viejo.unlink(missing_ok=True)
@@ -1705,6 +1742,10 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
                 menu.addAction(t("Volver a la esquina")).triggered.connect(lambda: self.guardar_en_config(posicion=None))
             menu.addAction(t("Pasar a modo aviso")).triggered.connect(lambda: self.guardar_en_config(modo="aviso"))
             menu.addSeparator()
+            no_molestar = menu.addAction(t("No molestar"))
+            no_molestar.setCheckable(True)
+            no_molestar.setChecked(no_molestar_ahora(cargar_config()))
+            no_molestar.toggled.connect(lambda activo: self.guardar_en_config(silenciado_hasta=INDEFINIDO if activo else 0))
             menu.addAction(t("Ocultar hasta el próximo aviso")).triggered.connect(lambda: self.salir(rapido=True))
             menu.exec(donde)
 
@@ -1938,8 +1979,9 @@ def main() -> int:
         estado = args.estado
         if nombre == "StopFailure":
             estado = "limite" if evento.get("error") == "rate_limit" else "error"
+        anfitriona = ventanas.ventana_anfitriona() if evento else 0
         if nombre == "UserPromptSubmit":
-            registrar_inicio(evento)
+            registrar_inicio(evento, anfitriona)
         if args.compania:
             lanzar_ventana({"estado": "idle", "mensaje": "", **apariencia(config), "modo": "compania",
                             "esquina": config["esquina"]})
@@ -1947,7 +1989,6 @@ def main() -> int:
             return 0
 
         duracion = duracion_tarea(evento) if nombre == "Stop" else None
-        anfitriona = ventanas.ventana_anfitriona() if evento else 0
         motivo = "" if args.forzar else motivo_para_no_avisar(config, evento, estado, duracion, anfitriona)
         if nombre == "PermissionRequest" and evento.get("tool_name") in NO_SE_APRUEBAN:
             motivo = motivo or f"{evento.get('tool_name')} se responde en la terminal"

@@ -5,6 +5,36 @@ and the project uses [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Dynamic Island**: a liquid-glass pill at the top of the screen that shows your Claude Code sessions. Small, it
+  shows your mascot's eyes (awake while Claude works, calm while it waits, closed with no sessions), the estimated
+  time left and how many sessions there are; on hover it stretches to list each session (elapsed time, tokens, task-list
+  progress, agents), the usage of the last 5 hours and 7 days and a button that opens the settings. Clicking a session
+  brings its window to the front. On Windows the glass really blurs what is behind it. It hides while something is
+  full screen.
+- **Settings → Dynamic Island**: 15 options (position, open on hover or click, eyes, what the pill shows, how many
+  sessions, blur, opacity, bounce, pulse…), applied live.
+- **Settings → Dashboard**: today's tokens with the last 14 days, sessions, time Claude worked, projects of the week
+  and how accurate the time estimate has been.
+- **Settings → Usage**: tokens for the last 5 hours, day, 7 days, month or 6 months, with input, output, cache hit rate,
+  models and projects, updated live. Everything is computed from the Claude Code transcripts on your computer.
+- **Do not disturb** quick button at the top of the settings sidebar (also in the tray menu and the companion's menu):
+  mutes every notification until you turn it off.
+
+### Changed
+
+- The settings window is liquid glass on Windows: a floating glass sidebar, capsule controls and your mascot's eyes
+  in the header. The scheduled "Do not disturb" section is now called "Automatic silence".
+- The time-left estimate weighs past turns that look like the current one (same project and session, tools used so
+  far, prompt length and task-list progress). Measured on ~1,500 real turns, estimates within 2× of the truth went
+  from 34 % to 40 %.
+
+### Fixed
+
+- Opening the settings no longer flashes a dozen tiny windows before the main one appears.
+
+
 ## [1.3.1] - 2026-11-03
 
 ### Changed

@@ -34,6 +34,9 @@ if ES_WINDOWS:
     u32.GetWindowRect.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.RECT))
     u32.MonitorFromWindow.argtypes = (wintypes.HWND, wintypes.DWORD)
     u32.MonitorFromWindow.restype = wintypes.HMONITOR
+    u32.IsZoomed.argtypes = (wintypes.HWND,)
+    u32.SetWindowPos.argtypes = (wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                 ctypes.c_int, wintypes.UINT)
     k32.GetConsoleWindow.restype = wintypes.HWND
     k32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
 
@@ -151,8 +154,12 @@ def tiene_el_foco(hwnd: int) -> bool:
     return raiz == hwnd or activa == hwnd or pid_de_ventana(raiz) == pid_de_ventana(hwnd)
 
 
-def pantalla_completa() -> bool:
-    """Hay un juego, video o presentación en pantalla completa (o Windows pide silencio)."""
+def pantalla_completa(maximizada_no_cuenta: bool = False) -> bool:
+    """Hay un juego, video o presentación en pantalla completa (o Windows pide silencio).
+
+    maximizada_no_cuenta: con la barra de tareas escondida, una ventana maximizada también tapa el monitor
+    entero. Para la barra de sesiones eso no es pantalla completa: se la distingue porque la maximizada se
+    pasa unos píxeles del monitor (su marco invisible) y la de pantalla completa calza justo."""
     if ES_MAC:
         return _seguro(_pantalla_completa_mac, False)
     if not ES_WINDOWS:
@@ -173,8 +180,42 @@ def pantalla_completa() -> bool:
     u32.GetWindowRect(activa, ctypes.byref(ventana))
     u32.GetMonitorInfoW(u32.MonitorFromWindow(activa, 2), ctypes.byref(info))
     m = info.rcMonitor
+    if maximizada_no_cuenta and u32.IsZoomed(activa) and (ventana.left < m.left or ventana.top < m.top):
+        return False
     return (ventana.left <= m.left and ventana.top <= m.top and ventana.right >= m.right
             and ventana.bottom >= m.bottom)
+
+
+class _ACENTO(ctypes.Structure):
+    _fields_ = [("estado", ctypes.c_int), ("banderas", ctypes.c_int), ("color", ctypes.c_uint),
+                ("animacion", ctypes.c_int)]
+
+
+class _ATRIBUTO(ctypes.Structure):
+    _fields_ = [("atributo", ctypes.c_int), ("datos", ctypes.c_void_p), ("tamano", ctypes.c_size_t)]
+
+
+def desenfocar_detras(hwnd: int) -> bool:
+    """Windows 10 y 11: la ventana desenfoca lo que tiene detrás, donde ella es transparente.
+
+    El desenfoque ocupa siempre el rectángulo entero de la ventana (no respeta SetWindowRgn ni formas
+    redondeadas): quien lo usa tiene que darle a la ventana el tamaño justo. False si no se pudo."""
+    if not ES_WINDOWS or not hwnd:
+        return False
+    try:
+        acento = _ACENTO(3, 0, 0, 0)  # ACCENT_ENABLE_BLURBEHIND
+        datos = _ATRIBUTO(19, ctypes.cast(ctypes.byref(acento), ctypes.c_void_p), ctypes.sizeof(acento))
+        u32.SetWindowCompositionAttribute.argtypes = (wintypes.HWND, ctypes.POINTER(_ATRIBUTO))
+        u32.SetWindowCompositionAttribute.restype = wintypes.BOOL
+        return bool(u32.SetWindowCompositionAttribute(hwnd, ctypes.byref(datos)))  # WCA_ACCENT_POLICY
+    except (AttributeError, OSError):
+        return False
+
+
+def poner_debajo(hwnd: int, encima: int, x: int, y: int, ancho: int, alto: int) -> None:
+    """Mueve la ventana (en píxeles de pantalla) y la deja justo debajo de otra, sin darle el foco."""
+    if ES_WINDOWS and hwnd and encima:
+        u32.SetWindowPos(hwnd, encima, x, y, ancho, alto, 0x0010)  # SWP_NOACTIVATE
 
 
 class LASTINPUTINFO(ctypes.Structure):
