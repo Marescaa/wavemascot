@@ -19,6 +19,8 @@ and the project uses [semantic versioning](https://semver.org/).
   and how accurate the time estimate has been.
 - **Settings → Usage**: tokens for the last 5 hours, day, 7 days, month or 6 months, with input, output, cache hit rate,
   models and projects, updated live. Everything is computed from the Claude Code transcripts on your computer.
+- **Burger style** (beta): a new mascot style next to Classic, Sakura, Ninja and Robot — a bun with sesame, cheese
+  and lettuce, a toothpick flag for an antenna and its own colors for the settings window.
 - **Do not disturb** quick button at the top of the settings sidebar (also in the tray menu and the companion's menu):
   mutes every notification until you turn it off.
 

@@ -110,6 +110,10 @@ PALETAS = {
                                       "#5FC8E2", "#121820")), flecha=C_OSCURO["flecha"]),
               dict(zip(CLAVES_PALETA, ("#EDF2F6", "#F9FBFD", "#E3EAF0", "#CCD7E0", "#142029", "#5B6B78", "#1F97B8",
                                       "#39B6D6", "#121820")), flecha=C_CLARO["flecha"])),
+    "hamburguesa": (dict(zip(CLAVES_PALETA, ("#1D1612", "#271E18", "#32271F", "#4A3A2C", "#F6EEE4", "#B8A592",
+                                            "#E8A93A", "#F2C063", "#1D1612")), flecha=C_OSCURO["flecha"]),
+                    dict(zip(CLAVES_PALETA, ("#F6EFE4", "#FFFBF5", "#F0E5D6", "#DDCBB4", "#2C1D12", "#7C6650",
+                                            "#C7861C", "#E0A53A", "#1D1612")), flecha=C_CLARO["flecha"])),
 }
 C = dict(C_OSCURO)  # colores en uso: el tema y el estilo los reemplazan en el lugar
 paneles.C = C  # las tarjetas de Dashboard y Uso usan los mismos
@@ -1228,7 +1232,6 @@ class Fila(QWidget):
             self.detalle = self.etiqueta
             self.etiqueta.setObjectName("detalle")
             self.etiqueta.setText(detalle.strip())
-            self.etiqueta.show()
         self.textos.addStretch(1)
         self.controles = QHBoxLayout()
         self.controles.setSpacing(8)

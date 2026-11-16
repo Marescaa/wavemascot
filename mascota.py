@@ -876,7 +876,8 @@ def pintar_sombra(p, cx: float, base: float, ancho: float) -> None:
     p.restore()
 
 
-FONDO_CARTEL = {"clasico": (30, 22, 19), "sakura": (34, 22, 28), "ninja": (22, 22, 24), "robot": (18, 25, 32)}
+FONDO_CARTEL = {"clasico": (30, 22, 19), "sakura": (34, 22, 28), "ninja": (22, 22, 24), "robot": (18, 25, 32),
+                "hamburguesa": (32, 23, 17)}
 
 
 class Cartel:

@@ -279,6 +279,7 @@ TEXTOS: dict[str, dict[str, str]] = {
     "Sakura": {"en": "Sakura", "pt": "Sakura"},
     "Ninja": {"en": "Ninja", "pt": "Ninja"},
     "Robot": {"en": "Robot", "pt": "Robô"},
+    "Hamburguesa": {"en": "Burger", "pt": "Hambúrguer"},
     "Cambia la cara de la mascota y cómo aparece, festeja y se va. El vestuario se mantiene.": {
         "en": "Changes the mascot's face and how it shows up, celebrates and leaves. The outfit stays.",
         "pt": "Muda o rosto do mascote e como ele aparece, comemora e vai embora. A roupa continua."},

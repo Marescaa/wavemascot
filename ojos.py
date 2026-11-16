@@ -5,7 +5,8 @@ Los cuatro estilos comparten el mismo "display": una pastillita redondeada con l
 contorno oscuro de la mascota y, por fuera, su filo claro (el mismo borde que tiene el dibujo completo de
 sprites.py), así se despega de cualquier fondo, claro u oscuro. Adentro cambia la cara: el Clásico y
 Sakura, sobre el color del cuerpo (Sakura con pestañas y rubor); el Ninja, sobre la piel, con cejas
-decididas y la vincha roja; el Robot, el visor con ojos de luz.
+decididas y la vincha roja; el Robot, el visor con ojos de luz; la Hamburguesa, el pan con sésamo, ojos
+redondos y la lechuga asomando abajo.
 
 Mirada lleva la animación (no depende de Qt más que para el reloj): hacia dónde mira, cuándo parpadea y
 qué ánimo tiene ("despierta", "tranquila" o "dormida").
@@ -94,7 +95,8 @@ def colores(aspecto: dict) -> dict:
     return {"estilo": estilo, "fondo": fondo, "brillo": QColor(*brillo), "contorno": de_paleta(sprites.CONT),
             "filo": de_paleta(sprites.CREMA), "rubor": de_paleta(sprites.RUBOR),
             "led": QColor(*sprites.PALETA[sprites.LED]), "rojo": QColor(*sprites.PALETA[sprites.ROJO]),
-            "reflejo": QColor(*sprites.PALETA[sprites.NUBE_OSC]), "blanco": QColor(255, 255, 255)}
+            "reflejo": QColor(*sprites.PALETA[sprites.NUBE_OSC]), "blanco": QColor(255, 255, 255),
+            "hoja": QColor(*sprites.PALETA[sprites.HOJA]), "verde": QColor(*sprites.PALETA[sprites.VERDE])}
 
 
 def pintar(p: QPainter, centro: QPointF, px: float, aspecto: dict, mirada: Mirada, alfa: float = 1.0) -> None:
@@ -131,11 +133,16 @@ def pintar(p: QPainter, centro: QPointF, px: float, aspecto: dict, mirada: Mirad
         cuadro(-CARA_ANCHO / 2, arriba, CARA_ANCHO, 1, c["rojo"])            # la vincha
     elif estilo == "robot":
         cuadro(-CARA_ANCHO / 2 + 1.5, arriba + 0.6, 2, 0.6, c["reflejo"])    # el reflejo del vidrio
+    elif estilo == "hamburguesa":
+        for x, y in ((-4.5, 0.5), (-1.0, 0.2), (2.5, 0.6), (5.0, 1.4), (-6.0, 1.6)):   # el sésamo del pan
+            cuadro(x, arriba + y, 1.2, 0.6, c["filo"])
+        for i in range(int(CARA_ANCHO) + 1):                                 # la lechuga asoma abajo
+            cuadro(-CARA_ANCHO / 2 + i, CARA_ALTO / 2 - 0.9, 1, 0.9, c["verde"] if i % 3 == 0 else c["hoja"])
     else:
         cuadro(-CARA_ANCHO / 2 + 1.2, arriba + 0.6, 2.4, 0.8, c["brillo"])   # el brillo del cuerpo
     separacion = 3.0  # del centro de la cara al centro de cada ojo
     corre_x, corre_y = 1.4 * mirada.x, 0.6 * mirada.y
-    base = 0.4 if estilo == "ninja" else 0.0  # debajo de la vincha
+    base = {"ninja": 0.4, "hamburguesa": -0.2}.get(estilo, 0.0)  # debajo de la vincha; arriba de la lechuga
     cerrados = mirada.cerrados
     tinta = c["led"] if estilo == "robot" else c["contorno"]
     for lado in (-1, 1):
@@ -145,6 +152,11 @@ def pintar(p: QPainter, centro: QPointF, px: float, aspecto: dict, mirada: Mirad
             continue
         if estilo == "robot":
             cuadro(x - 1, y - 1, 2, 2, tinta)
+            continue
+        if estilo == "hamburguesa":   # ojos redondos y brillosos
+            cuadro(x - 1.5, y - 1.0, 3, 2, tinta)
+            cuadro(x - 1.0, y - 1.5, 2, 3, tinta)
+            cuadro(x - 1.0, y - 1.0, 1, 1, c["blanco"])
             continue
         alto = 2.0 if estilo == "ninja" else 3.0
         cuadro(x - 1, y - alto / 2, 2, alto, tinta)
