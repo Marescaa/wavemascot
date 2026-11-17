@@ -3,7 +3,7 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.4.0] - 2026-11-17
 
 ### Added
 
@@ -175,6 +175,7 @@ First public release of WaveMascot.
 - `WaveMascot-Setup.exe` installer (PyInstaller, no Python or administrator rights needed) and a GitHub Actions
   workflow that publishes it on every `v*` tag.
 
+[1.4.0]: ../../releases/tag/v1.4.0
 [1.3.1]: ../../releases/tag/v1.3.1
 [1.3.0]: ../../releases/tag/v1.3.0
 [1.2.0]: ../../releases/tag/v1.2.0

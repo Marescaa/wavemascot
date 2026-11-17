@@ -2,11 +2,12 @@
 
 [← Voltar ao README](../README.pt.md) · [English](README.md) · [Español](README.es.md) · **Português**
 
-Tudo aqui é desenhado pelo próprio app ([`tools/capturas.py`](../tools/capturas.py)): o pixel art, o aviso e a janela
-de configurações reais.
+Tudo aqui é desenhado pelo próprio app ([`tools/capturas.py`](../tools/capturas.py)): o pixel art, o aviso, a Dynamic
+Island e a janela de configurações reais. As sessões e os números de uso são inventados.
 
-**Conteúdo:** [Avisos](#avisos) · [Estilos](#estilos) · [Roupas](#roupas) · [No seu celular](#no-seu-celular) ·
-[Conectar o Telegram](#conectar-o-telegram) · [Configurações](#configurações) · [Tema claro](#tema-claro)
+**Conteúdo:** [Avisos](#avisos) · [Dynamic Island](#dynamic-island) · [Estilos](#estilos) · [Roupas](#roupas) ·
+[No seu celular](#no-seu-celular) · [Conectar o Telegram](#conectar-o-telegram) · [Configurações](#configurações) ·
+[Tema claro](#tema-claro)
 
 ## Avisos
 
@@ -28,6 +29,18 @@ configurações; no Mac abre a página de download.
 
 <img src="estados.gif" width="760" alt="Pronto, permissão, pensando, subagente, limite de uso e erro">
 
+## Dynamic Island
+
+A pílula de vidro no topo da tela. Passe o mouse e ela se estica com todas as sessões do Claude Code.
+
+<img src="capturas/pt/isla.gif" width="640" alt="A Dynamic Island se abrindo ao passar o mouse e fechando de novo">
+
+| | |
+|:---:|:---:|
+| <img src="capturas/pt/isla-chica.png" width="380" alt="A Dynamic Island fechada"><br>**Fechada**: os olhos, quanto falta, sessões e agentes | <img src="capturas/pt/isla-abierta.png" width="380" alt="A Dynamic Island aberta"><br>**Aberta**: cada sessão, o andamento e o seu uso |
+
+<sub>A área de trabalho atrás, o desfoque e as sessões são inventados para a imagem; a ilha é a real, desenhada pelo app. No Windows o desfoque é real; no Mac o vidro é tingido.</sub>
+
 ## Estilos
 
 O estilo muda o rosto do Wave e como ele aparece, comemora e vai embora.
@@ -36,6 +49,7 @@ O estilo muda o rosto do Wave e como ele aparece, comemora e vai embora.
 |:---:|:---:|
 | <img src="estilos/clasico.gif" width="320" alt="Clássico"><br>**Clássico**: desliza pela borda | <img src="estilos/sakura.gif" width="320" alt="Sakura"><br>**Sakura**: chega flutuando entre pétalas |
 | <img src="estilos/ninja.gif" width="320" alt="Ninja"><br>**Ninja**: chega rolando escondido na fumaça | <img src="estilos/robot.gif" width="320" alt="Robô"><br>**Robô**: chega voando com botas-foguete |
+| <img src="estilos/hamburguesa.gif" width="320" alt="Hambúrguer"><br>**Hambúrguer** (novo): chega dando pulinhos, com a tampa do pão quicando | |
 
 ## Roupas
 
@@ -56,19 +70,22 @@ Grátis para todos.
 
 | | |
 |:---:|:---:|
-| <img src="capturas/pt/ajustes-6-celular.png" width="380" alt="Aba Celular antes de conectar"><br>**Antes de conectar**: um botão e você toca em Iniciar no bot | <img src="capturas/pt/celular-conectado.png" width="380" alt="Aba Celular conectada"><br>**Conectado**: quando mandar, quais avisos, Permitir/Negar |
+| <img src="capturas/pt/ajustes-3-celular.png" width="380" alt="Seção Celular antes de conectar"><br>**Antes de conectar**: um botão e você toca em Iniciar no bot | <img src="capturas/pt/celular-conectado.png" width="380" alt="Seção Celular conectada"><br>**Conectado**: quando mandar, quais avisos, Permitir/Negar |
 
 ## Configurações
 
 | | |
 |:---:|:---:|
-| <img src="capturas/pt/ajustes-1-aviso.png" width="380" alt="Aba Aviso"><br>**Aviso** | <img src="capturas/pt/ajustes-2-comportamiento.png" width="380" alt="Aba Comportamento"><br>**Comportamento** |
-| <img src="capturas/pt/ajustes-3-mascota.png" width="380" alt="Aba Mascote"><br>**Mascote** | <img src="capturas/pt/ajustes-4-vestuario.png" width="380" alt="Aba Roupas"><br>**Roupas** |
-| <img src="capturas/pt/ajustes-5-sonido.png" width="380" alt="Aba Som e estilo"><br>**Som e estilo** | <img src="capturas/pt/celular-conectado.png" width="380" alt="Aba Celular"><br>**Celular** |
+| <img src="capturas/pt/ajustes-1-avisos.png" width="380" alt="Seção Avisos"><br>**Avisos** | <img src="capturas/pt/ajustes-2-mascota.png" width="380" alt="Seção Mascote"><br>**Mascote** |
+| <img src="capturas/pt/ajustes-3-celular.png" width="380" alt="Seção Celular"><br>**Celular** | <img src="capturas/pt/ajustes-4-isla.png" width="380" alt="Seção Dynamic Island"><br>**Dynamic Island** |
+| <img src="capturas/pt/ajustes-5-dashboard.png" width="380" alt="Seção Dashboard"><br>**Dashboard** | <img src="capturas/pt/ajustes-6-uso.png" width="380" alt="Seção Uso"><br>**Uso** |
+| <img src="capturas/pt/ajustes-7-general.png" width="380" alt="Seção Geral"><br>**Geral** |  |
+
+<sub>A janela é a real; a área de trabalho desfocada atrás, os cantos arredondados, a sombra e os números de uso são recriados.</sub>
 
 ## Tema claro
 
-Escolha tema claro ou escuro em **Som e estilo**: o aviso e a janela de configurações usam esse tema, com a cor do seu
-estilo.
+Escolha tema escuro, claro ou destaque em **Geral**: o aviso, a janela de configurações e a Dynamic Island usam esse
+tema, com a cor do seu estilo.
 
 <img src="capturas/pt/ajustes-claro-sakura.png" width="620" alt="As configurações no tema claro com o estilo Sakura">
