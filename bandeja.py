@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Ícono de la mascota junto al reloj (en macOS, en la barra de menús).
 
-Click: abre los ajustes. Click derecho: probar un aviso, silenciar los avisos un rato,
+Click: abre los ajustes. Click derecho: probar un aviso, No molestar (silencia los avisos hasta que
+lo apagues) o silenciarlos una hora, prender la barra de sesiones de arriba al centro (barra.py),
 elegir si arranca con Windows o salir. Lo abre el acceso directo de la carpeta Inicio
 de Windows. En macOS el click abre el menú (como todos los íconos de la barra), arranca
 al iniciar sesión con un LaunchAgent y el menú suma "Desinstalar".
@@ -40,7 +41,7 @@ if m.MAC:  # macOS: un LaunchAgent que abre el ícono al iniciar sesión
     import instalador  # noqa: E402
     ACCESO_INICIO = instalador.acceso_inicio()
 CANAL_BANDEJA = m.CANAL + "-bandeja"
-INDEFINIDO = 4_102_444_800  # 1/1/2100: "hasta que lo reactive"
+INDEFINIDO = m.INDEFINIDO  # 1/1/2100: "hasta que lo reactive"
 
 
 def inicio_automatico() -> bool:
@@ -118,16 +119,21 @@ class Bandeja(QSystemTrayIcon):
         self.accion_probar = menu.addAction("")
         self.accion_probar.triggered.connect(self.probar)
         menu.addSeparator()
+        # No molestar: un interruptor que silencia los avisos (pantalla, sonido y Telegram) hasta apagarlo.
+        self.accion_no_molestar = menu.addAction("")
+        self.accion_no_molestar.setCheckable(True)
+        self.accion_no_molestar.toggled.connect(lambda activo: self.silenciar(INDEFINIDO if activo else 0))
         self.accion_hora = menu.addAction("")
         self.accion_hora.triggered.connect(lambda: self.silenciar(time.time() + 3600))
-        self.accion_siempre = menu.addAction("")
-        self.accion_siempre.triggered.connect(lambda: self.silenciar(INDEFINIDO))
         self.accion_reactivar = menu.addAction("")
         self.accion_reactivar.triggered.connect(lambda: self.silenciar(0))
         menu.addSeparator()
         self.accion_compania = menu.addAction("")
         self.accion_compania.setCheckable(True)
         self.accion_compania.toggled.connect(self.cambiar_modo)
+        self.accion_barra = menu.addAction("")
+        self.accion_barra.setCheckable(True)
+        self.accion_barra.toggled.connect(self.cambiar_barra)
         self.accion_inicio = menu.addAction("")
         self.accion_inicio.setCheckable(True)
         self.accion_inicio.toggled.connect(self.cambiar_inicio)
@@ -150,6 +156,7 @@ class Bandeja(QSystemTrayIcon):
         self.reloj.start()
         self.color = None
         self.nueva = None
+        self.barra = None
         self.actualizar()
         # Versiones nuevas: un rato después de arrancar (no compite con el inicio de Windows) y cada 3 horas.
         self.version_nueva.connect(self.al_encontrar_version)
@@ -184,9 +191,10 @@ class Bandeja(QSystemTrayIcon):
         config = m.cargar_config()
         idiomas.usar(config["idioma"])  # los textos siguen al idioma de los ajustes
         for accion, texto in ((self.accion_ajustes, "Abrir ajustes"), (self.accion_probar, "Probar aviso"),
+                              (self.accion_no_molestar, "No molestar"),
                               (self.accion_hora, "Silenciar por 1 hora"),
-                              (self.accion_siempre, "Silenciar hasta que los reactive"),
                               (self.accion_compania, "Modo compañera (fija en pantalla)"),
+                              (self.accion_barra, "Barra de sesiones (arriba al centro)"),
                               (self.accion_inicio, "Abrir al iniciar Windows"), (self.accion_salir, "Salir")):
             accion.setText(t(texto))
         if m.MAC:
@@ -203,23 +211,43 @@ class Bandeja(QSystemTrayIcon):
             self.icono_normal = icono_mascota(self.color)
             self.icono_gris = QIcon(self.icono_normal.pixmap(QSize(32, 32), QIcon.Mode.Disabled))
         self.setIcon(self.icono_gris if silenciada else self.icono_normal)
+        no_molestar = m.no_molestar_ahora(config)
         if not silenciada:
             estado = t("avisos activos")
-        elif config["silenciado_hasta"] >= INDEFINIDO:
-            estado = t("avisos silenciados")
+        elif no_molestar:
+            estado = t("No molestar")
         else:
             estado = t("silenciada hasta las {hora}",
                        hora=f"{datetime.fromtimestamp(config['silenciado_hasta']):%H:%M}")
         self.setToolTip(f"WaveMascot: {estado}" + (f"\n{t('Hay una versión nueva')}" if hay_nueva else ""))
         self.accion_hora.setVisible(not silenciada)
-        self.accion_siempre.setVisible(not silenciada)
-        self.accion_reactivar.setVisible(silenciada)
+        self.accion_reactivar.setVisible(silenciada and not no_molestar)  # silenciada por una hora
         self.accion_reactivar.setText(t("Reactivar avisos ({estado})", estado=estado))
         for accion, marcada in ((self.accion_inicio, inicio_automatico()),
-                                (self.accion_compania, config["modo"] == "compania")):
+                                (self.accion_compania, config["modo"] == "compania"),
+                                (self.accion_no_molestar, no_molestar),
+                                (self.accion_barra, config["barra"]["activa"])):
             accion.blockSignals(True)
             accion.setChecked(marcada)
             accion.blockSignals(False)
+        self.mostrar_barra(config["barra"]["activa"])
+
+    def mostrar_barra(self, activa: bool) -> None:
+        if activa and self.barra is None:
+            import barra
+            self.barra = barra.Barra()
+            self.barra.mostrar()
+            m.log("[bandeja] barra de sesiones abierta")
+        elif not activa and self.barra is not None:
+            self.barra.apagar()
+            self.barra.deleteLater()
+            self.barra = None
+
+    def cambiar_barra(self, activa: bool) -> None:
+        config = m.cargar_config()
+        config["barra"]["activa"] = activa
+        m.guardar_config(config)
+        self.actualizar()
 
     def al_activar(self, motivo) -> None:
         if m.MAC:  # en la barra de menús el click ya abre el menú, que empieza con "Abrir ajustes"

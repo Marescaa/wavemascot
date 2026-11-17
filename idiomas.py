@@ -12,21 +12,17 @@ IDIOMAS = {"en": "English", "es": "Español", "pt": "Português"}
 POR_DEFECTO = "en"
 _actual = POR_DEFECTO
 
-
 def usar(idioma: str | None) -> None:
     global _actual
     _actual = idioma if idioma in IDIOMAS else POR_DEFECTO
 
-
 def actual() -> str:
     return _actual
-
 
 def t(texto: str, **datos) -> str:
     if _actual != "es":
         texto = TEXTOS.get(texto, {}).get(_actual, texto)
     return texto.format(**datos) if datos else texto
-
 
 TEXTOS: dict[str, dict[str, str]] = {
     # --- ajustes: barra lateral, tabla de eventos, probador y sonidos nuevos -----------
@@ -50,14 +46,11 @@ TEXTOS: dict[str, dict[str, str]] = {
     "Pajarito": {"en": "Birdie", "pt": "Passarinho"},
     "Pantalla": {"en": "Screen", "pt": "Tela"},
     "Para recibir avisos en el celular, conectá Telegram.": {"en": "To get alerts on your phone, connect Telegram.", "pt": "Para receber avisos no celular, conecte o Telegram."},
-    "Próximamente": {"en": "Coming soon", "pt": "Em breve"},
     "Qué avisos te llegan": {"en": "Which alerts you get", "pt": "Quais avisos chegam"},
     "Retro": {"en": "Retro", "pt": "Retrô"},
     "Siguiente": {"en": "Next", "pt": "Próximo"},
     "Toc toc": {"en": "Knock knock", "pt": "Toc toc"},
     "Tocá un evento para verlo en la vista previa.": {"en": "Click an event to see it in the preview.", "pt": "Clique em um evento para vê-lo na pré-visualização."},
-    "Wave Classic": {"en": "Wave Classic", "pt": "Wave Classic"},
-    "Wave NextGen": {"en": "Wave NextGen", "pt": "Wave NextGen"},
     # --- avisos de la mascota --------------------------------------------------------
     "¡Listo!": {"en": "Done!", "pt": "Pronto!"},
     "¡Listo! Terminé": {"en": "Done! All finished", "pt": "Pronto! Terminei"},
@@ -91,7 +84,6 @@ TEXTOS: dict[str, dict[str, str]] = {
     "Ocultar hasta el próximo aviso": {"en": "Hide until the next notice", "pt": "Ocultar até o próximo aviso"},
     "Probar aviso": {"en": "Test notice", "pt": "Testar aviso"},
     "Silenciar por 1 hora": {"en": "Mute for 1 hour", "pt": "Silenciar por 1 hora"},
-    "Silenciar hasta que los reactive": {"en": "Mute until I turn them back on", "pt": "Silenciar até eu reativar"},
     "Reactivar avisos ({estado})": {"en": "Turn notices back on ({estado})", "pt": "Reativar avisos ({estado})"},
     "Modo compañera (fija en pantalla)": {"en": "Companion mode (stays on screen)",
                                           "pt": "Modo companheira (fica na tela)"},
@@ -100,7 +92,6 @@ TEXTOS: dict[str, dict[str, str]] = {
     "Desinstalar {nombre}…": {"en": "Uninstall {nombre}…", "pt": "Desinstalar {nombre}…"},
     "Salir": {"en": "Quit", "pt": "Sair"},
     "avisos activos": {"en": "notices on", "pt": "avisos ativos"},
-    "avisos silenciados": {"en": "notices muted", "pt": "avisos silenciados"},
     "silenciada hasta las {hora}": {"en": "muted until {hora}", "pt": "silenciada até as {hora}"},
     "Prueba desde el ícono": {"en": "Test from the tray icon", "pt": "Teste pelo ícone"},
     "Prueba desde ajustes": {"en": "Test from settings", "pt": "Teste pelas configurações"},
@@ -197,6 +188,10 @@ TEXTOS: dict[str, dict[str, str]] = {
     "Animaciones de reposo al azar": {"en": "Random idle animations", "pt": "Animações aleatórias em repouso"},
     "Los ojos siguen al cursor": {"en": "Eyes follow the cursor", "pt": "Os olhos seguem o cursor"},
     "No molestar": {"en": "Do not disturb", "pt": "Não perturbe"},
+    "Silencio automático": {"en": "Automatic silence", "pt": "Silêncio automático"},
+    "Silencia todos los avisos (pantalla, sonido y Telegram) hasta que lo apagues": {
+        "en": "Mutes every notification (screen, sound and Telegram) until you turn it off",
+        "pt": "Silencia todos os avisos (tela, som e Telegram) até você desligar"},
     "Silenciar entre": {"en": "Mute between", "pt": "Silenciar entre"},
     "y": {"en": "and", "pt": "e"},
     "Escribí la hora o cambiala con la ruedita del mouse o las flechas": {
@@ -284,6 +279,7 @@ TEXTOS: dict[str, dict[str, str]] = {
     "Sakura": {"en": "Sakura", "pt": "Sakura"},
     "Ninja": {"en": "Ninja", "pt": "Ninja"},
     "Robot": {"en": "Robot", "pt": "Robô"},
+    "Hamburguesa": {"en": "Burger", "pt": "Hambúrguer"},
     "Cambia la cara de la mascota y cómo aparece, festeja y se va. El vestuario se mantiene.": {
         "en": "Changes the mascot's face and how it shows up, celebrates and leaves. The outfit stays.",
         "pt": "Muda o rosto do mascote e como ele aparece, comemora e vai embora. A roupa continua."},
@@ -548,4 +544,217 @@ TEXTOS: dict[str, dict[str, str]] = {
               "diálogo de sempre no terminal. As perguntas do Claude são respondidas no terminal."},
     "Permitido desde Telegram ✓": {"en": "Allowed from Telegram ✓", "pt": "Permitido pelo Telegram ✓"},
     "Denegado desde Telegram": {"en": "Denied from Telegram", "pt": "Negado pelo Telegram"},
+    # Dashboard y Uso (paneles.py)
+    "Analizando…": {
+        "en": "Analyzing…",
+        "pt": "Analisando…"},
+    "Dashboard": {
+        "en": "Dashboard",
+        "pt": "Dashboard"},
+    "Entrada": {
+        "en": "Input",
+        "pt": "Entrada"},
+    "Hacen falta más turnos para medirla": {
+        "en": "More turns are needed to measure it",
+        "pt": "Faltam mais turnos para medir"},
+    "Hoy": {
+        "en": "Today",
+        "pt": "Hoje"},
+    "Salida": {
+        "en": "Output",
+        "pt": "Saída"},
+    "Todavía no hay datos": {
+        "en": "No data yet",
+        "pt": "Ainda não há dados"},
+    "Uso": {
+        "en": "Usage",
+        "pt": "Uso"},
+    "ahora": {
+        "en": "now",
+        "pt": "agora"},
+    "hoy": {
+        "en": "today",
+        "pt": "hoje"},
+    "{n} por minuto ahora": {
+        "en": "{n} per minute now",
+        "pt": "{n} por minuto agora"},
+    "Últimas 5 horas": {
+        "en": "Last 5 hours",
+        "pt": "Últimas 5 horas"},
+    "Últimos 7 días": {
+        "en": "Last 7 days",
+        "pt": "Últimos 7 dias"},
+    "1 día": {"en": "1 day", "pt": "1 dia"},
+    "1 mes": {"en": "1 month", "pt": "1 mês"},
+    "5 h": {"en": "5 h", "pt": "5 h"},
+    "6 meses": {"en": "6 months", "pt": "6 meses"},
+    "7 días": {"en": "7 days", "pt": "7 dias"},
+    "Claude trabajando": {"en": "Claude working", "pt": "Claude trabalhando"},
+    "Desde la caché": {"en": "From cache", "pt": "Do cache"},
+    "En vivo": {"en": "Live", "pt": "Ao vivo"},
+    "Error típico: {n}": {"en": "Typical error: {n}", "pt": "Erro típico: {n}"},
+    "Modelos": {"en": "Models", "pt": "Modelos"},
+    "Precisión del tiempo estimado": {"en": "Time estimate accuracy", "pt": "Precisão do tempo estimado"},
+    "Proyectos": {"en": "Projects", "pt": "Projetos"},
+    "Proyectos de la semana": {"en": "This week's projects", "pt": "Projetos da semana"},
+    "Sesiones": {"en": "Sessions", "pt": "Sessões"},
+    "contra ayer": {"en": "vs yesterday", "pt": "contra ontem"},
+    "contra el lapso anterior": {"en": "vs the previous period", "pt": "contra o período anterior"},
+    "hace 24 h": {"en": "24 h ago", "pt": "há 24 h"},
+    "hace 30 días": {"en": "30 days ago", "pt": "há 30 dias"},
+    "hace 5 h": {"en": "5 h ago", "pt": "há 5 h"},
+    "hace 6 meses": {"en": "6 months ago", "pt": "há 6 meses"},
+    "hace 7 días": {"en": "7 days ago", "pt": "há 7 dias"},
+    "Últimas 24 horas": {"en": "Last 24 hours", "pt": "Últimas 24 horas"},
+    "Últimos 30 días": {"en": "Last 30 days", "pt": "Últimos 30 dias"},
+    "Últimos 6 meses": {"en": "Last 6 months", "pt": "Últimos 6 meses"},
+    # Dynamic Island (ajustes)
+    'Al estirarla': {
+        "en": 'When expanded',
+        "pt": 'Ao esticar'},
+    'Al hacer clic': {
+        "en": 'On click',
+        "pt": 'Ao clicar'},
+    'Al pasar el mouse': {
+        "en": 'On hover',
+        "pt": 'Ao passar o mouse'},
+    'Al pie, con un clic se abre la sección Uso.': {
+        "en": 'At the bottom; one click opens the Usage section.',
+        "pt": 'No rodapé; um clique abre a seção Uso.'},
+    'Cantidad de sesiones': {
+        "en": 'Number of sessions',
+        "pt": 'Quantidade de sessões'},
+    'Centro': {
+        "en": 'Center',
+        "pt": 'Centro'},
+    'Cuánto tapa el vidrio': {
+        "en": 'How much the glass covers',
+        "pt": 'Quanto o vidro cobre'},
+    'Derecha': {
+        "en": 'Right',
+        "pt": 'Direita'},
+    'Desenfocar lo de atrás': {
+        "en": 'Blur what is behind',
+        "pt": 'Desfocar o que está atrás'},
+    'Despiertos si Claude trabaja, tranquilos si espera y cerrados si no hay sesiones. Apagado, queda un punto de color.': {
+        "en": 'Awake while Claude works, calm while it waits and closed when there are no sessions. Off, a colored dot is shown instead.',
+        "pt": 'Acordados quando o Claude trabalha, tranquilos quando espera e fechados se não há sessões. Desligado, fica um ponto colorido.'},
+    'Dynamic Island': {
+        "en": 'Dynamic Island',
+        "pt": 'Dynamic Island'},
+    'Dónde va': {
+        "en": 'Position',
+        "pt": 'Onde fica'},
+    'En Windows. Apagado, el vidrio es casi opaco para que el texto de atrás no se mezcle.': {
+        "en": 'On Windows. Off, the glass is almost opaque so the text behind does not blend in.',
+        "pt": 'No Windows. Desligado, o vidro fica quase opaco para o texto de trás não se misturar.'},
+    'En la pastilla': {
+        "en": 'In the pill',
+        "pt": 'Na pílula'},
+    'Esconderla si hay algo en pantalla completa': {
+        "en": 'Hide it when something is full screen',
+        "pt": 'Escondê-la se houver algo em tela cheia'},
+    'Estirarse rebotando, como un líquido': {
+        "en": 'Expand with a bounce, like a liquid',
+        "pt": 'Esticar quicando, como um líquido'},
+    'Izquierda': {
+        "en": 'Left',
+        "pt": 'Esquerda'},
+    'Juegos, videos y presentaciones. Una ventana maximizada no cuenta.': {
+        "en": 'Games, videos and presentations. A maximized window does not count.',
+        "pt": 'Jogos, vídeos e apresentações. Uma janela maximizada não conta.'},
+    'La pastilla de vidrio de arriba de la pantalla: muestra tus sesiones de Claude Code y se estira para ver el detalle. Los cambios se ven al instante.': {
+        "en": 'The glass pill at the top of the screen: it shows your Claude Code sessions and expands to show the details. Changes apply instantly.',
+        "pt": 'A pílula de vidro no topo da tela: mostra suas sessões do Claude Code e se estica para ver os detalhes. As mudanças aparecem na hora.'},
+    'Latido de color mientras Claude trabaja': {
+        "en": 'Color pulse while Claude works',
+        "pt": 'Pulso de cor enquanto o Claude trabalha'},
+    'Los ojos de tu mascota': {
+        "en": "Your mascot's eyes",
+        "pt": 'Os olhos do seu mascote'},
+    'Los ojos siguen al mouse': {
+        "en": 'The eyes follow the mouse',
+        "pt": 'Os olhos seguem o mouse'},
+    'Mostrar la Dynamic Island': {
+        "en": 'Show the Dynamic Island',
+        "pt": 'Mostrar a Dynamic Island'},
+    'Se estira': {
+        "en": 'Expands',
+        "pt": 'Se estica'},
+    'Sesiones a la vista': {
+        "en": 'Sessions shown',
+        "pt": 'Sessões à vista'},
+    'Tiempo que falta': {
+        "en": 'Time left',
+        "pt": 'Tempo que falta'},
+    'Trabajando': {
+        "en": 'Working',
+        "pt": 'Trabalhando'},
+    'Un clic en una sesión trae su ventana al frente': {
+        "en": 'Clicking a session brings its window to the front',
+        "pt": 'Um clique numa sessão traz a janela dela para a frente'},
+    'Una estimación con tus turnos anteriores; se corrige sola mientras Claude trabaja.': {
+        "en": 'An estimate from your previous turns; it corrects itself while Claude works.',
+        "pt": 'Uma estimativa com seus turnos anteriores; ela se corrige sozinha enquanto o Claude trabalha.'},
+    'Uso de 5 horas y 7 días': {
+        "en": 'Usage for 5 hours and 7 days',
+        "pt": 'Uso de 5 horas e 7 dias'},
+    'Vidrio y movimiento': {
+        "en": 'Glass and motion',
+        "pt": 'Vidro e movimento'},
+    # --- Dynamic Island, Dashboard, Uso y No molestar ---------------------------------
+    '1 agente': {
+        "en": '1 agent',
+        "pt": '1 agente'},
+    '1 sesión': {
+        "en": '1 session',
+        "pt": '1 sessão'},
+    'Barra de sesiones (arriba al centro)': {
+        "en": 'Sessions bar (top center)',
+        "pt": 'Barra de sessões (no topo, ao centro)'},
+    'En espera': {
+        "en": 'Waiting',
+        "pt": 'Em espera'},
+    'No hay sesiones de Claude Code en la última media hora': {
+        "en": 'No Claude Code sessions in the last half hour',
+        "pt": 'Nenhuma sessão do Claude Code na última meia hora'},
+    'Pensando {tiempo}': {
+        "en": 'Thinking {tiempo}',
+        "pt": 'Pensando {tiempo}'},
+    'Sesiones de Claude Code': {
+        "en": 'Claude Code sessions',
+        "pt": 'Sessões do Claude Code'},
+    'Sin sesiones activas': {
+        "en": 'No active sessions',
+        "pt": 'Sem sessões ativas'},
+    'aprendiendo tus tiempos': {
+        "en": 'learning your timings',
+        "pt": 'aprendendo seus tempos'},
+    'en espera': {
+        "en": 'waiting',
+        "pt": 'em espera'},
+    'faltan': {
+        "en": 'left',
+        "pt": 'faltam'},
+    'hace {tiempo}': {
+        "en": '{tiempo} ago',
+        "pt": 'há {tiempo}'},
+    'más de lo normal': {
+        "en": 'longer than usual',
+        "pt": 'mais que o normal'},
+    'sesión {tiempo}': {
+        "en": 'session {tiempo}',
+        "pt": 'sessão {tiempo}'},
+    'y {n} más': {
+        "en": 'and {n} more',
+        "pt": 'e mais {n}'},
+    '{n} agentes': {
+        "en": '{n} agents',
+        "pt": '{n} agentes'},
+    '{n} sesiones': {
+        "en": '{n} sessions',
+        "pt": '{n} sessões'},
+    '{tokens} tokens': {
+        "en": '{tokens} tokens',
+        "pt": '{tokens} tokens'},
 }

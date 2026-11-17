@@ -41,7 +41,7 @@ except ImportError:  # sin idiomas.py al lado (p. ej. un desinstalador copiado s
     def t(texto: str, **datos) -> str:
         return texto.format(**datos) if datos else texto
 
-VERSION = "1.3.1"
+VERSION = "1.4.0"
 NOMBRE = "WaveMascot"
 CONGELADO = getattr(sys, "frozen", False)
 MAC = sys.platform == "darwin"
@@ -62,7 +62,7 @@ HOOKS = {
 }
 ARCHIVOS_FUENTE = ("mascota.py", "ajustes.py", "bandeja.py", "sprites.py", "ventanas.py", "instalador.py",
                    "idiomas.py", "celular.py", "actualizacion.py", "marco.py",
-                   "animacion.py")
+                   "animacion.py", "seguimiento.py", "barra.py", "estadisticas.py", "paneles.py", "ojos.py")
 
 
 class ErrorInstalacion(Exception):

@@ -1,4 +1,4 @@
-"""Estilos de la mascota (Clásico, Sakura, Ninja, Robot): python -m unittest discover tests
+"""Estilos de la mascota (Clásico, Sakura, Ninja, Robot, Hamburguesa): python -m unittest discover tests
 
 Se dibuja todo en memoria con Pillow; no se escribe nada en ~/.wavemascot.
 """
@@ -45,7 +45,7 @@ class Aspecto(unittest.TestCase):
 
     def test_solo_el_clasico_entra_sin_animacion_propia(self):
         self.assertFalse(sprites.tiene_entrada({"estilo": "clasico"}))
-        for estilo in ("sakura", "ninja", "robot"):
+        for estilo in ("sakura", "ninja", "robot", "hamburguesa"):
             self.assertTrue(sprites.tiene_entrada({"estilo": estilo}))
 
 
@@ -65,7 +65,7 @@ class Dibujo(unittest.TestCase):
                         self.assertTrue(all(c.size == (sprites.LADO, sprites.LADO) for c in cuadros))
 
     def test_entradas_y_salidas_tienen_el_tramo_que_se_desliza(self):
-        for estilo in ("sakura", "ninja", "robot"):
+        for estilo in ("sakura", "ninja", "robot", "hamburguesa"):
             a = sprites.con_estilo({}, estilo)
             for estado in ("entrada", "salida"):
                 cuadros, _ = sprites.ESTADOS[estado](a)
@@ -86,6 +86,14 @@ class Dibujo(unittest.TestCase):
             lz = sprites.lienzo(a)
             sprites.mascota(lz, a)
             self.assertIn(color, lz.img.tobytes(), estilo)
+
+    def test_la_hamburguesa_tiene_carne_queso_y_lechuga(self):
+        for tapa in (0, 4):
+            a = sprites.con_estilo({}, "hamburguesa")
+            lz = sprites.lienzo(a)
+            sprites.mascota(lz, a, tapa=tapa)
+            for color in (sprites.CARNE, sprites.CHISPA, sprites.HOJA, sprites.CUERPO):
+                self.assertIn(color, lz.img.tobytes(), (tapa, color))
 
     def test_la_piel_del_ninja_cambia_el_color_de_la_cara(self):
         for piel, (_, rgb) in sprites.PIELES.items():

@@ -52,10 +52,12 @@ PALETA = [
     (240, 204, 170),  # piel (la cara del ninja; la reemplaza el tono elegido)
     (94, 234, 255),   # luz de los ojos del robot
     (255, 150, 40),   # fuego de los cohetes
+    (134, 76, 46),    # carne de la hamburguesa
+    (92, 50, 30),     # carne oscura
 ]
 (TRANSP, CONT, CUERPO, SOMBRA, BRILLO, CREMA, RUBOR, CHISPA, BLANCO, AZUL, VERDE, VIOLETA,
  ROJO, NUBE, NUBE_OSC, CHISPA_OFF, HOJA, HOJA_OFF, ROJO_OSC, AZUL_ROPA, AZUL_OSC, ORO_OSC,
- OSCURO, PIEL, LED, FUEGO) = range(len(PALETA))
+ OSCURO, PIEL, LED, FUEGO, CARNE, CARNE_OSC) = range(len(PALETA))
 
 # Opciones del vestuario: id -> nombre visible.
 COLORES = {  # nombre, cuerpo, sombra, brillo
@@ -77,8 +79,9 @@ COLORES = {  # nombre, cuerpo, sombra, brillo
 ORDEN_COLORES = ["carmesi", "terracota", "naranja", "amarillo", "bosque", "menta", "celeste", "noche", "lavanda",
                  "rosa", None, "grafito", "acero", "sombra"]
 # Estilos: cambian la cara de la mascota y cómo aparece, festeja y se va. Cada uno guarda su color.
-ESTILOS = {"clasico": "Clásico", "sakura": "Sakura", "ninja": "Ninja", "robot": "Robot"}
-COLOR_SUGERIDO = {"clasico": "terracota", "sakura": "rosa", "ninja": "sombra", "robot": "acero"}
+ESTILOS = {"clasico": "Clásico", "sakura": "Sakura", "ninja": "Ninja", "robot": "Robot", "hamburguesa": "Hamburguesa"}
+COLOR_SUGERIDO = {"clasico": "terracota", "sakura": "rosa", "ninja": "sombra", "robot": "acero",
+                  "hamburguesa": "naranja"}
 PIELES = {"clara": ("Clara", (240, 204, 170)), "triguena": ("Trigueña", (222, 176, 134)),
           "morena": ("Morena", (176, 124, 88)), "oscura": ("Oscura", (118, 80, 56))}
 # Colores propios de cada estilo: contorno, borde claro de afuera (CREMA) y rubor.
@@ -87,8 +90,9 @@ PALETA_ESTILO = {
     "sakura": {CONT: (74, 30, 56), CREMA: (255, 236, 244), RUBOR: (255, 128, 166)},
     "ninja": {CONT: (6, 6, 8), CREMA: (118, 122, 138)},
     "robot": {CONT: (18, 22, 30), CREMA: (214, 224, 234)},
+    "hamburguesa": {CONT: (58, 30, 18)},
 }
-CON_ENTRADA = ("sakura", "ninja", "robot")  # el Clásico entra y sale solo deslizándose
+CON_ENTRADA = ("sakura", "ninja", "robot", "hamburguesa")  # el Clásico entra y sale solo deslizándose
 CUADROS_DESLIZ = 8  # cuadros de la entrada (los primeros) y de la salida (los últimos) que van deslizándose
 CABEZAS = {"chispa": "Chispa", "hoja": "Brote", "luna": "Luna", "orejas": "Orejas",
            "gorro": "Gorro", "galera": "Galera", "corona": "Corona", "gorra": "Gorra", "nada": "Nada"}
@@ -581,23 +585,119 @@ def cara_robot(lz, c, tipo, boca_tipo, mirada):
             lz.px(x + 1 if lado < 0 else x - 1, yy + 1, CONT)
 
 
+def cuerpo_hamburguesa(lz, c, tapa=0):
+    """En vez del cuerpo redondo: pan de abajo, carne, queso, lechuga y el pan de arriba con sésamo, que es
+    donde va la cara. tapa: cuánto se levanta el pan de arriba (al festejar o saludar).
+    Devuelve (arriba, fila de los ojos) del pan de arriba."""
+    cx, b, w = c.cx, c.abajo, c.mitad
+    pix = {}
+
+    def fila(y, medio, color):
+        for x in range(cx - medio, cx + medio + 1):
+            pix[(x, y)] = color
+
+    fila(b - 1, w - 3, SOMBRA)  # pan de abajo
+    fila(b - 2, w - 2, CUERPO)
+    fila(b - 3, w - 2, CONT)
+    fila(b - 4, w - 1, CARNE_OSC)  # carne
+    fila(b - 5, w - 1, CARNE)
+    fila(b - 6, w - 1, CARNE)
+    for x in (cx - w + 4, cx - 1, cx + w - 4):  # marcas de la parrilla
+        pix[(x, b - 5)] = CARNE_OSC
+    fila(b - 7, w, CHISPA)  # queso, con las puntas y dos gotas que chorrean
+    for x, y in ((cx - w, b - 6), (cx + w, b - 6), (cx - 4, b - 6), (cx - 4, b - 5), (cx + 3, b - 6)):
+        pix[(x, y)] = CHISPA
+    pix[(cx - 4, b - 5)] = ORO_OSC
+    for x in range(cx - w - 1, cx + w + 2):  # lechuga con ondas
+        pix[(x, b - 8)] = VERDE if (x - cx) % 3 == 0 else HOJA
+    pix[(cx - w - 1, b - 7)] = pix[(cx + w + 1, b - 7)] = HOJA
+
+    base = b - 9 - tapa  # pan de arriba: una cúpula ancha
+    arriba = c.arriba - tapa
+    alto = base - arriba
+    for y in range(arriba, base + 1):
+        t = (y - (base - 1)) / (alto - 0.5) if y < base - 1 else 0
+        medio = w - 1 if y == base else round(w * max(0.0, 1 - abs(t) ** 2.6) ** (1 / 2.6) - 0.3)
+        for x in range(cx - medio, cx + medio + 1):
+            if y == base:
+                color = SOMBRA
+            elif x == cx + medio or (x == cx + medio - 1 and y >= base - 2):
+                color = SOMBRA
+            else:
+                color = CUERPO
+            pix[(x, y)] = color
+    if not tapa:  # la lechuga asoma por debajo del pan
+        for x in range(cx - w + 1, cx + w, 3):
+            pix[(x, base)] = HOJA
+    escala = w / 12
+    for i, (bx, by) in enumerate(((-6, 3), (-2, 1), (3, 2), (7, 4))):  # sésamo
+        x, y = cx + round(bx * escala), arriba + min(by, max(1, alto // 3))
+        for p in ((x, y), (x + 1, y)):
+            if p in pix:
+                pix[p] = CREMA
+    for p in ((cx - w + 3, arriba + 3), (cx - w + 2, arriba + 4), (cx - w + 4, arriba + 2)):  # brillo
+        if pix.get(p) == CUERPO:
+            pix[p] = BRILLO
+
+    dentro = set(pix)
+    lz.pxs({(x + dx, y + dy) for x, y in dentro for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))} - dentro, CONT)
+    for (x, y), color in pix.items():
+        lz.px(x, y, color)
+    return arriba, arriba + max(3, round(alto * 0.55))
+
+
+def ojo_hamburguesa(tipo, c, e):
+    """Hamburguesa: ojos redondos y brillosos."""
+    if tipo in ("abierto", "grande"):
+        oscuro = rect(c - 1, e - 1, c + 1, e + 1) + ([(c, e - 2)] if tipo == "grande" else [])
+        return oscuro, [(c - 1, e - 1)]
+    return ojo(tipo, c, e)
+
+
+def palillo(lz, c, inclinacion, chispa, color_chispa):
+    """En la hamburguesa la chispa de la antena es un palillo con banderita."""
+    cx, arriba = c.cx, c.arriba
+    if inclinacion == "caida":
+        palo = [(cx + 1, arriba - 1), (cx + 1, arriba - 2), (cx, arriba - 3), (cx - 1, arriba - 4),
+                (cx - 2, arriba - 5), (cx - 3, arriba - 6)]
+        lz.pxs(palo, ORO_OSC)
+        caida = [(-1, 0), (-2, 0), (-1, 1), (-2, 1), (-1, 2), (-2, 2), (-2, 3)]  # la banderita cuelga, mustia
+        lz.figura([(cx - 3 + a, arriba - 6 + b) for a, b in caida], ROJO_OSC)
+        return
+    x0 = cx + 1
+    palo = [(x0, arriba - 1), (x0, arriba - 2), (x0 + inclinacion, arriba - 3), (x0 + inclinacion, arriba - 4),
+            (x0 + inclinacion, arriba - 5), (x0 + inclinacion, arriba - 6)]
+    lz.pxs(palo, ORO_OSC)
+    x, y = x0 + inclinacion + 1, arriba - 6
+    bandera = rect(x, y, x + 3, y + 2)
+    if chispa != "mas":  # flamea
+        bandera = [p for p in bandera if p != (x + 3, y)] + [(x + 3, y + 3)]
+    lz.figura(bandera, ROJO)
+    lz.px(x + 1, y + 1, BLANCO if color_chispa == BLANCO else CREMA)
+    lz.px(x0 + inclinacion, arriba - 7, CREMA)
+
+
 def mascota(lz, aspecto, *, dy=0, ancho=25, alto=21, ojos="abierto", boca_tipo="sonrisa",
             brazos=("abajo", "abajo"), inclinacion=0, chispa="mas", color_chispa=CHISPA,
-            rubor=True, lagrima=None, en_aire=False, mirada=(0, 0), dx=0, pies=None, fase=0):
+            rubor=True, lagrima=None, en_aire=False, mirada=(0, 0), dx=0, pies=None, fase=0, tapa=0):
     """Dibuja la mascota con su estilo y su vestuario, y devuelve su geometría para ubicar efectos.
 
     mirada (-1..1, -1..1) corre los ojos un pixel hacia donde mira.
     pies (izq, der): altura de cada pie respecto del suelo (negativo = levantado), para caminar.
-    fase: cuadro de la animación, para lo que se mueve solo (las colas de la vincha del ninja)."""
+    fase: cuadro de la animación, para lo que se mueve solo (las colas de la vincha del ninja).
+    tapa: en la hamburguesa, cuánto se levanta el pan de arriba (con la cara y lo que lleva en la cabeza)."""
     c = Cuerpo(dy, ancho, alto, dx)
     cabeza, ropa = aspecto["cabeza"], aspecto["ropa"]
     estilo = aspecto.get("estilo", "clasico")
+    hamburguesa = estilo == "hamburguesa"
     cara_propia = estilo in ("ninja", "robot")  # máscara o visor en vez de ojos y boca
     if cara_propia:
         rubor = False
 
     def adornos_cabeza():
-        if cabeza in ("chispa", "hoja", "luna"):
+        if cabeza == "chispa" and hamburguesa:
+            palillo(lz, c, inclinacion, chispa, color_chispa)
+        elif cabeza in ("chispa", "hoja", "luna"):
             (antena_sakura if estilo == "sakura" else antena)(lz, cabeza, c, inclinacion, chispa, color_chispa)
         elif cabeza in ("gorro", "galera", "corona", "gorra"):
             sombrero(lz, cabeza, c)
@@ -614,10 +714,13 @@ def mascota(lz, aspecto, *, dy=0, ancho=25, alto=21, ojos="abierto", boca_tipo="
     if cabeza == "orejas":
         orejas(lz, c, inclinacion == "caida", 0 if inclinacion == "caida" else inclinacion)
 
-    lz.elipse((c.izq, c.arriba, c.der, c.abajo), CONT)  # cuerpo con sombra abajo a la derecha
-    lz.elipse((c.izq + 1, c.arriba + 1, c.der - 1, c.abajo - 1), SOMBRA)
-    lz.elipse((c.izq + 1, c.arriba + 1, c.der - 2, c.abajo - 3), CUERPO)
-    lz.elipse((c.izq + 4, c.arriba + 3, c.izq + 8, c.arriba + 5), BRILLO)
+    if hamburguesa:
+        c.arriba, c.ey = cuerpo_hamburguesa(lz, c, tapa)  # la cara y la cabeza van en el pan de arriba
+    else:
+        lz.elipse((c.izq, c.arriba, c.der, c.abajo), CONT)  # cuerpo con sombra abajo a la derecha
+        lz.elipse((c.izq + 1, c.arriba + 1, c.der - 1, c.abajo - 1), SOMBRA)
+        lz.elipse((c.izq + 1, c.arriba + 1, c.der - 2, c.abajo - 3), CUERPO)
+        lz.elipse((c.izq + 4, c.arriba + 3, c.izq + 8, c.arriba + 5), BRILLO)
 
     if ropa == "remera":
         remera(lz, c)
@@ -628,14 +731,14 @@ def mascota(lz, aspecto, *, dy=0, ancho=25, alto=21, ojos="abierto", boca_tipo="
 
     mx, my = mirada
     if not cara_propia:
-        forma_ojo = ojo_sakura if estilo == "sakura" else ojo
+        forma_ojo = {"sakura": ojo_sakura, "hamburguesa": ojo_hamburguesa}.get(estilo, ojo)
         oscuro, blanco = forma_ojo(ojos, c.ex + mx, c.ey + my)
         oscuro_der, blanco_der = forma_ojo(ojos, c.ex - mx, c.ey + my)  # el espejo invierte x: se compensa
         lz.pxs(oscuro + espejo(oscuro_der, c.cx), CONT)
         lz.pxs(blanco + espejo(blanco_der, c.cx), BLANCO)
         if cabeza == "orejas" and boca_tipo == "sonrisa":
             boca_tipo = "gato"
-        oscuro, rosa = boca(boca_tipo, c.cx, c.ey + 4)
+        oscuro, rosa = boca(boca_tipo, c.cx, c.ey + (3 if hamburguesa else 4))
         lz.pxs(oscuro, CONT)
         lz.pxs(rosa, RUBOR)
     if rubor:
@@ -1145,6 +1248,19 @@ def cuadros_entrada(aspecto):
                                                       (0, 25, 21, ("abajo", "ola2"))]):
             cs.append(cuadro_estilo(aspecto, dy=dy, ancho=ancho, alto=alto, ojos="feliz", brazos=brazos, en_aire=dy < 0,
                                     despues=lambda lz, c, f=f: petalos(lz, 8 + f, 8)))
+    elif estilo == "hamburguesa":
+        for i in range(CUADROS_DESLIZ):  # llega dando saltitos; la tapa del pan rebota en cada salto
+            dy, ancho, alto, tapa = ((0, 28, 19, 0), (-3, 24, 23, 0), (-5, 25, 21, 1), (-3, 25, 22, 2))[i % 4]
+            cs.append(cuadro_estilo(aspecto, dy=dy, ancho=ancho, alto=alto, tapa=tapa, mirada=(-1, 0),
+                                    en_aire=dy < 0, inclinacion=(0, -1, 0, 1)[i % 4],
+                                    brazos=("lado", "lado") if dy < 0 else ("abajo", "abajo")))
+        for dy, ancho, alto, tapa, ojos, brazos in [(0, 29, 18, 0, "abierto", ("abajo", "abajo")),
+                                                    (0, 26, 20, 0, "abierto", ("abajo", "abajo")),
+                                                    (0, 25, 21, 2, "feliz", ("abajo", "ola1")),
+                                                    (0, 25, 21, 3, "feliz", ("abajo", "ola2")),
+                                                    (0, 25, 21, 2, "feliz", ("abajo", "ola1")),
+                                                    (0, 25, 21, 0, "feliz", ("abajo", "abajo"))]:
+            cs.append(cuadro_estilo(aspecto, dy=dy, ancho=ancho, alto=alto, tapa=tapa, ojos=ojos, brazos=brazos))
     else:
         raise ValueError(f"el estilo {estilo!r} no tiene entrada propia")
     return cs, ms
@@ -1180,6 +1296,15 @@ def cuadros_salida(aspecto):
             dy = -7 + (0, -1, -1, 0)[i % 4]
             cs.append(cuadro_estilo(aspecto, dy=dy, en_aire=True, ojos="feliz", brazos=("lado", "lado"),
                                     despues=lambda lz, c, i=i: estela_petalos(lz, i, -1)))
+    elif estilo == "hamburguesa":
+        for tapa, brazos in ((2, ("abajo", "ola1")), (3, ("abajo", "ola2")), (0, ("abajo", "abajo"))):
+            cs.append(cuadro_estilo(aspecto, tapa=tapa, ojos="feliz", brazos=brazos))  # se despide con la tapa
+        cs.append(cuadro_estilo(aspecto, ancho=29, alto=18, mirada=(1, 0)))
+        for i in range(CUADROS_DESLIZ):  # y se va dando saltitos
+            dy, ancho, alto, tapa = ((-3, 24, 23, 0), (-5, 25, 21, 1), (-3, 25, 22, 2), (0, 28, 19, 0))[i % 4]
+            cs.append(cuadro_estilo(aspecto, dy=dy, ancho=ancho, alto=alto, tapa=tapa, mirada=(1, 0),
+                                    en_aire=dy < 0, inclinacion=(0, 1, 0, -1)[i % 4],
+                                    brazos=("lado", "lado") if dy < 0 else ("abajo", "abajo")))
     else:
         raise ValueError(f"el estilo {estilo!r} no tiene salida propia")
     return cs, ms
@@ -1231,7 +1356,34 @@ def cuadros_listo_robot(aspecto):
     return cs, 85
 
 
-LISTO_ESTILO = {"ninja": cuadros_listo_ninja, "sakura": cuadros_listo_sakura, "robot": cuadros_listo_robot}
+def sesamo(lz, t, cx=CX, cy=13):
+    """Semillitas de sésamo que saltan de arriba del pan y caen por los costados (t: cuadros desde que saltaron)."""
+    for i, (vx, vy) in enumerate(((-2.4, -2.0), (2.2, -2.4), (-1.5, -2.8), (1.4, -1.7), (-3.2, -1.2), (3.3, -1.4))):
+        x, y = round(cx + vx * t * 1.6), round(cy + vy * t * 1.6 + 0.75 * t * t)
+        semilla = [(x, y), (x + 1, y)] if (t + i) % 2 else [(x, y), (x, y + 1)]
+        libre = all(0 <= a < LADO and 0 <= b < LADO and lz.img.getpixel((a, b)) == TRANSP for a, b in semilla)
+        if 0 < y < SUELO - 1 and t > 1 and libre:  # nunca encima de la hamburguesa
+            lz.figura(semilla, CREMA)
+
+
+def cuadros_listo_hamburguesa(aspecto):
+    """Salta, se le levanta la tapa del pan con un saludo y le saltan las semillitas."""
+    pasos = [(0, 25, 21, 0, "abierto", ("abajo", "abajo")), (0, 29, 18, 0, "feliz", ("lado", "lado")),
+             (-5, 24, 23, 1, "feliz", ("arriba", "arriba")), (-9, 25, 21, 3, "feliz", ("arriba", "arriba")),
+             (-11, 25, 21, 4, "feliz", ("arriba", "arriba")), (-9, 25, 21, 3, "feliz", ("arriba", "arriba")),
+             (-5, 25, 22, 1, "feliz", ("lado", "lado")), (0, 29, 18, 0, "feliz", ("lado", "lado")),
+             (0, 26, 20, 0, "feliz", ("abajo", "abajo")), (0, 25, 21, 0, "feliz", ("abajo", "ola1")),
+             (0, 25, 21, 0, "feliz", ("abajo", "ola2")), (0, 25, 21, 0, "abierto", ("abajo", "ola1"))]
+    cs = [cuadro_estilo(aspecto, dy=dy, ancho=ancho, alto=alto, tapa=tapa, ojos=ojos, brazos=brazos, en_aire=dy < 0,
+                        boca_tipo="abierta" if tapa >= 3 else "sonrisa",
+                        inclinacion=(0, 1, 0, -1)[f % 4], chispa="mas" if f % 2 == 0 else "chica",
+                        despues=lambda lz, c, f=f: sesamo(lz, f - 3) if f >= 5 else None)
+          for f, (dy, ancho, alto, tapa, ojos, brazos) in enumerate(pasos)]
+    return cs, 85
+
+
+LISTO_ESTILO = {"ninja": cuadros_listo_ninja, "sakura": cuadros_listo_sakura, "robot": cuadros_listo_robot,
+                "hamburguesa": cuadros_listo_hamburguesa}
 
 
 def tiene_entrada(aspecto) -> bool:
