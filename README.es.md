@@ -24,14 +24,16 @@ En tu escritorio, y en tu celular cuando no estás.
 
 <br>
 
-[Qué hace](#qué-hace) · [Instalación](#instalación) · [Celular](#en-tu-celular) · [Ajustes](#ajustes) ·
+[Qué hace](#qué-hace) · [Instalación](#instalación) · [Dynamic Island](#dynamic-island) · [Celular](#en-tu-celular) ·
+[Ajustes](#ajustes) ·
 [Galería](docs/README.es.md) · [Preguntas](#preguntas-frecuentes) · [Cambios](CHANGELOG.md)
 
 </div>
 
 > [!NOTE]
-> **Nuevo en la 1.3.1:** los avisos por Telegram y el Permitir/Denegar desde el celular ahora son **gratis para
-> todos**: se terminó Pro. [Ver todos los cambios →](CHANGELOG.md#131---2026-11-03)
+> **Nuevo en la 1.4.0:** la [Dynamic Island](#dynamic-island), una pastilla de vidrio arriba de la pantalla con tus
+> sesiones de Claude Code; las secciones **Dashboard** y **Uso** en los ajustes; un botón rápido de **No molestar**, y
+> el estilo **Hamburguesa** (beta). [Ver todos los cambios →](CHANGELOG.md)
 
 ## Qué hace
 
@@ -66,9 +68,14 @@ escribe al celular.
 - **Permitir o denegar sin ir a la terminal**, desde los botones de Wave o desde el celular. Vale la primera respuesta.
 - **El contexto justo**: chat, proyecto, cuánto tardó y un resumen leído en tu compu. Los avisos de varias sesiones se
   encolan.
-- **No molesta**: horario de no molestar, y nada sobre apps en pantalla completa ni si ya estás mirando la terminal.
-- **A tu gusto**: cuatro estilos (Clásico, Sakura, Ninja, Robot), colores, vestuario, tema claro u oscuro, tu propia
-  imagen y sonidos.
+- **Dynamic Island**: [una pastilla de vidrio](#dynamic-island) arriba de la pantalla con tus sesiones de Claude Code,
+  cuánto le falta a cada una y tu uso de las últimas 5 horas y 7 días.
+- **Cuánto usaste Claude Code**: las secciones Dashboard y Uso muestran tokens, sesiones, modelos y proyectos, leídos
+  de tu compu.
+- **No molesta**: un botón de No molestar, silencio automático por horario, y nada sobre apps en pantalla completa ni
+  si ya estás mirando la terminal.
+- **A tu gusto**: cuatro estilos (Clásico, Sakura, Ninja, Robot) más Hamburguesa en beta, colores, vestuario, tema
+  claro u oscuro, tu propia imagen y 9 sonidos nuevos.
 - **Modo compañera**: Wave vive chiquita sobre la barra de tareas o el Dock, pasea y se duerme cuando llegás al límite.
 - **En tu celular**: [avisos por Telegram](#en-tu-celular) con Wave animada, y Permitir/Denegar desde donde estés.
   Gratis.
@@ -105,6 +112,17 @@ Listo: la próxima vez que Claude Code termine, aparece Wave. No hace falta rein
 [guía de instalación](docs/install.es.md) explica cómo instalar desde el código, qué cambia el instalador, cómo
 desinstalar y los problemas frecuentes.
 
+## Dynamic Island
+
+Una pastilla de vidrio arriba de la pantalla, al estilo del iPhone, que te muestra qué está haciendo Claude Code sin
+cambiar de ventana. Chica, tiene los ojos de tu mascota (despiertos mientras Claude trabaja, tranquilos mientras
+espera, cerrados si no hay sesiones), el tiempo que falta y cuántas sesiones hay. Al pasar el mouse se estira y lista
+cada sesión con su avance, tus tokens de las últimas 5 horas y 7 días, y un botón a los ajustes. Un click en una
+sesión trae su ventana al frente.
+
+En Windows el vidrio desenfoca de verdad lo que hay atrás. Se esconde sola cuando algo está en pantalla completa, y
+en **Ajustes → Dynamic Island** elegís dónde va, si se abre con el mouse o con un click, qué muestra y cómo se mueve.
+
 ## En tu celular
 
 Cuando no estás en la compu, Wave te escribe por Telegram desde
@@ -116,35 +134,38 @@ pegar. Por defecto solo te escribe si no tocaste el mouse ni el teclado en unos 
 
 ## Ajustes
 
-Hacé click en el **ícono de Wave** (junto al reloj en Windows, en la barra de menús en Mac) o escribí
-**`/wavemascot`** en Claude Code. Los cambios se guardan solos, y la vista previa muestra el aviso tal cual va a
-aparecer.
+Hacé click en el **ícono de Wave** (junto al reloj en Windows, en la barra de menús en Mac), en el engranaje de la
+Dynamic Island, o escribí **`/wavemascot`** en Claude Code. Los cambios se guardan solos, y la vista previa muestra el
+aviso tal cual va a aparecer. Arriba de la barra lateral está el botón de **No molestar**, que silencia todo hasta que
+lo apagues.
 
 <p align="center">
   <img src="docs/capturas/es/ajustes-3-mascota.png" alt="Ventana de ajustes, pestaña Mascota, con la vista previa" width="720">
 </p>
 
 <details>
-<summary><b>Qué tiene cada pestaña</b></summary>
+<summary><b>Qué tiene cada sección</b></summary>
 
 <br>
 
-| Pestaña | Qué cambiás |
+| Sección | Qué cambiás |
 |---|---|
-| Aviso | Esquina, tiempo en pantalla, qué muestra el aviso y sus mensajes |
-| Comportamiento | Modo aviso o compañera, qué eventos avisan, no molestar, duración mínima, Permitir/Denegar |
-| Mascota | Estilo, color, tono de piel, tamaño y tu propia imagen |
-| Vestuario | Cabeza, ropa y accesorios |
-| Sonido y estilo | Volumen, sonido por evento, tema, ícono junto al reloj, actualizaciones |
+| Avisos | Modo aviso o compañera, esquina y tiempo en pantalla; por cada evento, si aparece, qué sonido usa y si llega al celular; qué muestra el cartel, Permitir/Denegar y silencio automático |
+| Mascota | Un probador con la mascota grande: estilo, color, cabeza, ropa, accesorio y tu propia imagen |
 | Celular | Telegram: cuándo mandar, qué avisos, Permitir/Denegar desde el celular |
+| Dynamic Island | Dónde va, cómo se abre, los ojos, qué muestra la pastilla, cuántas sesiones, desenfoque, opacidad y movimiento |
+| Dashboard | Tokens de hoy y de los últimos 14 días, sesiones, tiempo trabajando, proyectos de la semana y qué tan bien estima el tiempo |
+| Uso | Tokens de las últimas 5 horas, el día, 7 días, el mes o 6 meses: entrada, salida, caché, modelos y proyectos |
+| General | Idioma, tema, el ícono junto al reloj y las actualizaciones |
 
-Todo se guarda en `~/.wavemascot/config.json`. Todas las pestañas están en la [galería](docs/README.es.md#ajustes).
+Todo se guarda en `~/.wavemascot/config.json`. Todas las secciones están en la [galería](docs/README.es.md#ajustes).
 
 </details>
 
 ## Privacidad
 
-Todo corre en tu compu. El resumen se lee localmente del historial que Claude Code ya guarda en tu disco. WaveMascot
+Todo corre en tu compu. El resumen, la Dynamic Island, el Dashboard y Uso se leen localmente del historial que
+Claude Code ya guarda en tu disco. WaveMascot
 solo se conecta a internet para buscar en GitHub si hay una versión nueva (una vez por día como mucho) y, si lo
 conectás, para mandar los avisos a Telegram. Las dos cosas se pueden apagar.
 

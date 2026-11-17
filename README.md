@@ -24,14 +24,16 @@ On your desktop, and on your phone when you're away.
 
 <br>
 
-[Features](#features) · [Install](#install) · [Phone](#on-your-phone) · [Settings](#settings) ·
+[Features](#features) · [Install](#install) · [Dynamic Island](#dynamic-island) · [Phone](#on-your-phone) ·
+[Settings](#settings) ·
 [Gallery](docs/README.md) · [FAQ](#faq) · [Changelog](CHANGELOG.md)
 
 </div>
 
 > [!NOTE]
-> **New in 1.3.1:** Telegram notifications and Allow/Deny from your phone are now **free for everyone**: Pro is gone.
-> [See everything that changed →](CHANGELOG.md#131---2026-11-03)
+> **New in 1.4.0:** the [Dynamic Island](#dynamic-island), a glass pill at the top of the screen with your Claude Code
+> sessions; **Dashboard** and **Usage** sections in the settings; a quick **Do not disturb** button, and the **Burger**
+> style (beta). [See everything that changed →](CHANGELOG.md)
 
 ## What it does
 
@@ -64,10 +66,14 @@ own. If you're away from the computer, it messages your phone instead.
 - **A notice for every moment**: done, needs permission, thinking, sub-agent finished, usage limit and API error.
 - **Allow or deny without the terminal**, from Wave's buttons or from your phone. The first answer wins.
 - **The right context**: chat, project, duration and a summary read locally. Notices from several sessions queue up.
-- **Stays out of the way**: do-not-disturb hours, and nothing over full-screen apps or when you're already looking at
-  the terminal.
-- **Make it yours**: four styles (Classic, Sakura, Ninja, Robot), colors, outfits, light or dark theme, your own image
-  and sounds.
+- **Dynamic Island**: [a glass pill](#dynamic-island) at the top of the screen with your Claude Code sessions, how long
+  each one has left and your usage for the last 5 hours and 7 days.
+- **How much you used Claude Code**: the Dashboard and Usage sections show tokens, sessions, models and projects, read
+  from your computer.
+- **Stays out of the way**: a Do not disturb button, automatic silence on a schedule, and nothing over full-screen apps
+  or when you're already looking at the terminal.
+- **Make it yours**: four styles (Classic, Sakura, Ninja, Robot) plus Burger in beta, colors, outfits, light or dark
+  theme, your own image and 9 new sounds.
 - **Companion mode**: Wave lives small on your taskbar or Dock, wanders around and naps when you hit the limit.
 - **On your phone**: [Telegram notifications](#on-your-phone) with Wave animated, and Allow/Deny from anywhere.
   Free.
@@ -103,6 +109,17 @@ That's it: the next time Claude Code finishes, Wave shows up. No restart needed.
 [installation guide](docs/install.md) covers installing from source, what the installer changes, uninstalling and
 troubleshooting.
 
+## Dynamic Island
+
+A glass pill at the top of the screen, iPhone-style, that shows what Claude Code is doing without switching windows.
+Small, it has your mascot's eyes (awake while Claude works, calm while it waits, closed when there are no sessions),
+the time left and how many sessions there are. Hover it and it stretches to list each session with its progress, your
+tokens for the last 5 hours and 7 days, and a button to the settings. Click a session to bring its window to the front.
+
+On Windows the glass really blurs what's behind it. It hides itself while something is full screen, and in
+**Settings → Dynamic Island** you choose where it goes, whether it opens on hover or click, what it shows and how it
+moves.
+
 ## On your phone
 
 When you're away from the computer, Wave messages you on Telegram from
@@ -114,35 +131,37 @@ it only messages you when there's been no mouse or keyboard activity for a few m
 
 ## Settings
 
-Click **Wave's icon** (next to the clock on Windows, in the menu bar on Mac) or type **`/wavemascot`** in Claude Code.
-Changes save on their own, and the preview shows exactly how the notice will look.
+Click **Wave's icon** (next to the clock on Windows, in the menu bar on Mac), the gear in the Dynamic Island, or type
+**`/wavemascot`** in Claude Code. Changes save on their own, and the preview shows exactly how the notice will look.
+At the top of the sidebar is the **Do not disturb** button, which mutes everything until you turn it off.
 
 <p align="center">
   <img src="docs/capturas/en/ajustes-3-mascota.png" alt="Settings window, Mascot tab, with the live preview" width="720">
 </p>
 
 <details>
-<summary><b>What each tab does</b></summary>
+<summary><b>What each section does</b></summary>
 
 <br>
 
-| Tab | What you can change |
+| Section | What you can change |
 |---|---|
-| Notice | Corner, time on screen, what the notice shows and its messages |
-| Behavior | Notice or companion mode, which events notify, do not disturb, minimum duration, Allow/Deny |
-| Mascot | Style, color, skin tone, size and your own image |
-| Outfits | Head, clothes and accessories |
-| Sound and style | Volume, sound per event, theme, tray icon, updates |
+| Alerts | Notice or companion mode, corner and time on screen; for each event, whether it shows, which sound it plays and whether it reaches your phone; what the notice shows, Allow/Deny and automatic silence |
+| Mascot | A fitting room with a big mascot: style, color, head, clothes, accessory and your own image |
 | Phone | Telegram: when to send, which notices, Allow/Deny from the phone |
+| Dynamic Island | Where it goes, how it opens, the eyes, what the pill shows, how many sessions, blur, opacity and motion |
+| Dashboard | Today's tokens and the last 14 days, sessions, time worked, projects of the week and how good the time estimate is |
+| Usage | Tokens for the last 5 hours, day, 7 days, month or 6 months: input, output, cache, models and projects |
+| General | Language, theme, the tray icon and updates |
 
-Everything is stored in `~/.wavemascot/config.json`. Every tab is in the [gallery](docs/README.md#settings).
+Everything is stored in `~/.wavemascot/config.json`. Every section is in the [gallery](docs/README.md#settings).
 
 </details>
 
 ## Privacy
 
-Everything runs on your computer. The summary is read locally from the transcript Claude Code already keeps on your
-disk. WaveMascot only goes online to check GitHub for a new version (at most once a day) and, if you connect it, to
+Everything runs on your computer. The summary, the Dynamic Island, the Dashboard and Usage are read locally from the
+transcripts Claude Code already keeps on your disk. WaveMascot only goes online to check GitHub for a new version (at most once a day) and, if you connect it, to
 send notices to Telegram. Both can be turned off.
 
 <details>
