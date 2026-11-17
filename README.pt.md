@@ -4,8 +4,9 @@
 
 # WaveMascot
 
-**Um mascote em pixel art que avisa quando o Claude Code termina, ou precisa de você.**<br>
-Na sua área de trabalho, e no seu celular quando você não está no computador.
+**Um mascote em pixel art para o Claude Code.**<br>
+Avisa quando o Claude termina ou precisa de você, mostra cada sessão numa Dynamic Island no topo da tela
+e manda mensagem no seu celular quando você não está.
 
 [![Latest release](https://img.shields.io/github/v/release/Marescaa/wavemascot?style=flat-square&label=release&color=d97757)](../../releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/Marescaa/wavemascot/total?style=flat-square&color=4c8bf5)](../../releases)
@@ -20,21 +21,21 @@ Na sua área de trabalho, e no seu celular quando você não está no computador
 
 <br><br>
 
-<img src="docs/capturas/pt/portada.gif" alt="Wave pedindo permissão no computador, e o mesmo pedido aprovado pelo Telegram" width="820">
+<img src="docs/capturas/pt/isla.gif" alt="A Dynamic Island: uma pílula de vidro com os olhos do mascote e o tempo que falta, que se estica ao passar o mouse e mostra três sessões do Claude Code" width="760">
 
 <br>
 
-[O que faz](#o-que-faz) · [Instalação](#instalação) · [Celular](#no-seu-celular) ·
-[Configurações](#configurações) · [Galeria](docs/README.pt.md) · [Perguntas](#perguntas-frequentes) ·
-[Mudanças](CHANGELOG.md)
+[Avisos](#avisos) · [Dynamic Island](#dynamic-island) · [Recursos](#recursos) · [Instalação](#instalação) ·
+[Configurações](#configurações) · [Celular](#no-seu-celular) · [Galeria](docs/README.pt.md) ·
+[Perguntas](#perguntas-frequentes) · [Mudanças](CHANGELOG.md)
 
 </div>
 
 > [!NOTE]
-> **Novo na 1.3.1:** os avisos pelo Telegram e o Permitir/Negar pelo celular agora são **grátis para todos**: o Pro
-> acabou. [Ver todas as mudanças →](CHANGELOG.md#131---2026-11-03)
+> **Novo na 1.4.0:** a Dynamic Island, as seções Dashboard e Uso, as configurações de vidro (o desfoque real é no
+> Windows) e o estilo Hambúrguer. [Ver todas as mudanças →](CHANGELOG.md#140---2026-11-17)
 
-## O que faz
+## Avisos
 
 Você pede algo ao Claude Code e vai para outra janela. Quando ele termina, pede permissão ou fica sem uso, **o Wave
 aparece pela borda da tela**, diz de qual chat e projeto se trata e vai embora sozinho. Se você não estiver no
@@ -60,16 +61,46 @@ computador, ele manda mensagem no seu celular.
   </tr>
 </table>
 
+## Dynamic Island
+
+No topo da tela, no centro, fica uma pequena pílula de vidro com **os olhos do seu mascote**: acordados enquanto o
+Claude trabalha, tranquilos enquanto ele espera e dormindo quando não há nada rodando. Ao lado, quanto falta e
+quantas sessões estão abertas. Passe o mouse e ela se estica, como um líquido, para mostrar cada sessão.
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/capturas/pt/isla-chica.png" alt="A Dynamic Island fechada: os olhos, o tempo que falta, as sessões e os agentes"><br>
+      <b>Num relance</b><br>
+      <sub>Quanto falta para a próxima sessão terminar, quantas sessões e subagentes estão rodando.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/capturas/pt/isla-abierta.png" alt="A Dynamic Island aberta: três sessões com barras de progresso e o uso das últimas 5 horas e 7 dias"><br>
+      <b>Cada sessão</b><br>
+      <sub>Título, projeto, tokens, o andamento da lista de tarefas, a ferramenta em uso e uma barra de progresso.
+      Com um clique você vai para a janela dela.</sub>
+    </td>
+  </tr>
+</table>
+
+Embaixo: seus tokens das últimas 5 horas e 7 dias. A engrenagem abre as configurações. Ela se esconde sozinha quando
+há algo em tela cheia, e em **Configurações → Dynamic Island** há 15 opções para escolher onde fica, o que mostra e
+como se mexe. No Windows o vidro desfoca de verdade o que está atrás.
+
 ## Recursos
 
 - **Um aviso para cada momento**: terminou, precisa de permissão, está pensando, um subagente terminou, limite de uso
   e erro da API.
 - **Permitir ou negar sem ir ao terminal**, pelos botões do Wave ou pelo celular. Vale a primeira resposta.
+- **Dynamic Island**: todas as suas sessões do Claude Code numa pílula de vidro, com quanto falta para cada uma.
+- **Dashboard e Uso**: os tokens de hoje contra as últimas duas semanas, quanto o Claude trabalhou, projetos, modelos
+  e acertos de cache, das últimas 5 horas até 6 meses. Ao vivo, e lido só do seu computador.
 - **O contexto certo**: chat, projeto, quanto demorou e um resumo lido no seu computador. Avisos de várias sessões
   entram na fila.
-- **Não atrapalha**: horário de não perturbe, e nada sobre apps em tela cheia nem se você já está olhando o terminal.
-- **Do seu jeito**: quatro estilos (Clássico, Sakura, Ninja, Robô), cores, roupas, tema claro ou escuro, sua própria
-  imagem e sons.
+- **Não atrapalha**: **Não perturbe** com um clique, silêncio automático por horário, e nada sobre apps em tela cheia
+  nem se você já está olhando o terminal.
+- **Do seu jeito**: cinco estilos (Clássico, Sakura, Ninja, Robô e Hambúrguer), cores, roupas, tema claro ou escuro,
+  sua própria imagem e sons.
 - **Modo companheira**: o Wave fica pequeno na barra de tarefas ou no Dock, passeia e dorme quando o uso acaba.
 - **No seu celular**: [avisos pelo Telegram](#no-seu-celular) com o Wave animado, e Permitir/Negar de onde você
   estiver. Grátis.
@@ -77,9 +108,9 @@ computador, ele manda mensagem no seu celular.
 - **Inglês, espanhol e português**, vários monitores, Windows e macOS (chip Apple e Intel).
 
 <p align="center">
-  <img src="docs/estilos.gif" alt="Os quatro estilos comemorando: Clássico, Sakura, Ninja e Robô" width="600">
+  <img src="docs/estilos.gif" alt="Os cinco estilos comemorando: Clássico, Sakura, Ninja, Robô e Hambúrguer" width="720">
   <br>
-  <sub>Os quatro estilos. Cada um aparece, comemora e vai embora do seu jeito: <a href="docs/README.pt.md#estilos">veja eles em movimento →</a></sub>
+  <sub>Os cinco estilos. Cada um aparece, comemora e vai embora do seu jeito: <a href="docs/README.pt.md#estilos">veja eles em movimento →</a></sub>
 </p>
 
 ## Instalação
@@ -106,45 +137,76 @@ Pronto: na próxima vez que o Claude Code terminar, o Wave aparece. Não precisa
 [guia de instalação](docs/install.pt.md) explica como instalar pelo código-fonte, o que o instalador muda, como
 desinstalar e os problemas frequentes.
 
+## Configurações
+
+Clique no **ícone do Wave** (ao lado do relógio no Windows, na barra de menus no Mac), na engrenagem da Dynamic Island,
+ou digite **`/wavemascot`** no Claude Code. Tudo é salvo sozinho, e a pré-visualização mostra cada aviso exatamente
+como vai aparecer.
+
+<p align="center">
+  <img src="docs/capturas/pt/ajustes-1-avisos.png" alt="Janela de configurações, seção Avisos: modo, canto da tela e a tabela de eventos com som e celular por evento, ao lado da pré-visualização" width="820">
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/capturas/pt/ajustes-5-dashboard.png" alt="Seção Dashboard: tokens de hoje, os últimos 14 dias, sessões, tempo trabalhado, projetos e precisão da estimativa"><br>
+      <b>Dashboard</b><br><sub>Seu dia num número, com as últimas duas semanas atrás.</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/capturas/pt/ajustes-6-uso.png" alt="Seção Uso: tokens das últimas 5 horas com entrada, saída, cache, modelos e projetos"><br>
+      <b>Uso</b><br><sub>5 horas, um dia, uma semana, um mês ou seis meses, ao vivo.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/capturas/pt/ajustes-4-isla.png" alt="Seção Dynamic Island com as suas opções"><br>
+      <b>Dynamic Island</b><br><sub>Onde fica, os olhos, o que a pílula mostra, desfoque, rebote.</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/capturas/pt/ajustes-2-mascota.png" alt="Seção Mascote com os cinco estilos"><br>
+      <b>Mascote</b><br><sub>Estilo, cor, roupas, tamanho ou sua própria imagem.</sub>
+    </td>
+  </tr>
+</table>
+
+<details>
+<summary><b>O que tem em cada seção</b></summary>
+
+<br>
+
+| Seção | O que você muda |
+|---|---|
+| **Não perturbe** | O interruptor no topo: silencia todos os avisos até você desligar |
+| Avisos | Modo aviso ou companheira, canto, tempo na tela, silêncio automático, e para cada evento: se aparece, o som e se vai para o celular |
+| Mascote | Estilo, cor, cabeça, roupa, acessório, tamanho e sua própria imagem |
+| Celular | Conectar o Telegram, quando mandar (só se você não estiver), Wave animado, Permitir/Negar pelo celular |
+| Dynamic Island | Mostrar, onde fica, abrir ao passar o mouse ou ao clicar, olhos, tempo que falta, sessões à vista, uso de 5 h e 7 dias, desfoque, opacidade, rebote, pulsação |
+| Dashboard | Tokens de hoje com os últimos 14 dias, sessões, quanto o Claude trabalhou, projetos da semana, quão preciso é o tempo estimado |
+| Uso | Tokens de 5 horas, 1 dia, 7 dias, 1 mês ou 6 meses: entrada, saída, acertos de cache, modelos e projetos |
+| Geral | Idioma, tema (escuro, claro ou destaque), abrir ao iniciar, atualizações |
+
+Tudo fica em `~/.wavemascot/config.json`. Todas as seções estão na [galeria](docs/README.pt.md#configurações).
+
+</details>
+
 ## No seu celular
 
 Quando você não está no computador, o Wave escreve pelo Telegram a partir do
 [@WaveNotificationBot](https://t.me/WaveNotificationBot), e os pedidos de permissão vêm com os botões **Permitir** e
 **Negar**, que respondem ao Claude Code na hora. É grátis, como todo o WaveMascot.
 
-Abra a aba **Celular**, toque em **Conectar com o Telegram** e depois em **Iniciar** no bot. Não há nada para criar
-nem colar. Por padrão ele só escreve se você não mexeu no mouse nem no teclado por alguns minutos.
-
-## Configurações
-
-Clique no **ícone do Wave** (ao lado do relógio no Windows, na barra de menus no Mac) ou digite **`/wavemascot`** no
-Claude Code. As mudanças são salvas sozinhas, e a pré-visualização mostra o aviso exatamente como vai aparecer.
-
 <p align="center">
-  <img src="docs/capturas/pt/ajustes-3-mascota.png" alt="Janela de configurações, aba Mascote, com a pré-visualização" width="720">
+  <img src="docs/capturas/pt/portada.gif" alt="Wave pedindo permissão no computador, e o mesmo pedido aprovado pelo Telegram" width="720">
 </p>
 
-<details>
-<summary><b>O que tem em cada aba</b></summary>
-
-<br>
-
-| Aba | O que você muda |
-|---|---|
-| Aviso | Canto, tempo na tela, o que o aviso mostra e as mensagens |
-| Comportamento | Modo aviso ou companheira, quais eventos avisam, não perturbe, duração mínima, Permitir/Negar |
-| Mascote | Estilo, cor, tom de pele, tamanho e sua própria imagem |
-| Roupas | Cabeça, roupas e acessórios |
-| Som e estilo | Volume, som por evento, tema, ícone ao lado do relógio, atualizações |
-| Celular | Telegram: quando mandar, quais avisos, Permitir/Negar pelo celular |
-
-Tudo fica em `~/.wavemascot/config.json`. Todas as abas estão na [galeria](docs/README.pt.md#configurações).
-
-</details>
+Abra **Celular** nas configurações, toque em **Conectar com o Telegram** e depois em **Iniciar** no bot. Não há nada
+para criar nem colar. Por padrão ele só escreve se você não mexeu no mouse nem no teclado por alguns minutos.
 
 ## Privacidade
 
-Tudo roda no seu computador. O resumo é lido localmente do histórico que o Claude Code já guarda no seu disco. O
+Tudo roda no seu computador. O resumo, a Dynamic Island, o Dashboard e o Uso são lidos localmente dos transcripts que
+o Claude Code já guarda no seu disco; são contas feitas com esses arquivos, não os limites oficiais da sua conta. O
 WaveMascot só se conecta à internet para procurar no GitHub uma versão nova (no máximo uma vez por dia) e, se você
 conectar, para mandar avisos ao Telegram. Dá para desligar as duas coisas.
 
@@ -169,7 +231,20 @@ parar.
 
 Pelos [hooks](https://docs.claude.com/en/docs/claude-code/hooks) do Claude Code. O instalador acrescenta algumas
 linhas ao `~/.claude/settings.json` (com um backup antes, e sem mexer nas suas), e o Claude Code chama o Wave quando
-termina, precisa de algo, um subagente termina ou chega a um limite. Ao desinstalar, só essas linhas são removidas.
+termina, precisa de algo, um subagente termina ou chega a um limite. Ao desinstalar, só essas linhas são removidas. A
+Dynamic Island também lê os transcripts das sessões em `~/.claude/projects`.
+
+</details>
+
+<details>
+<summary><b>Como ele sabe quanto falta?</b></summary>
+
+<br>
+
+Não dá para saber com certeza, então ele estima: olha seus turnos anteriores parecidos com o atual (mesmo projeto e
+sessão, ferramentas usadas até agora, o tamanho da sua mensagem, o andamento da lista de tarefas do Claude) e usa o
+que faltava para eles. Quanto mais você usa, melhor fica. Em Dashboard → **Precisão do tempo estimado** você vê o
+quanto ele acertou com você.
 
 </details>
 
@@ -208,7 +283,8 @@ foco, evento desligado…). Ícone do Wave → **Testar aviso** força um. Mais 
 
 Perguntas e ideias vão para as [Discussions](../../discussions) e erros para as [Issues](../../issues/new/choose).
 Pull requests são bem-vindos, em português, inglês ou espanhol: veja o [CONTRIBUTING.md](CONTRIBUTING.md). As imagens
-do README são desenhadas pelo próprio app com [`tools/capturas.py`](tools/capturas.py).
+do README são desenhadas pelo próprio app com [`tools/capturas.py`](tools/capturas.py), com sessões inventadas no
+lugar das suas.
 
 ## Licença
 

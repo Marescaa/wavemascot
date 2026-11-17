@@ -3,10 +3,11 @@
 [← Back to the README](../README.md) · **English** · [Español](README.es.md) · [Português](README.pt.md)
 
 Everything here is drawn by the app itself ([`tools/capturas.py`](../tools/capturas.py)): the real pixel art, the
-real notice and the real settings window.
+real notice, the real Dynamic Island and the real settings window. The sessions and usage numbers are made up.
 
-**Contents:** [Notices](#notices) · [Styles](#styles) · [Outfits](#outfits) · [On your phone](#on-your-phone) ·
-[Connecting Telegram](#connecting-telegram) · [Settings](#settings) · [Light theme](#light-theme)
+**Contents:** [Notices](#notices) · [Dynamic Island](#dynamic-island) · [Styles](#styles) · [Outfits](#outfits) ·
+[On your phone](#on-your-phone) · [Connecting Telegram](#connecting-telegram) · [Settings](#settings) ·
+[Light theme](#light-theme)
 
 ## Notices
 
@@ -28,6 +29,18 @@ your settings; on Mac it opens the download page.
 
 <img src="estados.gif" width="760" alt="Done, permission, thinking, sub-agent, usage limit and error">
 
+## Dynamic Island
+
+The glass pill at the top of the screen. Hover it and it stretches open with every Claude Code session.
+
+<img src="capturas/en/isla.gif" width="640" alt="The Dynamic Island opening on hover and closing again">
+
+| | |
+|:---:|:---:|
+| <img src="capturas/en/isla-chica.png" width="380" alt="The Dynamic Island closed"><br>**Closed**: eyes, time left, sessions and agents | <img src="capturas/en/isla-abierta.png" width="380" alt="The Dynamic Island open"><br>**Open**: each session, its progress and your usage |
+
+<sub>The desktop behind, the blur and the sessions are made up for the picture; the island is the real one, drawn by the app. On Windows the blur is real; on Mac the glass is tinted.</sub>
+
 ## Styles
 
 A style changes Wave's face and how it shows up, celebrates and leaves.
@@ -36,6 +49,7 @@ A style changes Wave's face and how it shows up, celebrates and leaves.
 |:---:|:---:|
 | <img src="estilos/clasico.gif" width="320" alt="Classic"><br>**Classic**: slides in from the edge | <img src="estilos/sakura.gif" width="320" alt="Sakura"><br>**Sakura**: floats in on a gust of petals |
 | <img src="estilos/ninja.gif" width="320" alt="Ninja"><br>**Ninja**: rolls in hidden in smoke | <img src="estilos/robot.gif" width="320" alt="Robot"><br>**Robot**: flies in on rocket boots |
+| <img src="estilos/hamburguesa.gif" width="320" alt="Burger"><br>**Burger** (new): hops in, its top bun bouncing on every jump | |
 
 ## Outfits
 
@@ -56,19 +70,22 @@ everyone.
 
 | | |
 |:---:|:---:|
-| <img src="capturas/en/ajustes-6-celular.png" width="380" alt="Phone tab before connecting"><br>**Before connecting**: one button and you tap Start in the bot | <img src="capturas/en/celular-conectado.png" width="380" alt="Phone tab connected"><br>**Connected**: when to send, which notices, Allow/Deny |
+| <img src="capturas/en/ajustes-3-celular.png" width="380" alt="Phone section before connecting"><br>**Before connecting**: one button and you tap Start in the bot | <img src="capturas/en/celular-conectado.png" width="380" alt="Phone section connected"><br>**Connected**: when to send, which notices, Allow/Deny |
 
 ## Settings
 
 | | |
 |:---:|:---:|
-| <img src="capturas/en/ajustes-1-aviso.png" width="380" alt="Notice tab"><br>**Notice** | <img src="capturas/en/ajustes-2-comportamiento.png" width="380" alt="Behavior tab"><br>**Behavior** |
-| <img src="capturas/en/ajustes-3-mascota.png" width="380" alt="Mascot tab"><br>**Mascot** | <img src="capturas/en/ajustes-4-vestuario.png" width="380" alt="Outfits tab"><br>**Outfits** |
-| <img src="capturas/en/ajustes-5-sonido.png" width="380" alt="Sound and style tab"><br>**Sound and style** | <img src="capturas/en/celular-conectado.png" width="380" alt="Phone tab"><br>**Phone** |
+| <img src="capturas/en/ajustes-1-avisos.png" width="380" alt="Alerts section"><br>**Alerts** | <img src="capturas/en/ajustes-2-mascota.png" width="380" alt="Mascot section"><br>**Mascot** |
+| <img src="capturas/en/ajustes-3-celular.png" width="380" alt="Phone section"><br>**Phone** | <img src="capturas/en/ajustes-4-isla.png" width="380" alt="Dynamic Island section"><br>**Dynamic Island** |
+| <img src="capturas/en/ajustes-5-dashboard.png" width="380" alt="Dashboard section"><br>**Dashboard** | <img src="capturas/en/ajustes-6-uso.png" width="380" alt="Usage section"><br>**Usage** |
+| <img src="capturas/en/ajustes-7-general.png" width="380" alt="General section"><br>**General** |  |
+
+<sub>The window is the real one; the blurred desktop behind it, the rounded corners, the shadow and the usage numbers are recreated.</sub>
 
 ## Light theme
 
-Pick a light or dark theme in **Sound and style**: the notice and the settings window use it, tinted with your
-style's color.
+Pick a dark, light or accent theme in **General**: the notice, the settings window and the Dynamic Island use it,
+tinted with your style's color.
 
 <img src="capturas/en/ajustes-claro-sakura.png" width="620" alt="Settings in the light theme with the Sakura style">
