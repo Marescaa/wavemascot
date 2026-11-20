@@ -3,6 +3,14 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [semantic versioning](https://semver.org/).
 
+## [1.4.2] - 2026-11-20
+
+### Added
+
+- **Dynamic Island hides when no chat is active**: if no Claude Code chat has moved for a while (or Claude is closed),
+  the island goes away and comes back on its own as soon as a chat moves. On by default after 10 minutes; change it
+  in Settings → Dynamic Island → General (1 minute to 2 hours, or turn it off).
+
 ## [1.4.1] - 2026-11-20
 
 ### Fixed
@@ -183,6 +191,7 @@ First public release of WaveMascot.
 - `WaveMascot-Setup.exe` installer (PyInstaller, no Python or administrator rights needed) and a GitHub Actions
   workflow that publishes it on every `v*` tag.
 
+[1.4.2]: ../../releases/tag/v1.4.2
 [1.4.1]: ../../releases/tag/v1.4.1
 [1.4.0]: ../../releases/tag/v1.4.0
 [1.3.1]: ../../releases/tag/v1.3.1

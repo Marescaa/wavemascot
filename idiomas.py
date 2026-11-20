@@ -654,6 +654,15 @@ TEXTOS: dict[str, dict[str, str]] = {
     'Esconderla si hay algo en pantalla completa': {
         "en": 'Hide it when something is full screen',
         "pt": 'Escondê-la se houver algo em tela cheia'},
+    'Esconderla si no hay ningún chat activo': {
+        "en": 'Hide it when no chat is active',
+        "pt": 'Escondê-la se nenhum chat estiver ativo'},
+    'También si Claude está cerrado. Vuelve sola apenas un chat se mueve.': {
+        "en": 'Also when Claude is closed. It comes back on its own as soon as a chat moves.',
+        "pt": 'Também se o Claude estiver fechado. Volta sozinha assim que um chat se mexer.'},
+    'Sin chats activos por': {
+        "en": 'No active chats for',
+        "pt": 'Sem chats ativos por'},
     'Estirarse rebotando, como un líquido': {
         "en": 'Expand with a bounce, like a liquid',
         "pt": 'Esticar quicando, como um líquido'},

@@ -384,5 +384,57 @@ class Robustez(unittest.TestCase):
         self.assertEqual(s.formato_tokens(999_950), "1.00 M")
 
 
+class SinChats(unittest.TestCase):
+    """La isla se va si ningún chat se movió en un rato y vuelve con el próximo."""
+
+    AHORA = 1_000_000.0
+
+    def sesion(self, hace, trabajando=False, agentes=0):
+        return {"ultima": self.AHORA - hace, "trabajando": trabajando, "agentes": agentes}
+
+    def test_sin_sesiones_cuenta_desde_antes(self):
+        antes = self.AHORA - 700
+        self.assertEqual(s.ultima_actividad([], antes, self.AHORA), antes)
+        self.assertTrue(s.sin_chats(antes, self.AHORA, 10))
+        self.assertFalse(s.sin_chats(antes, self.AHORA, 15))
+
+    def test_sesion_quieta_dentro_y_fuera_del_rato(self):
+        ultima = s.ultima_actividad([self.sesion(120)], 0.0, self.AHORA)
+        self.assertEqual(ultima, self.AHORA - 120)
+        self.assertFalse(s.sin_chats(ultima, self.AHORA, 5))
+        ultima = s.ultima_actividad([self.sesion(20 * 60)], 0.0, self.AHORA)
+        self.assertTrue(s.sin_chats(ultima, self.AHORA, 10))
+
+    def test_trabajando_o_con_agentes_es_actividad_aunque_no_escriba(self):
+        for sesion in (self.sesion(25 * 60, trabajando=True), self.sesion(25 * 60, agentes=1)):
+            self.assertEqual(s.ultima_actividad([self.sesion(29 * 60), sesion], 0.0, self.AHORA), self.AHORA)
+
+    def test_no_va_para_atras_cuando_la_lista_se_vacia(self):
+        # Con 60 minutos elegidos la sesión se cae de la lista a los 30: la cuenta sigue desde su última línea.
+        ultima = s.ultima_actividad([self.sesion(29 * 60)], 0.0, self.AHORA)
+        ultima = s.ultima_actividad([], ultima, self.AHORA + 120)
+        self.assertEqual(ultima, self.AHORA - 29 * 60)
+        self.assertFalse(s.sin_chats(ultima, self.AHORA + 120, 60))
+        self.assertTrue(s.sin_chats(ultima, self.AHORA + 32 * 60, 60))
+
+    def test_un_chat_nuevo_la_trae_de_vuelta(self):
+        ultima = self.AHORA - 3600
+        self.assertTrue(s.sin_chats(ultima, self.AHORA, 10))
+        ultima = s.ultima_actividad([self.sesion(1)], ultima, self.AHORA)
+        self.assertFalse(s.sin_chats(ultima, self.AHORA, 10))
+
+    def test_hora_del_futuro_no_la_deja_para_siempre(self):
+        antes = self.AHORA - 3600
+        for ahora in (self.AHORA, self.AHORA + 3600):  # en cada vuelta, no solo en la primera
+            antes = s.ultima_actividad([self.sesion(-86400)], antes, ahora)
+            self.assertEqual(antes, self.AHORA - 3600)
+        self.assertEqual(s.ultima_actividad([self.sesion(-30)], 0.0, self.AHORA), self.AHORA)  # un poco: vale
+
+    def test_sesion_sin_hora_no_cuenta(self):
+        antes = self.AHORA - 3600
+        self.assertEqual(s.ultima_actividad([{"ultima": None, "trabajando": False, "agentes": 0}], antes,
+                                            self.AHORA), antes)
+
+
 if __name__ == "__main__":
     unittest.main()
