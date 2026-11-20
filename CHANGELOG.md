@@ -3,6 +3,14 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [semantic versioning](https://semver.org/).
 
+## [1.4.1] - 2026-11-20
+
+### Fixed
+
+- **Maximized settings window on Windows**: with the glass effect, maximizing the settings window left the old,
+  smaller picture in the top-left corner and only blur over the rest of the screen. It now fills the screen
+  (on any monitor, also after minimizing and restoring).
+
 ## [1.4.0] - 2026-11-17
 
 ### Added
@@ -175,6 +183,7 @@ First public release of WaveMascot.
 - `WaveMascot-Setup.exe` installer (PyInstaller, no Python or administrator rights needed) and a GitHub Actions
   workflow that publishes it on every `v*` tag.
 
+[1.4.1]: ../../releases/tag/v1.4.1
 [1.4.0]: ../../releases/tag/v1.4.0
 [1.3.1]: ../../releases/tag/v1.3.1
 [1.3.0]: ../../releases/tag/v1.3.0
