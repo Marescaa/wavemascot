@@ -684,3 +684,25 @@ def formato_tokens(n: int) -> str:
     if n < 999_950:  # 999 950 ya se redondea a 1000 k: mejor "1.00 M"
         return f"{n / 1000:.1f} k".replace(".0 k", " k")
     return f"{n / 1_000_000:.2f} M"
+
+
+def ultima_actividad(sesiones: list[dict], antes: float, ahora: float) -> float:
+    """Cuándo se movió por última vez algún chat (para esconder la isla si no hay ninguno activo).
+
+    Cuenta la última línea con hora de cada transcript (abrir Claude Code toca transcripts viejos con
+    líneas sin hora: eso no es activar un chat). Una sesión trabajando o con agentes vivos se está moviendo
+    ahora aunque su transcript no cambie (una herramienta larga). Nunca va para atrás: las sesiones se
+    caen de la lista a los 30 minutos (ACTIVA), y eso no tiene que reiniciar la cuenta.
+    """
+    for s in sesiones:
+        if s.get("trabajando") or s.get("agentes"):
+            return ahora
+        ultima = s.get("ultima") or 0.0
+        if ultima <= ahora + 60:  # una hora del futuro (reloj corrido) no la deja visible hasta alcanzarla
+            antes = max(antes, ultima)
+    return min(antes, ahora)
+
+
+def sin_chats(ultima: float, ahora: float, minutos: int) -> bool:
+    """¿Pasaron más de tantos minutos sin que se mueva ningún chat?"""
+    return ahora - ultima > minutos * 60

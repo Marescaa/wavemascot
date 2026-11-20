@@ -39,7 +39,7 @@ import sprites
 import ventanas
 from idiomas import t
 
-__version__ = "1.4.1"
+__version__ = "1.4.2"
 CONGELADO = getattr(sys, "frozen", False)  # corriendo como WaveMascot.exe o WaveMascot.app (PyInstaller)
 MAC = ventanas.ES_MAC
 DIR = Path(__file__).resolve().parent
@@ -140,6 +140,8 @@ CONFIG_DEFECTO = {
     # Sus opciones se eligen en los ajustes (sección Dynamic Island).
     "barra": {"activa": True,
               "pantalla_completa": True,   # esconderse si hay algo en pantalla completa
+              "esconder_sin_chats": True,  # irse si ningún chat se movió en un rato (vuelve con el próximo)
+              "minutos_sin_chats": 10,     # ese rato, en minutos (1 a 120)
               "abrir": "mouse",            # se estira al pasarle el mouse ("mouse") o recién al tocarla ("clic")
               "posicion": "centro",        # arriba al centro, a la izquierda o a la derecha
               "ojos": True,                # los ojos de la mascota (si no, un punto de color)
@@ -223,6 +225,7 @@ def cargar_config(ruta: Path = CONFIG) -> dict:
         if isla[clave] not in validos:
             isla[clave] = isla_defecto[clave]
     isla["opacidad"] = max(40, min(95, isla["opacidad"]))
+    isla["minutos_sin_chats"] = max(1, min(120, isla["minutos_sin_chats"]))
     if config["uso"]["lapso"] not in ("5h", "1d", "7d", "30d", "180d"):
         config["uso"]["lapso"] = CONFIG_DEFECTO["uso"]["lapso"]
     for clave in ("desde", "hasta"):

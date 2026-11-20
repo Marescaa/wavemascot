@@ -2167,6 +2167,14 @@ class Ajustes(QWidget):
         interruptor(grupo, "activa", t("Mostrar la Dynamic Island"))
         interruptor(grupo, "pantalla_completa", t("Esconderla si hay algo en pantalla completa"),
                     t("Juegos, videos y presentaciones. Una ventana maximizada no cuenta."))
+        interruptor(grupo, "esconder_sin_chats", t("Esconderla si no hay ningún chat activo"),
+                    t("También si Claude está cerrado. Vuelve sola apenas un chat se mueve."))
+        self.isla["minutos_sin_chats"] = QSlider(Qt.Orientation.Horizontal, minimum=1, maximum=120, singleStep=1,
+                                                 pageStep=10)
+        self.valor_sin_chats = valor()
+        self.isla["minutos_sin_chats"].valueChanged.connect(lambda v: self.cambiar_isla("minutos_sin_chats", v))
+        self.fila_sin_chats = Fila("Sin chats activos por", self.isla["minutos_sin_chats"], self.valor_sin_chats)
+        grupo.agregar(self.fila_sin_chats)
         segmentos(grupo, "posicion", t("Dónde va"), {"izquierda": t("Izquierda"), "centro": t("Centro"), "derecha": t("Derecha")})
         segmentos(grupo, "abrir", t("Se estira"), {"mouse": t("Al pasar el mouse"), "clic": t("Al hacer clic")})
 
@@ -2226,6 +2234,9 @@ class Ajustes(QWidget):
     def reflejar_isla(self) -> None:
         isla = self.config["barra"]
         self.valor_opacidad.setText(f"{isla['opacidad']} %")
+        self.valor_sin_chats.setText(m.formato_duracion(isla["minutos_sin_chats"] * 60).replace(" 00 s", "")
+                                     .replace(" 00 min", ""))
+        self.fila_sin_chats.setEnabled(isla["esconder_sin_chats"])
         self.fila_opacidad.setEnabled(isla["desenfoque"])
         self.isla["seguir_mouse"].setEnabled(isla["ojos"])
 

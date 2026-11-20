@@ -223,7 +223,8 @@ class Barra(QWidget):
         self.timer_cuadro.setTimerType(Qt.TimerType.PreciseTimer)
         self.timer_tic = QTimer(self, interval=250, timeout=self.tic)
         self.timer_pantalla = QTimer(self, interval=1000, timeout=self.revisar_pantalla)
-        self.oculta_por_pantalla = False
+        self.oculta = False                    # escondida sola: pantalla completa o ningún chat activo
+        self.ultima_chat = time.time()         # cuándo se movió algún chat (la cuenta arranca al abrir)
         pantalla = QGuiApplication.primaryScreen()
         if pantalla:  # cambió la resolución o se movió la barra de tareas: vuelve al centro de arriba
             pantalla.availableGeometryChanged.connect(lambda _: (self.ubicar(), self.repintar()))
@@ -232,8 +233,8 @@ class Barra(QWidget):
 
     def mostrar(self) -> None:
         self.ubicar()
-        self.oculta_por_pantalla = self.hay_pantalla_completa()
-        if not self.oculta_por_pantalla:
+        self.oculta = self.debe_esconderse()
+        if not self.oculta:
             self.aparecer()
         for timer in (self.timer_cuadro, self.timer_tic, self.timer_pantalla):
             timer.start()
@@ -313,17 +314,29 @@ class Barra(QWidget):
         # Una ventana maximizada no cuenta (aunque tape todo porque la barra de tareas se esconde sola).
         return self.isla["pantalla_completa"] and ventanas.pantalla_completa(maximizada_no_cuenta=True)
 
+    def sin_chats(self) -> bool:
+        """Ningún chat se movió en los minutos elegidos (o Claude está cerrado): se va hasta que vuelva uno."""
+        if not self.isla["esconder_sin_chats"] or not self.lector.listo.is_set():
+            return False  # (hasta la primera lectura no se sabe nada: que no parpadee al arrancar)
+        if self.encima or self.abierta:
+            return False  # no se le va de abajo del mouse
+        return seguimiento.sin_chats(self.ultima_chat, time.time(), self.isla["minutos_sin_chats"])
+
+    def debe_esconderse(self) -> bool:
+        return self.hay_pantalla_completa() or self.sin_chats()
+
     def revisar_pantalla(self) -> None:
-        """Está siempre, menos sobre un video, un juego o una presentación en pantalla completa."""
-        completa = self.hay_pantalla_completa()
-        if completa and not self.oculta_por_pantalla:
-            self.oculta_por_pantalla = True
+        """Está siempre, menos sobre un video, un juego o una presentación en pantalla completa y (si se
+        eligió) cuando hace rato que no hay ningún chat activo."""
+        esconder = self.debe_esconderse()
+        if esconder and not self.oculta:
+            self.oculta = True
             self.esconder()
-        elif not completa and self.oculta_por_pantalla:
-            self.oculta_por_pantalla = False
+        elif not esconder and self.oculta:
+            self.oculta = False
             self.aparecer()
             self.repintar()
-        elif not completa and self.vidrio:
+        elif not esconder and self.vidrio:
             self.vidrio.seguir(self, self.rect_desenfoque(), forzar=True)  # que siga justo debajo
 
     def tic(self) -> None:
@@ -344,6 +357,12 @@ class Barra(QWidget):
             if self.config["barra"] != antes:
                 self.aplicar_opciones()
         self.trabajando = any(s["trabajando"] for s in self.sesiones)
+        ahora_reloj, minutos = time.time(), self.isla["minutos_sin_chats"]
+        antes = self.ultima_chat
+        self.ultima_chat = seguimiento.ultima_actividad(self.sesiones, antes, ahora_reloj)
+        if (self.oculta and seguimiento.sin_chats(antes, ahora_reloj, minutos)
+                and not seguimiento.sin_chats(self.ultima_chat, ahora_reloj, minutos)):
+            self.revisar_pantalla()  # se activó un chat: vuelve ya, sin esperar el repaso de cada segundo
         self.suavizar(dt)
         self.medir()
         self.repintar()
