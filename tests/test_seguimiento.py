@@ -436,5 +436,35 @@ class SinChats(unittest.TestCase):
                                             self.AHORA), antes)
 
 
+class Quitadas(unittest.TestCase):
+    """Una sesión quitada de la isla con la × no se muestra mientras siga quieta; vuelve si se mueve."""
+
+    def sesion(self, ident, ultima=100.0, trabajando=False, agentes=0):
+        return {"id": ident, "ultima": ultima, "trabajando": trabajando, "agentes": agentes}
+
+    def test_quieta_no_se_muestra(self):
+        quitadas = {"a": 100.0}
+        quedan = s.visibles([self.sesion("a"), self.sesion("b")], quitadas)
+        self.assertEqual([x["id"] for x in quedan], ["b"])
+        self.assertEqual(quitadas, {"a": 100.0})
+
+    def test_vuelve_con_una_linea_nueva(self):
+        quitadas = {"a": 100.0}
+        self.assertEqual(len(s.visibles([self.sesion("a", ultima=130.0)], quitadas)), 1)
+        self.assertEqual(quitadas, {})  # ya no está quitada: si se vuelve a quedar quieta, se sigue viendo
+        self.assertEqual(len(s.visibles([self.sesion("a", ultima=130.0)], quitadas)), 1)
+
+    def test_vuelve_si_trabaja_o_tiene_agentes(self):
+        for sesion in (self.sesion("a", trabajando=True), self.sesion("a", agentes=2)):
+            quitadas = {"a": 100.0}
+            self.assertEqual(len(s.visibles([sesion], quitadas)), 1)
+            self.assertEqual(quitadas, {})
+
+    def test_se_olvidan_las_que_ya_no_estan(self):
+        quitadas = {"a": 100.0, "vieja": 50.0}
+        s.visibles([self.sesion("a")], quitadas)
+        self.assertEqual(quitadas, {"a": 100.0})
+
+
 if __name__ == "__main__":
     unittest.main()

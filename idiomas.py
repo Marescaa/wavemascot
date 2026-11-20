@@ -724,6 +724,9 @@ TEXTOS: dict[str, dict[str, str]] = {
     'En espera': {
         "en": 'Waiting',
         "pt": 'Em espera'},
+    'Quitaste las sesiones en espera: vuelven solas si se mueven': {
+        "en": 'You removed the waiting sessions: they come back on their own if they move',
+        "pt": 'Você tirou as sessões em espera: elas voltam sozinhas se se mexerem'},
     'No hay sesiones de Claude Code en la última media hora': {
         "en": 'No Claude Code sessions in the last half hour',
         "pt": 'Nenhuma sessão do Claude Code na última meia hora'},

@@ -188,7 +188,9 @@ class Barra(QWidget):
         self.lector = Lector(monitor or seguimiento.Monitor(HISTORIAL))
         if leer:
             self.lector.start()
-        self.sesiones: list[dict] = []
+        self.sesiones: list[dict] = []        # las que se muestran (sin las quitadas con la ×)
+        self.crudas: list[dict] = []          # todas las que leyó el Lector
+        self.quitadas: dict[str, float] = {}  # {id: su última línea al quitarla}: vuelven si se mueven
         self.foto_hora = time.time()
         self.eta: dict[str, float] = {}       # lo que se muestra de cada sesión, suavizado
         self.config = m.cargar_config()
@@ -207,6 +209,13 @@ class Barra(QWidget):
         self.boton_ajustes = QRectF()          # dónde quedaron pintados, para los clics
         self.zona_uso = QRectF()
         self.filas: list[tuple[QRectF, dict]] = []
+        self.cruces: list[tuple[QRectF, dict]] = []   # la × de la fila con el mouse encima
+        self.cruz_suave: dict[str, tuple[float, float]] = {}  # por sesión: (cuánto se ve la ×, cuánto está encima)
+        self.cruz_reloj = time.monotonic()
+        # Recién quitada una: el segundo clic de un doble clic no toca la fila que subió (ni la quita ni salta
+        # a su ventana), y esa fila no muestra su × hasta que el mouse se aleje unos píxeles.
+        self.quitada_en = -999.0
+        self.punto_quitar = QPointF(-999, -999)
 
         # El cuerpo líquido: ancho y alto rebotan distinto, así no se estira como una caja.
         repintar = self.repintar
@@ -345,8 +354,9 @@ class Barra(QWidget):
         dt = min(1.5, ahora - self.reloj)
         self.reloj = ahora
         foto_hora, sesiones = self.lector.foto
-        if foto_hora != self.foto_hora or sesiones is not self.sesiones:
-            self.foto_hora, self.sesiones = foto_hora, sesiones
+        if foto_hora != self.foto_hora or sesiones is not self.crudas:
+            self.foto_hora, self.crudas = foto_hora, sesiones
+        self.sesiones = seguimiento.visibles(self.crudas, self.quitadas)
         try:  # la config se vuelve a leer apenas cambia el archivo: las opciones se ven al instante
             guardada = m.CONFIG.stat().st_mtime_ns
         except OSError:
@@ -529,18 +539,38 @@ class Barra(QWidget):
             if self.rect_cuerpo().contains(punto):
                 self.timer_abrir.stop()
                 self.abrir(True)
+        elif time.monotonic() - self.quitada_en < self.intervalo_doble_clic():
+            return  # el segundo clic de un doble clic sobre la ×
         elif self.r_contenido.x < 0.9:
             return  # todavía se está abriendo: lo de adentro no está pintado (ni donde va a quedar)
         elif self.boton_ajustes.contains(punto):
             self.abrir_ajustes()
+        elif cruz := next((s for caja, s in self.cruces if caja.contains(punto)), None):
+            self.quitar(cruz, punto)
         elif self.zona_uso.contains(punto):
             self.abrir_ajustes("uso")
+        elif (punto - self.punto_quitar).manhattanLength() < 8:
+            return  # otro clic donde estaba la × que usaste: la fila que subió no es la que querías abrir
         else:  # una sesión: saltar a la ventana donde corre
             for caja, s in self.filas:
                 if caja.contains(punto) and s.get("ventana") and self.isla["saltar"]:
                     if ventanas.enfocar(s["ventana"]):
                         self.abrir(False)
                     break
+
+    @staticmethod
+    def intervalo_doble_clic() -> float:
+        return max(0.2, QGuiApplication.styleHints().mouseDoubleClickInterval() / 1000)
+
+    def quitar(self, s: dict, punto: QPointF) -> None:
+        """La × de una sesión en espera: sale de la isla hasta que se vuelva a mover."""
+        self.quitadas[s["id"]] = s.get("ultima") or time.time()
+        self.sesiones = seguimiento.visibles(self.crudas, self.quitadas)
+        self.cruces = []
+        self.quitada_en = time.monotonic()
+        self.punto_quitar = QPointF(punto)
+        self.medir()
+        self.repintar()
 
     @staticmethod
     def abrir_ajustes(seccion: str = "") -> None:
@@ -784,6 +814,12 @@ class Barra(QWidget):
 
         y = r.top() + CABECERA
         self.filas = []
+        self.cruces = []
+        ahora = time.monotonic()
+        # La × entra y sale con un fundido (~150 ms), no de golpe: cuánto avanza depende del tiempo del cuadro.
+        paso = 1.0 - math.exp(-min(0.1, ahora - self.cruz_reloj) * 16)
+        self.cruz_reloj = ahora
+        suave, self.cruz_suave = self.cruz_suave, {}
         self.zona_uso = QRectF()
         if self.isla["uso"]:
             self.pintar_uso(p, QRectF(izq, r.top() + self.alto_abierta() - PIE - USO + 4, der - izq, USO), col)
@@ -791,7 +827,8 @@ class Barra(QWidget):
             p.setFont(m.fuente(9))
             p.setPen(col["tenue"])
             p.drawText(QRectF(izq, y, der - izq, FILA - 8), Qt.AlignmentFlag.AlignCenter,
-                       t("No hay sesiones de Claude Code en la última media hora"))
+                       t("Quitaste las sesiones en espera: vuelven solas si se mueven") if self.crudas
+                       else t("No hay sesiones de Claude Code en la última media hora"))
             return
         for i, s in enumerate(self.sesiones[:self.max_filas()]):
             fila = QRectF(izq, y, der - izq, FILA)
@@ -800,13 +837,50 @@ class Barra(QWidget):
                 p.setPen(Qt.PenStyle.NoPen)
                 p.setBrush(con_alfa(col["texto"], 0.07))
                 p.drawRoundedRect(fila.adjusted(-8, 3, 8, -3), 12, 12)
-            self.pintar_fila(p, fila, s, col, primera=i == 0)
+            cruz = self.pintar_cruz(p, fila, s, col, suave.get(s["id"], (0.0, 0.0)), paso)
+            self.pintar_fila(p, fila, s, col, primera=i == 0, cruz=cruz)
             y += FILA
         if len(self.sesiones) > self.max_filas():
             p.setFont(m.fuente(8))
             p.setPen(col["tenue"])
             p.drawText(QRectF(izq, y - 4, der - izq, 16), Qt.AlignmentFlag.AlignCenter,
                        t("y {n} más", n=len(self.sesiones) - self.max_filas()))
+
+    def pintar_cruz(self, p: QPainter, fila: QRectF, s: dict, col: dict, antes: tuple[float, float],
+                    paso: float) -> float:
+        """La × para quitar una sesión en espera, a la derecha de su fila, solo con el mouse encima.
+
+        Aparece y se va con un fundido y crece un poco al entrar; devuelve cuánto se corre (0 a 1) el texto
+        de la derecha para dejarle lugar."""
+        quiere = (not s["trabajando"] and not s["agentes"] and fila.contains(self.cursor)
+                  and (self.cursor - self.punto_quitar).manhattanLength() >= 8)  # no justo donde quitaste otra
+        if quiere:
+            self.punto_quitar = QPointF(-999, -999)  # ya se alejó: la × vuelve hasta la próxima que quites
+        caja = QRectF(fila.right() - 24, fila.top() + (FILA - 24) / 2, 24, 24)
+        encima_ya = quiere and caja.contains(self.cursor)
+        visible = antes[0] + ((1.0 if quiere else 0.0) - antes[0]) * paso
+        encima = antes[1] + ((1.0 if encima_ya else 0.0) - antes[1]) * paso
+        if visible < 0.01 and not quiere:
+            return 0.0  # ya se fue del todo: se olvida
+        self.cruz_suave[s["id"]] = (visible, encima)
+        if quiere:
+            self.cruces.append((caja, s))
+        lleno = visible * visible * (3 - 2 * visible)  # que arranque y frene suave
+        tam = 0.7 + 0.3 * lleno
+        c = caja.center()
+        p.save()
+        p.setOpacity(p.opacity() * lleno)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(con_alfa(col["texto"], 0.10 + 0.10 * encima))
+        p.drawEllipse(c, 12 * tam, 12 * tam)
+        pluma = QPen(mezcla(col["tenue"], col["texto"], encima), 1.5)
+        pluma.setCapStyle(Qt.PenCapStyle.RoundCap)
+        p.setPen(pluma)
+        d = 3.6 * tam
+        p.drawLine(c + QPointF(-d, -d), c + QPointF(d, d))
+        p.drawLine(c + QPointF(-d, d), c + QPointF(d, -d))
+        p.restore()
+        return 1 - (1 - visible) ** 3  # el texto se corre antes de que la × termine de aparecer: no se pisan
 
     @staticmethod
     def pintar_engranaje(p: QPainter, centro: QPointF, color: QColor) -> None:
@@ -857,7 +931,7 @@ class Barra(QWidget):
                            else con_alfa(col["texto"], 0.12))
                 p.drawRoundedRect(QRectF(zona.left() + i * paso, zona.bottom() - alto, max(1.0, paso - 1), alto), 0.8, 0.8)
 
-    def pintar_fila(self, p: QPainter, f: QRectF, s: dict, col: dict, primera: bool) -> None:
+    def pintar_fila(self, p: QPainter, f: QRectF, s: dict, col: dict, primera: bool, cruz: float = 0.0) -> None:
         p.setPen(QPen(col["linea"], 1))
         p.drawLine(QPointF(f.left(), f.top()), QPointF(f.right(), f.top()))
         self.punto_estado(p, QPointF(f.left() + 4, f.top() + 19), s, col, 3.6)
@@ -872,6 +946,8 @@ class Barra(QWidget):
                 chico = t("más de lo normal") if s.get("historial") else t("aprendiendo tus tiempos")
         else:
             grande, chico = t("en espera"), t("hace {tiempo}", tiempo=corto(ahora - s["ultima"]))
+        if cruz:  # la × ocupa la punta derecha: lo de la derecha se corre a su lado, a la par de su fundido
+            f = QRectF(f.left(), f.top(), f.width() - 32 * cruz, f.height())
         p.setFont(m.fuente(10, QFont.Weight.DemiBold))
         fm = QFontMetricsF(p.font())
         ancho_der = max(fm.horizontalAdvance(grande), QFontMetricsF(m.fuente(7)).horizontalAdvance(chico)) + 4
