@@ -11,10 +11,11 @@ En macOS y Linux no hace nada: la barra del sistema queda como está.
 from __future__ import annotations
 
 import ctypes
+import math
 import os
 from ctypes import wintypes
 
-from PyQt6.QtCore import QEvent, QObject, QPointF, QRectF, Qt
+from PyQt6.QtCore import QEvent, QMargins, QObject, QPointF, QRectF, Qt
 from PyQt6.QtGui import QColor, QPainter, QPen
 from PyQt6.QtWidgets import QAbstractButton, QHBoxLayout, QWidget
 
@@ -50,15 +51,6 @@ class MARGINS(ctypes.Structure):
                 ("abajo", ctypes.c_int)]
 
 
-class NCCALCSIZE_PARAMS(ctypes.Structure):
-    _fields_ = [("rgrc", wintypes.RECT * 3), ("lppos", ctypes.c_void_p)]
-
-
-class APPBARDATA(ctypes.Structure):
-    _fields_ = [("cbSize", wintypes.DWORD), ("hWnd", wintypes.HWND), ("uCallbackMessage", wintypes.UINT),
-                ("uEdge", wintypes.UINT), ("rc", wintypes.RECT), ("lParam", wintypes.LPARAM)]
-
-
 def preparar(ventana: QWidget) -> None:
     """Antes de mostrarla: sin barra del sistema, pero con los estilos que le dan acople, animaciones y sombra."""
     if not ACTIVO:
@@ -79,25 +71,34 @@ def preparar(ventana: QWidget) -> None:
         pass
 
 
-def _borde_maximizada(hwnd) -> int:
-    """Cuánto se sale de la pantalla una ventana maximizada (Windows la agranda el ancho del marco)."""
+class MONITORINFO(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT), ("rcWork", wintypes.RECT),
+                ("dwFlags", wintypes.DWORD)]
+
+
+def fuera_de_pantalla(ventana: QWidget) -> QMargins:
+    """Maximizada, cuánto se sale la ventana del área de trabajo de su monitor, en píxeles de Qt.
+
+    Windows agranda las ventanas maximizadas el ancho del marco (8 px por lado, también sobre la barra de
+    tareas) y no deja achicarlas: ni WM_GETMINMAXINFO ni WM_WINDOWPOSCHANGING lo cambian. Antes se recortaba
+    eso en WM_NCCALCSIZE, pero con el vidrio la ventana es "layered": Qt la pinta con UpdateLayeredWindow del
+    tamaño de la ventana entera y, si el contenido es más chico, Windows descarta el dibujo y en pantalla
+    queda el de antes de maximizar. Por eso la ventana entera es contenido y lo que se sale queda de margen."""
+    # Minimizada sigue contando como maximizada, pero Windows la lleva a (-32000, -32000): sin margen.
+    if not ACTIVO or not ventana.isMaximized() or ventana.isMinimized() or ventana.isFullScreen():
+        return QMargins()
     u32 = ctypes.windll.user32
-    try:
-        dpi = u32.GetDpiForWindow(hwnd)
-        return u32.GetSystemMetricsForDpi(32, dpi) + u32.GetSystemMetricsForDpi(92, dpi)  # SIZEFRAME + PADDED
-    except AttributeError:
-        return u32.GetSystemMetrics(32) + u32.GetSystemMetrics(92)
-
-
-def _borde_barra_oculta() -> int | None:
-    """Si la barra de tareas se oculta sola, de qué lado está (0 izq, 1 arriba, 2 der, 3 abajo)."""
-    datos = APPBARDATA(cbSize=ctypes.sizeof(APPBARDATA))
-    shell = ctypes.windll.shell32
-    shell.SHAppBarMessage.restype = ctypes.c_size_t
-    if not shell.SHAppBarMessage(4, ctypes.byref(datos)) & 1:  # ABM_GETSTATE & ABS_AUTOHIDE
-        return None
-    shell.SHAppBarMessage(5, ctypes.byref(datos))  # ABM_GETTASKBARPOS
-    return datos.uEdge
+    u32.MonitorFromWindow.restype = wintypes.HMONITOR
+    u32.MonitorFromWindow.argtypes = (wintypes.HWND, wintypes.DWORD)
+    hwnd = wintypes.HWND(int(ventana.winId()))
+    rect, monitor = wintypes.RECT(), MONITORINFO(cbSize=ctypes.sizeof(MONITORINFO))
+    if (not u32.GetWindowRect(hwnd, ctypes.byref(rect))
+            or not u32.GetMonitorInfoW(u32.MonitorFromWindow(hwnd, 2), ctypes.byref(monitor))):
+        return QMargins()  # 2: MONITOR_DEFAULTTONEAREST
+    area, escala = monitor.rcWork, ventana.devicePixelRatioF() or 1.0
+    lado = lambda px: math.ceil(max(0, px) / escala)
+    return QMargins(lado(area.left - rect.left), lado(area.top - rect.top), lado(rect.right - area.right),
+                    lado(rect.bottom - area.bottom))
 
 
 def evento_nativo(ventana: QWidget, tipo, mensaje) -> tuple[bool, int] | None:
@@ -106,25 +107,8 @@ def evento_nativo(ventana: QWidget, tipo, mensaje) -> tuple[bool, int] | None:
         return None
     msg = wintypes.MSG.from_address(int(mensaje))
     if msg.message == WM_NCCALCSIZE:
-        # Toda la ventana es "contenido": así desaparecen la barra y el marco del sistema.
-        if not msg.wParam:
-            return True, 0
-        rect = NCCALCSIZE_PARAMS.from_address(msg.lParam).rgrc[0]
-        if ctypes.windll.user32.IsZoomed(msg.hWnd) and not ventana.isFullScreen():
-            borde = _borde_maximizada(msg.hWnd)
-            rect.left += borde
-            rect.top += borde
-            rect.right -= borde
-            rect.bottom -= borde
-            lado = _borde_barra_oculta()  # dejar un píxel libre para que la barra oculta pueda asomar
-            if lado == 0:
-                rect.left += 1
-            elif lado == 1:
-                rect.top += 1
-            elif lado == 2:
-                rect.right -= 1
-            elif lado == 3:
-                rect.bottom -= 1
+        # Toda la ventana es "contenido": así desaparecen la barra y el marco del sistema (también maximizada:
+        # ver fuera_de_pantalla).
         return True, 0
     if msg.message == WM_NCHITTEST and not (ventana.isMaximized() or ventana.isFullScreen()):
         # El punto viene en píxeles de pantalla: a píxeles de la ventana y de ahí a los de Qt (escala de Windows).
@@ -221,10 +205,13 @@ class BotonesVentana(QWidget):
 
     def eventFilter(self, objeto: QObject, evento: QEvent) -> bool:
         if objeto is self.ventana:
-            if evento.type() in (QEvent.Type.Resize, QEvent.Type.Show):
-                self.move(self.ventana.width() - self.width(), 0)
+            if evento.type() in (QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.WindowStateChange):
+                margen = fuera_de_pantalla(self.ventana)  # maximizada: el contenido, dentro de la pantalla
+                if self.ventana.contentsMargins() != margen:
+                    self.ventana.setContentsMargins(margen)
+                self.move(self.ventana.width() - self.width() - margen.right(), margen.top())
                 self.raise_()
-            elif evento.type() in (QEvent.Type.WindowStateChange, QEvent.Type.ActivationChange):
+            if evento.type() in (QEvent.Type.WindowStateChange, QEvent.Type.ActivationChange):
                 self.poner_textos()
                 for boton in self.botones.values():
                     boton.update()
