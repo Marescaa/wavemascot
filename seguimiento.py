@@ -706,3 +706,25 @@ def ultima_actividad(sesiones: list[dict], antes: float, ahora: float) -> float:
 def sin_chats(ultima: float, ahora: float, minutos: int) -> bool:
     """¿Pasaron más de tantos minutos sin que se mueva ningún chat?"""
     return ahora - ultima > minutos * 60
+
+
+def visibles(sesiones: list[dict], quitadas: dict[str, float]) -> list[dict]:
+    """Las sesiones que se muestran: sin las que quitaste de la isla con la ×.
+
+    `quitadas` es {id: su última línea con hora cuando la quitaste}. Una sesión quitada vuelve sola apenas
+    se mueve (una línea nueva, se pone a trabajar o le corren agentes): solo se esconde mientras sigue
+    quieta. Las que ya no están en la lista (pasaron los 30 minutos de ACTIVA) se olvidan, así el
+    diccionario no crece sin límite. Lo modifica en el lugar.
+    """
+    presentes = {s["id"] for s in sesiones}
+    for ident in [i for i in quitadas if i not in presentes]:
+        del quitadas[ident]
+    quedan = []
+    for s in sesiones:
+        cuando = quitadas.get(s["id"])
+        if cuando is not None:
+            if not s.get("trabajando") and not s.get("agentes") and (s.get("ultima") or 0.0) <= cuando:
+                continue
+            del quitadas[s["id"]]  # se movió: vuelve y deja de estar quitada
+        quedan.append(s)
+    return quedan

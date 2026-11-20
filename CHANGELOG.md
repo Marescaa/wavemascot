@@ -3,6 +3,14 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [semantic versioning](https://semver.org/).
 
+## [1.4.3] - 2026-11-20
+
+### Added
+
+- **Remove waiting sessions from the Dynamic Island**: hover over a waiting session in the open island and a × fades
+  in on its right; click it and the session leaves the list. It comes back on its own as soon as that chat moves
+  again (a new message, it starts working or runs agents). Removed sessions are remembered until WaveMascot restarts.
+
 ## [1.4.2] - 2026-11-20
 
 ### Added
@@ -191,6 +199,7 @@ First public release of WaveMascot.
 - `WaveMascot-Setup.exe` installer (PyInstaller, no Python or administrator rights needed) and a GitHub Actions
   workflow that publishes it on every `v*` tag.
 
+[1.4.3]: ../../releases/tag/v1.4.3
 [1.4.2]: ../../releases/tag/v1.4.2
 [1.4.1]: ../../releases/tag/v1.4.1
 [1.4.0]: ../../releases/tag/v1.4.0
