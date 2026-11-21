@@ -3,6 +3,24 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [semantic versioning](https://semver.org/).
 
+## [1.4.6] - 2026-11-20
+
+### Added
+
+- **Projects section in Settings**: every git repo you use Claude Code in, with its branches, folders (worktrees) and
+  what is pushed to GitHub, at a glance.
+  - Three numbers on top: commits not pushed, uncommitted files and branches you could clean up.
+  - One card per project. Closed, it says whether everything is up to date; open, it draws the branches as a map
+    (the main branch is the trunk) with each branch's folder, its uncommitted changes, how far it drifted from main
+    and whether it is pushed, only on this computer or deleted on GitHub. Branches already in main fold into one row.
+  - It updates live while you look at it, and a branch's dot pulses when something changes. GitHub is checked every
+    five minutes (or when you click "GitHub checked…"); a click on a folder opens it, a click on a branch opens it
+    on GitHub.
+  - Read-only and careful with other sessions: it never takes git's index lock, never prunes or deletes anything
+    and every git call has a time limit. Repos inside WSL are read with WSL's own git, and only if WSL is already
+    running (opening Settings never starts it).
+- Ctrl+7 now opens Projects; General moved to Ctrl+8.
+
 ## [1.4.5] - 2026-11-20
 
 ### Added
