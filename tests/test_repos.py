@@ -258,7 +258,8 @@ class RepoDeVerdad(unittest.TestCase):
                 self.git("init", "-q", str(tmp / nombre), donde=tmp)
             proyectos = repos.Proyectos(tmp / "nada")
             claves = {proyectos.comun_de(str(tmp / n)) for n in ("uno", "dos")}
-            real = (lambda r: str(r)) if os.name == "nt" else os.path.realpath  # macOS: /var -> /private/var
+            # macOS: /var -> /private/var; Windows: C:\Users\RUNNER~1 -> la ruta larga
+            real = (lambda r: repos.ruta_larga(str(r))) if os.name == "nt" else os.path.realpath
             self.assertEqual(claves, {real(tmp / "uno" / ".git"), real(tmp / "dos" / ".git")})
             original, llamadas = repos.Git.correr, []
 
