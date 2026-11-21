@@ -54,6 +54,7 @@ import bandeja  # noqa: E402
 import marco  # noqa: E402
 import ojos  # noqa: E402
 import paneles  # noqa: E402
+import proyectos  # noqa: E402
 from animacion import Resorte, Velo, mezcla, reducir_movimiento  # noqa: E402
 
 CANAL_AJUSTES = m.CANAL + "-ajustes"
@@ -64,9 +65,9 @@ ESTADOS_CELULAR = ("listo", "permiso", "subagente", "limite", "error")  # "pensa
 # Las secciones de la barra lateral: (clave, nombre, ícono). La última va abajo de todo.
 PAGINAS = {"avisos": ("Avisos", "campana"), "mascota": ("Mascota", "cara"), "celular": ("Celular", "celular"),
            "isla": ("Dynamic Island", "isla"), "dashboard": ("Dashboard", "barras"), "uso": ("Uso", "medidor"),
-           "general": ("General", "engranaje")}
+           "proyectos": ("Proyectos", "rama"), "general": ("General", "engranaje")}
 DE_DATOS = ("dashboard", "uso")  # las secciones que muestran el análisis de uso (a todo el ancho)
-SIN_VISTA = ("mascota", "isla", *DE_DATOS)  # donde no va la vista previa del aviso
+SIN_VISTA = ("mascota", "isla", "proyectos", *DE_DATOS)  # donde no va la vista previa del aviso
 PARTES = {"estilo": "Estilo", "color": "Color", "cabeza": "Cabeza", "ropa": "Ropa", "accesorio": "Accesorio",
           "imagen": "Imagen"}
 ANCHO_VISTA = 310  # la columna de la vista previa, con su margen
@@ -977,6 +978,15 @@ def pintar_icono(p: QPainter, nombre: str, centro: QPointF, color) -> None:
             p.drawLine(QPointF(x, 6.5), QPointF(x, 6.5 - alto))
         p.setPen(lapiz(color, 1.2))
         p.drawLine(QPointF(-8, 6.9), QPointF(8, 6.9))
+    elif nombre == "rama":  # el tronco y una rama que sale de él
+        p.drawLine(QPointF(-3.5, -7), QPointF(-3.5, 7))
+        curva = QPainterPath(QPointF(-3.5, 3.5))
+        curva.cubicTo(QPointF(-3.5, -1), QPointF(4, 1), QPointF(4, -3.2))
+        p.drawPath(curva)
+        p.setBrush(QColor(color))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(QPointF(4, -4.4), 2.1, 2.1)
+        p.drawEllipse(QPointF(-3.5, 7), 1.6, 1.6)
     elif nombre == "medidor":
         p.drawArc(QRectF(-7.5, -6, 15, 15), 0, 180 * 16)
         p.drawLine(QPointF(0, 1.5), QPointF(3.6, -3.2))
@@ -2014,7 +2024,7 @@ class Ajustes(QWidget):
         self.timer_uso = QTimer(self, timeout=self.analizar)
         self.analizado: float | None = None  # cuándo se pidió el último análisis
         for armar in (self.pagina_avisos, self.pagina_mascota, self.pagina_celular, self.pagina_isla,
-                      self.pagina_dashboard, self.pagina_uso, self.pagina_general):
+                      self.pagina_dashboard, self.pagina_uso, self.pagina_proyectos, self.pagina_general):
             self.paginas.agregar(ScrollSuave(armar()))
         cuerpo.addWidget(self.paginas, 1)
         cuerpo.addWidget(self.panel_vista())
@@ -2142,6 +2152,7 @@ class Ajustes(QWidget):
         self.paginas.mostrar(i, direccion, animar, None if paneles.VIDRIO else C["fondo"])
         self.columna_vista.plegar(clave in SIN_VISTA, animar)
         self.programar_uso()
+        self.programar_proyectos()
 
     # Dynamic Island: las opciones de la isla de sesiones (barra.py), que las aplica al instante
 
@@ -2304,6 +2315,33 @@ class Ajustes(QWidget):
     def al_analizar(self, informe) -> None:
         self.dashboard.mostrar(informe)
         self.uso.mostrar(informe)
+
+    # Proyectos: ramas, carpetas y qué está subido de cada repo (repos.py lee git en un hilo)
+
+    def pagina_proyectos(self) -> QWidget:
+        pagina, caja = self.hoja()
+        self.proyectos = proyectos.Proyectos()
+        caja.addWidget(self.proyectos)
+        self.revisor = proyectos.Revisor(self)
+        self.revisor.listo.connect(self.proyectos.mostrar)
+        self.revisor.buscando.connect(self.proyectos.buscar)
+        self.proyectos.revisar.connect(lambda: self.revisor.pedir(github=True, forzar=True))
+        self.timer_proyectos = QTimer(self, timeout=self.revisar_proyectos)
+        return pagina
+
+    def programar_proyectos(self) -> None:
+        """Solo mientras se mira Proyectos: git se lee cada pocos segundos y GitHub cada cinco minutos."""
+        if list(PAGINAS)[self.pagina] != "proyectos":
+            self.timer_proyectos.stop()
+            return
+        if not self.timer_proyectos.isActive():
+            self.timer_proyectos.start(proyectos.VIVO * 1000)
+            self.revisor.pedir(github=False)  # lo de la compu, ya; GitHub en la próxima vuelta
+
+    def revisar_proyectos(self) -> None:
+        if self.isMinimized() or not self.isVisible():
+            return
+        self.revisor.pedir(github=True)
 
     @staticmethod
     def hoja() -> tuple[QWidget, QVBoxLayout]:
@@ -3434,6 +3472,8 @@ class Ajustes(QWidget):
             self.guardar()
         self.timer_uso.stop()
         self.analista.cerrar()
+        self.timer_proyectos.stop()
+        self.revisor.cerrar()
         super().closeEvent(evento)
 
 
