@@ -41,7 +41,7 @@ except ImportError:  # sin idiomas.py al lado (p. ej. un desinstalador copiado s
     def t(texto: str, **datos) -> str:
         return texto.format(**datos) if datos else texto
 
-VERSION = "1.4.3"
+VERSION = "1.4.4"
 NOMBRE = "WaveMascot"
 CONGELADO = getattr(sys, "frozen", False)
 MAC = sys.platform == "darwin"
@@ -306,7 +306,8 @@ def apunta_a(lnk: Path, destino: Path) -> bool:
                      ((datos, "utf-16-le"), (datos[1:], "utf-16-le"), (datos, "latin-1"))).lower()
     if MAC:  # el LaunchAgent es un .plist de texto, con barras normales
         return Path(destino).as_posix().lower().rstrip("/") + "/" in texto.replace("\\", "/")
-    return str(destino).lower().rstrip("\\") in texto.replace("/", "\\")
+    # Con la barra final: "...\WaveMascot" no es "...\WaveMascot2" (el .exe o el .py siempre van adentro).
+    return str(destino).lower().rstrip("\\") + "\\" in texto.replace("/", "\\")
 
 
 def detener_procesos_mac(destino: Path) -> None:
@@ -422,12 +423,21 @@ def configurar(tipo: str, destino: Path, claude_dir: Path, sin_inicio: bool = Fa
         informe.append(t("ícono en la barra de menús al iniciar sesión") if MAC
                        else t("ícono junto al reloj al iniciar Windows"))
     if tipo == "exe" and not MAC:  # en macOS la app ya está en Aplicaciones (y en Launchpad)
-        for nombre, programa in ((t("Ajustes de {nombre}", nombre=NOMBRE), "ajustes"),
+        # "WaveMascot" abre el ícono junto al reloj: sin él, el buscador de Windows solo encontraba los ajustes.
+        for nombre, programa in ((NOMBRE, "bandeja"),
+                                 (t("Ajustes de {nombre}", nombre=NOMBRE), "ajustes"),
                                  (t("Desinstalar {nombre}", nombre=NOMBRE), "desinstalar")):
             lnk = carpeta_menu() / f"{nombre}.lnk"
             crear_acceso(lnk, lanzador(tipo, destino, programa), icono, nombre)
             manifiesto["accesos"].append(str(lnk))
         informe.append(t("accesos en el menú Inicio: {carpeta}", carpeta=carpeta_menu()))
+    if not MAC:  # en macOS el único acceso es el LaunchAgent, y sacarlo pide launchctl (ver desinstalar)
+        # Los de la instalación anterior que ya no se crean (otro idioma: "WaveMascot settings.lnk") sobran.
+        for viejo in {Path(a) for a in anterior.get("accesos") or []} - {Path(a) for a in manifiesto["accesos"]}:
+            if viejo.exists() and apunta_a(viejo, destino):
+                viejo.unlink()
+        if carpeta_menu().exists() and not any(carpeta_menu().iterdir()):
+            carpeta_menu().rmdir()
     ruta_manifiesto(destino).parent.mkdir(parents=True, exist_ok=True)
     ruta_manifiesto(destino).write_text(json.dumps(manifiesto, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return informe
