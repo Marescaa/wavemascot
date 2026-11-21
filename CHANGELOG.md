@@ -3,6 +3,27 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [semantic versioning](https://semver.org/).
 
+## [1.4.5] - 2026-11-20
+
+### Added
+
+- **Approve permissions from the Dynamic Island**: when Claude Code asks for permission, the pill stretches with the
+  request in one or two words (`git push`, `Edit barra.py`, `github.com`) and **Deny** / **Allow** buttons, so you
+  don't have to find the terminal window. A thin line shows the time left; after that the terminal decides as usual.
+  - The arrow next to Allow unfolds the full request: one chained command per line, with the program highlighted.
+  - When you answer, the pill gets a green (allowed) or red (denied) border for a moment.
+  - Several requests at once queue up behind a "+1". Clicking the label brings that session's window to the front.
+  - If the island takes the request, the mascot's card is not shown (one pair of buttons). If the island is off,
+    hidden in full screen or WaveMascot is closed, the card shows as before, with no delay.
+  - New option in Settings → Dynamic Island → Permissions (on by default). It works even if approving from the mascot
+    is turned off.
+
+### Fixed
+
+- **The island no longer flickers while it changes size**: Windows redraws the blur behind it with a delay when it is
+  resized, so the background flashed sharp for a frame or two. The blur now follows what is drawn and the glass
+  covers a bit more while it moves.
+
 ## [1.4.4] - 2026-11-20
 
 ### Fixed
