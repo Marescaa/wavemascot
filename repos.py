@@ -373,6 +373,23 @@ def wsl_prendidas() -> set[str]:
     return nombres
 
 
+def ruta_larga(ruta: str) -> str:
+    r"""En Windows, C:\Users\RUNNER~1\... -> C:\Users\runneradmin\... (git escribe la ruta larga en los
+    worktrees: con la corta, el repo y sus worktrees serían dos proyectos). Si no se puede, la deja igual."""
+    if os.name != "nt" or "~" not in ruta or de_wsl(ruta):
+        return ruta
+    try:
+        import ctypes
+        largo = ctypes.windll.kernel32.GetLongPathNameW(ruta, None, 0)
+        if largo:
+            buf = ctypes.create_unicode_buffer(largo)
+            if ctypes.windll.kernel32.GetLongPathNameW(ruta, buf, largo):
+                return buf.value
+    except (OSError, AttributeError):
+        pass
+    return ruta
+
+
 def normalizar(ruta: str) -> str:
     """La clave de una carpeta (para comparar). Solo para comparar: para abrir archivos se usa la ruta tal
     cual, porque en WSL las mayúsculas importan."""
@@ -475,7 +492,7 @@ class Proyectos:
                 comun = os.path.join(raiz, salida)  # join ignora raiz si salida es absoluta
                 # En macOS /var es un enlace a /private/var: el repo principal y sus worktrees darían dos rutas
                 # para el mismo .git (y dos tarjetas). En Windows no: cambiaría las unidades mapeadas y subst.
-                self.comunes[raiz] = os.path.normpath(comun) if os.name == "nt" else os.path.realpath(comun)
+                self.comunes[raiz] = ruta_larga(os.path.normpath(comun)) if os.name == "nt" else os.path.realpath(comun)
         return self.comunes[raiz]
 
     def repos_en(self, cwd: str) -> list[str]:

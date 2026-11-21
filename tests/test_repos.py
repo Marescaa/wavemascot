@@ -362,6 +362,25 @@ class RepoDeVerdad(unittest.TestCase):
             (carpeta / "a.jsonl").write_text('{"cwd":"A:\\\\proyecto"}\n')
             self.assertEqual(list(proyectos.carpetas_usadas()), ["A:\\proyecto"])
 
+    @unittest.skipUnless(os.name == "nt", "solo Windows")
+    def test_nombres_cortos_de_windows(self):
+        """Abierto por su nombre corto (RUNNER~1) y por el largo, es el mismo repo: una sola clave."""
+        import ctypes
+        with tempfile.TemporaryDirectory() as tmp:
+            largo = Path(tmp) / "carpeta con un nombre bastante largo"
+            largo.mkdir()
+            buf = ctypes.create_unicode_buffer(1000)
+            ctypes.windll.kernel32.GetShortPathNameW(str(largo), buf, 1000)
+            if "~" not in buf.value:
+                self.skipTest("este disco no tiene nombres 8.3")
+            self.repo = largo / "app"
+            self.git("init", "-q", "-b", "main", str(self.repo), donde=largo)
+            self.commit("uno")
+            self.git("worktree", "add", "-q", "-b", "otra", str(largo / "app-wt"))
+            proyectos = repos.Proyectos(Path(tmp) / "nada")
+            corto = proyectos.comun_de(str(Path(buf.value) / "app"))
+            self.assertEqual(corto, proyectos.comun_de(str(largo / "app-wt")))
+
     def test_wsl_apagado_no_se_toca(self):
         """Una carpeta de WSL con la distribución apagada: ni un acceso al disco (la prendería)."""
         with tempfile.TemporaryDirectory() as tmp:
