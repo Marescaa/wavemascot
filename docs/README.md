@@ -78,8 +78,7 @@ everyone.
 |:---:|:---:|
 | <img src="capturas/en/ajustes-1-avisos.png" width="380" alt="Alerts section"><br>**Alerts** | <img src="capturas/en/ajustes-2-mascota.png" width="380" alt="Mascot section"><br>**Mascot** |
 | <img src="capturas/en/ajustes-3-celular.png" width="380" alt="Phone section"><br>**Phone** | <img src="capturas/en/ajustes-4-isla.png" width="380" alt="Dynamic Island section"><br>**Dynamic Island** |
-| <img src="capturas/en/ajustes-5-dashboard.png" width="380" alt="Dashboard section"><br>**Dashboard** | <img src="capturas/en/ajustes-6-uso.png" width="380" alt="Usage section"><br>**Usage** |
-| <img src="capturas/en/ajustes-7-general.png" width="380" alt="General section"><br>**General** |  |
+| <img src="capturas/en/ajustes-5-uso.png" width="380" alt="Usage section"><br>**Usage** | <img src="capturas/en/ajustes-7-general.png" width="380" alt="General section"><br>**General** |
 
 <sub>The window is the real one; the blurred desktop behind it, the rounded corners, the shadow and the usage numbers are recreated.</sub>
 

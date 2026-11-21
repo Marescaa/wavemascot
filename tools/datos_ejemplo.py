@@ -1,6 +1,6 @@
 """Transcripts de Claude Code inventados, para las capturas del README.
 
-La isla, el Dashboard y Uso leen los transcripts de ~/.claude/projects. Para las capturas no se leen los tuyos:
+La isla y Uso leen los transcripts de ~/.claude/projects. Para las capturas no se leen los tuyos:
 se escribe medio año de sesiones de mentira (proyectos, turnos, tokens, herramientas y listas de tareas) en la
 carpeta de usuario temporal, más tres sesiones "de ahora" (dos trabajando y una en espera) para la isla.
 Todo sale de una semilla fija: las capturas no cambian entre una corrida y otra salvo por la hora.

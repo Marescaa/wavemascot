@@ -64,9 +64,9 @@ ESTADOS_ORDEN = ("listo", "permiso", "pensando", "subagente", "limite", "error")
 ESTADOS_CELULAR = ("listo", "permiso", "subagente", "limite", "error")  # "pensando" no llega al celular
 # Las secciones de la barra lateral: (clave, nombre, ícono). La última va abajo de todo.
 PAGINAS = {"avisos": ("Avisos", "campana"), "mascota": ("Mascota", "cara"), "celular": ("Celular", "celular"),
-           "isla": ("Dynamic Island", "isla"), "dashboard": ("Dashboard", "barras"), "uso": ("Uso", "medidor"),
+           "isla": ("Dynamic Island", "isla"), "uso": ("Uso", "medidor"),
            "proyectos": ("Proyectos", "rama"), "general": ("General", "engranaje")}
-DE_DATOS = ("dashboard", "uso")  # las secciones que muestran el análisis de uso (a todo el ancho)
+DE_DATOS = ("uso",)  # las secciones que muestran el análisis de uso (a todo el ancho)
 SIN_VISTA = ("mascota", "isla", "proyectos", *DE_DATOS)  # donde no va la vista previa del aviso
 PARTES = {"estilo": "Estilo", "color": "Color", "cabeza": "Cabeza", "ropa": "Ropa", "accesorio": "Accesorio",
           "imagen": "Imagen"}
@@ -117,7 +117,7 @@ PALETAS = {
                                             "#C7861C", "#E0A53A", "#1D1612")), flecha=C_CLARO["flecha"])),
 }
 C = dict(C_OSCURO)  # colores en uso: el tema y el estilo los reemplazan en el lugar
-paneles.C = C  # las tarjetas de Dashboard y Uso usan los mismos
+paneles.C = C  # las tarjetas de Uso y Proyectos usan los mismos
 marco.usar_colores(C)  # los botones de la ventana (Windows)
 ESTILO = """
 QWidget { color: %(texto)s; font-family: "Segoe UI"; font-size: 10pt; }
@@ -973,11 +973,6 @@ def pintar_icono(p: QPainter, nombre: str, centro: QPointF, color) -> None:
         p.setPen(Qt.PenStyle.NoPen)
         p.drawEllipse(QPointF(-3, 0), 1.2, 1.4)
         p.drawEllipse(QPointF(3, 0), 1.2, 1.4)
-    elif nombre == "barras":
-        for x, alto in ((-5.2, 5.0), (0.0, 11.0), (5.2, 8.0)):
-            p.drawLine(QPointF(x, 6.5), QPointF(x, 6.5 - alto))
-        p.setPen(lapiz(color, 1.2))
-        p.drawLine(QPointF(-8, 6.9), QPointF(8, 6.9))
     elif nombre == "rama":  # el tronco y una rama que sale de él
         p.drawLine(QPointF(-3.5, -7), QPointF(-3.5, 7))
         curva = QPainterPath(QPointF(-3.5, 3.5))
@@ -2024,10 +2019,12 @@ class Ajustes(QWidget):
         self.timer_uso = QTimer(self, timeout=self.analizar)
         self.analizado: float | None = None  # cuándo se pidió el último análisis
         for armar in (self.pagina_avisos, self.pagina_mascota, self.pagina_celular, self.pagina_isla,
-                      self.pagina_dashboard, self.pagina_uso, self.pagina_proyectos, self.pagina_general):
+                      self.pagina_uso, self.pagina_proyectos, self.pagina_general):
             self.paginas.agregar(ScrollSuave(armar()))
         cuerpo.addWidget(self.paginas, 1)
         cuerpo.addWidget(self.panel_vista())
+        self.cuerpo = cuerpo
+        self.uso.ancho_final = self.ancho_final_uso
         principal.addLayout(cuerpo, 1)
         raiz.addLayout(principal, 1)
         if marco.ACTIVO:
@@ -2274,13 +2271,7 @@ class Ajustes(QWidget):
             return
         self.cambio()
 
-    # Dashboard y Uso: el análisis de los transcripts corre en un hilo y llega por al_analizar
-
-    def pagina_dashboard(self) -> QWidget:
-        pagina, caja = self.hoja()
-        self.dashboard = paneles.Dashboard()
-        caja.addWidget(self.dashboard)
-        return pagina
+    # Uso: el análisis de los transcripts corre en un hilo y llega por al_analizar
 
     def pagina_uso(self) -> QWidget:
         pagina, caja = self.hoja()
@@ -2291,13 +2282,22 @@ class Ajustes(QWidget):
         caja.addWidget(self.uso)
         return pagina
 
+    def ancho_final_uso(self) -> int:
+        """Lo que va a medir Uso con la vista previa plegada. Sale de la fila entera, que no depende de cómo
+        venga el plegado ni del ancho mínimo de la página."""
+        ancho = self.cuerpo.geometry().width()
+        if ancho <= 0:  # todavía no se acomodó la ventana
+            return self.uso.width()
+        barra = self.paginas.lista[self.paginas.actual].verticalScrollBar()
+        return ancho - 14 - (barra.width() if barra.isVisible() else 0)  # 14: el margen derecho de hoja()
+
     def cambiar_lapso(self, clave: str) -> None:
         self.uso.elegir(clave)
         self.cambiar_grupo("uso", "lapso", clave)
 
     def programar_uso(self) -> None:
-        """Mientras se mira Dashboard o Uso, los datos se vuelven a leer cada pocos segundos (solo lo nuevo
-        de cada transcript: es barato). Afuera de esas secciones, nada."""
+        """Mientras se mira Uso, los datos se vuelven a leer cada pocos segundos (solo lo nuevo
+        de cada transcript: es barato). Afuera de esa sección, nada."""
         if list(PAGINAS)[self.pagina] not in DE_DATOS:
             self.timer_uso.stop()
             return
@@ -2313,7 +2313,6 @@ class Ajustes(QWidget):
             self.analizado = time.monotonic()
 
     def al_analizar(self, informe) -> None:
-        self.dashboard.mostrar(informe)
         self.uso.mostrar(informe)
 
     # Proyectos: ramas, carpetas y qué está subido de cada repo (repos.py lee git en un hilo)

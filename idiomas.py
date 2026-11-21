@@ -544,25 +544,13 @@ TEXTOS: dict[str, dict[str, str]] = {
               "diálogo de sempre no terminal. As perguntas do Claude são respondidas no terminal."},
     "Permitido desde Telegram ✓": {"en": "Allowed from Telegram ✓", "pt": "Permitido pelo Telegram ✓"},
     "Denegado desde Telegram": {"en": "Denied from Telegram", "pt": "Negado pelo Telegram"},
-    # Dashboard y Uso (paneles.py)
+    # Uso (paneles.py)
     "Analizando…": {
         "en": "Analyzing…",
         "pt": "Analisando…"},
-    "Dashboard": {
-        "en": "Dashboard",
-        "pt": "Dashboard"},
-    "Entrada": {
-        "en": "Input",
-        "pt": "Entrada"},
-    "Hacen falta más turnos para medirla": {
-        "en": "More turns are needed to measure it",
-        "pt": "Faltam mais turnos para medir"},
     "Hoy": {
         "en": "Today",
         "pt": "Hoje"},
-    "Salida": {
-        "en": "Output",
-        "pt": "Saída"},
     "Todavía no hay datos": {
         "en": "No data yet",
         "pt": "Ainda não há dados"},
@@ -572,19 +560,12 @@ TEXTOS: dict[str, dict[str, str]] = {
     "ahora": {
         "en": "now",
         "pt": "agora"},
-    "hoy": {
-        "en": "today",
-        "pt": "hoje"},
-    "{n} por minuto ahora": {
-        "en": "{n} per minute now",
-        "pt": "{n} por minuto agora"},
     "Últimas 5 horas": {
         "en": "Last 5 hours",
         "pt": "Últimas 5 horas"},
     "Últimos 7 días": {
         "en": "Last 7 days",
         "pt": "Últimos 7 dias"},
-    "1 día": {"en": "1 day", "pt": "1 dia"},
     "1 mes": {"en": "1 month", "pt": "1 mês"},
     "5 h": {"en": "5 h", "pt": "5 h"},
     "6 meses": {"en": "6 months", "pt": "6 meses"},
@@ -592,20 +573,14 @@ TEXTOS: dict[str, dict[str, str]] = {
     "Claude trabajando": {"en": "Claude working", "pt": "Claude trabalhando"},
     "Desde la caché": {"en": "From cache", "pt": "Do cache"},
     "En vivo": {"en": "Live", "pt": "Ao vivo"},
-    "Error típico: {n}": {"en": "Typical error: {n}", "pt": "Erro típico: {n}"},
     "Modelos": {"en": "Models", "pt": "Modelos"},
-    "Precisión del tiempo estimado": {"en": "Time estimate accuracy", "pt": "Precisão do tempo estimado"},
     "Proyectos": {"en": "Projects", "pt": "Projetos"},
-    "Proyectos de la semana": {"en": "This week's projects", "pt": "Projetos da semana"},
     "Sesiones": {"en": "Sessions", "pt": "Sessões"},
-    "contra ayer": {"en": "vs yesterday", "pt": "contra ontem"},
+    "contra ayer a esta hora": {"en": "vs yesterday at this time", "pt": "contra ontem a esta hora"},
+    "{entrada} de entrada · {salida} de salida": {"en": "{entrada} input · {salida} output",
+                                                  "pt": "{entrada} de entrada · {salida} de saída"},
+    "Otros": {"en": "Other", "pt": "Outros"},
     "contra el lapso anterior": {"en": "vs the previous period", "pt": "contra o período anterior"},
-    "hace 24 h": {"en": "24 h ago", "pt": "há 24 h"},
-    "hace 30 días": {"en": "30 days ago", "pt": "há 30 dias"},
-    "hace 5 h": {"en": "5 h ago", "pt": "há 5 h"},
-    "hace 6 meses": {"en": "6 months ago", "pt": "há 6 meses"},
-    "hace 7 días": {"en": "7 days ago", "pt": "há 7 dias"},
-    "Últimas 24 horas": {"en": "Last 24 hours", "pt": "Últimas 24 horas"},
     "Últimos 30 días": {"en": "Last 30 days", "pt": "Últimos 30 dias"},
     "Últimos 6 meses": {"en": "Last 6 months", "pt": "Últimos 6 meses"},
     # Dynamic Island (ajustes)
@@ -711,7 +686,7 @@ TEXTOS: dict[str, dict[str, str]] = {
     'Vidrio y movimiento': {
         "en": 'Glass and motion',
         "pt": 'Vidro e movimento'},
-    # --- Dynamic Island, Dashboard, Uso y No molestar ---------------------------------
+    # --- Dynamic Island, Uso y No molestar ---------------------------------
     '1 agente': {
         "en": '1 agent',
         "pt": '1 agente'},

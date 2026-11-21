@@ -1,4 +1,4 @@
-"""Las cuentas de Dashboard y Uso: python -m unittest discover tests"""
+"""Las cuentas de Uso: python -m unittest discover tests"""
 
 from __future__ import annotations
 
@@ -82,7 +82,38 @@ class Informe(unittest.TestCase):
         escribir(self.raiz / "projects" / "p" / "s.jsonl", [usuario(hace), respuesta(hace + 5, "a", fin=True)])
         lapsos = self.analisis().actualizar(self.ahora)["lapsos"]
         self.assertEqual((lapsos["5h"]["tokens"], lapsos["5h"]["anterior"]), (0, 150))
-        self.assertEqual((lapsos["1d"]["tokens"], lapsos["1d"]["anterior"]), (150, 0))
+        self.assertEqual((lapsos["7d"]["tokens"], lapsos["7d"]["anterior"]), (150, 0))
+
+    def test_hoy_contra_ayer_a_esta_misma_hora(self):
+        sesion = self.raiz / "projects" / "p" / "s1.jsonl"
+        dia = 86400
+        escribir(sesion, [usuario(self.ahora - 600),
+                          respuesta(self.ahora - 590, "hoy", entrada=100, salida=50, fin=True),    # hoy: 150, 11:50
+                          usuario(self.ahora - dia - 3600),
+                          respuesta(self.ahora - dia - 3590, "ayer1", entrada=20, salida=10),      # ayer antes: entra
+                          respuesta(self.ahora - dia + 3600, "ayer2", entrada=500, salida=500)])   # ayer después: no
+        hoy = self.analisis().actualizar(self.ahora)["lapsos"]["hoy"]
+        self.assertEqual((hoy["tokens"], hoy["anterior"]), (150, 30))
+        self.assertEqual(len(hoy["serie"]), 24)
+        self.assertEqual(hoy["serie"][11], 150)
+
+    def test_tiempo_trabajado_por_lapso(self):
+        sesion = self.raiz / "projects" / "p" / "s1.jsonl"
+        hace_dos_dias = self.ahora - 2 * 86400
+        escribir(sesion, [usuario(hace_dos_dias), respuesta(hace_dos_dias + 40, "a", fin=True),
+                          usuario(self.ahora - 100), respuesta(self.ahora - 70, "b", fin=True)])
+        lapsos = self.analisis().actualizar(self.ahora)["lapsos"]
+        self.assertAlmostEqual(lapsos["hoy"]["trabajo"], 30, delta=1)
+        self.assertAlmostEqual(lapsos["5h"]["trabajo"], 30, delta=1)
+        self.assertAlmostEqual(lapsos["7d"]["trabajo"], 70, delta=1)
+
+    def test_un_turno_largo_no_se_pasa_del_lapso(self):
+        inicio = self.ahora - 8 * 3600
+        sesion = self.raiz / "projects" / "p" / "s1.jsonl"
+        escribir(sesion, [usuario(inicio), respuesta(self.ahora - 60, "a", fin=True)])
+        lapsos = self.analisis().actualizar(self.ahora)["lapsos"]
+        self.assertAlmostEqual(lapsos["5h"]["trabajo"], 5 * 3600 - 60, delta=1)
+        self.assertAlmostEqual(lapsos["7d"]["trabajo"], 8 * 3600 - 60, delta=1)
 
     def test_cache_y_lectura_de_lo_nuevo(self):
         t0 = self.ahora - 3 * 86400  # una sesión vieja: queda en el caché y no se vuelve a leer
@@ -125,6 +156,37 @@ class Informe(unittest.TestCase):
 
     def test_seis_meses_contra_los_seis_anteriores(self):
         self.assertGreaterEqual(self.analisis().dias * 86400, 2 * e.LAPSOS["180d"][0])
+
+    def test_curva_no_inventa_picos(self):
+        valores = [0, 0, 5, 100, 3, 0, 0, 40, 40, 0]
+        puntos = e.curva(valores, 181)  # 181: cada valor original cae justo en un punto
+        self.assertEqual(len(puntos), 181)
+        self.assertGreaterEqual(min(puntos), 0)
+        self.assertLessEqual(max(puntos), 100)
+        for i, valor in enumerate(valores):
+            self.assertAlmostEqual(puntos[i * 20], valor)
+        self.assertTrue(all(x == 0 for x in puntos[:21]))        # lo plano queda plano
+        self.assertTrue(all(x == 40 for x in puntos[140:161]))
+
+    def test_curva_de_casos_chicos(self):
+        self.assertEqual(e.curva([], 5), [0.0] * 5)
+        self.assertEqual(e.curva([7], 3), [7.0] * 3)
+        self.assertEqual(e.curva([0, 0, 0], 4), [0.0] * 4)
+
+    def test_suavizar_no_sale_del_rango(self):
+        valores = [0.0] * 20 + [100.0] + [0.0] * 20
+        puntos = e.suavizar(valores)
+        self.assertEqual(len(puntos), len(valores))
+        self.assertGreaterEqual(min(puntos), 0)
+        self.assertLess(max(puntos), 100)
+        self.assertEqual(puntos[0], 0)
+        for a, b in zip(e.suavizar([5.0] * 9), [5.0] * 9):
+            self.assertAlmostEqual(a, b)
+        self.assertEqual(e.suavizar([]), [])
+
+    def test_agrupar(self):
+        self.assertEqual(e.agrupar([1, 2, 3, 4, 5, 6], 3), [6, 15])
+        self.assertEqual(e.agrupar([1, 2, 3], 2), [3, 3])
 
     def test_nombre_de_modelo(self):
         self.assertEqual(e.nombre_modelo("claude-opus-4-5-20251101"), "Opus 4.5")

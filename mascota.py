@@ -157,8 +157,8 @@ CONFIG_DEFECTO = {
               "rebote": True,              # se estira rebotando, como un líquido
               "latido": True,              # el color de la mascota late mientras Claude trabaja
               "permisos": True},           # Permitir / Denegar en la pastilla cuando Claude pide permiso
-    # La sección Uso de los ajustes: el lapso que se estaba mirando (5h, 1d, 7d, 30d o 180d).
-    "uso": {"lapso": "5h"},
+    # La sección Uso de los ajustes: el lapso que se estaba mirando (5h, hoy, 7d, 30d o 180d).
+    "uso": {"lapso": "hoy"},
 }
 CANAL = "wavemascot-" + re.sub(r"\W", "", os.environ.get("USERNAME") or os.environ.get("USER") or "yo")
 
@@ -228,7 +228,7 @@ def cargar_config(ruta: Path = CONFIG) -> dict:
             isla[clave] = isla_defecto[clave]
     isla["opacidad"] = max(40, min(95, isla["opacidad"]))
     isla["minutos_sin_chats"] = max(1, min(120, isla["minutos_sin_chats"]))
-    if config["uso"]["lapso"] not in ("5h", "1d", "7d", "30d", "180d"):
+    if config["uso"]["lapso"] not in ("5h", "hoy", "7d", "30d", "180d"):  # "1d" ya no existe: pasa a "hoy"
         config["uso"]["lapso"] = CONFIG_DEFECTO["uso"]["lapso"]
     for clave in ("desde", "hasta"):
         if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", config["no_molestar"][clave]):
