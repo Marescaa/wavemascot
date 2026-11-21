@@ -201,6 +201,47 @@ class Instalador(unittest.TestCase):
         instalador.desinstalar(repo, self.claude)
         self.assertTrue(repo.exists())
 
+    @unittest.skipUnless(sys.platform == "win32", "accesos del menú Inicio: solo Windows")
+    def test_menu_inicio_abre_la_app_y_limpia_los_de_otro_idioma(self):
+        if instalador.MAC:
+            self.skipTest("en macOS la app está en Aplicaciones")
+
+        def falso(lnk, partes, icono, descripcion):  # un .lnk de mentira que apunta_a reconoce
+            lnk.parent.mkdir(parents=True, exist_ok=True)
+            lnk.write_bytes(" ".join(partes).encode("utf-16-le"))
+
+        menu = instalador.carpeta_menu()
+        viejo = menu / "Ajustes viejos.lnk"  # de una instalación anterior en otro idioma
+        with mock.patch.object(instalador, "crear_acceso", falso):
+            instalador.configurar("exe", self.destino, self.claude)
+            manifiesto = instalador.ruta_manifiesto(self.destino.resolve())
+            datos = json.loads(manifiesto.read_text(encoding="utf-8"))
+            datos["accesos"].append(str(viejo))
+            manifiesto.write_text(json.dumps(datos), encoding="utf-8")
+            falso(viejo, [str(self.destino.resolve() / instalador.EXE), "ajustes"], None, "")
+            ajeno = menu / "Otra cosa.lnk"
+            falso(ajeno, [r"C:\Otra\otra.exe"], None, "")
+            instalador.configurar("exe", self.destino, self.claude)
+        principal = menu / f"{instalador.NOMBRE}.lnk"
+        self.assertEqual(principal.read_bytes().decode("utf-16-le").split(), [
+            str(self.destino.resolve() / instalador.EXE), "bandeja"])
+        self.assertIn(str(principal), json.loads(manifiesto.read_text(encoding="utf-8"))["accesos"])
+        self.assertFalse(viejo.exists())
+        self.assertTrue(ajeno.exists())  # nunca uno que no es nuestro
+        ajeno.unlink()
+        self.desinstalar()
+        self.assertFalse(menu.exists())
+
+    @unittest.skipUnless(sys.platform == "win32", "rutas de Windows")
+    def test_no_confunde_una_carpeta_con_otra_que_empieza_igual(self):
+        if instalador.MAC:
+            self.skipTest("rutas de Windows")
+        lnk = Path(self.tmp.name) / "otra.lnk"
+        lnk.write_bytes(str(self.destino.with_name("WaveMascot2") / instalador.EXE).encode("utf-16-le"))
+        self.assertFalse(instalador.apunta_a(lnk, self.destino))
+        lnk.write_bytes(str(self.destino / instalador.EXE).encode("utf-16-le"))
+        self.assertTrue(instalador.apunta_a(lnk, self.destino))
+
 
 
 class InstaladorMac(Instalador):

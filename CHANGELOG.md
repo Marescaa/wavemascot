@@ -3,6 +3,18 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [semantic versioning](https://semver.org/).
 
+## [1.4.4] - 2026-11-20
+
+### Fixed
+
+- **WaveMascot shows up in Windows search**: the installer now adds a `WaveMascot` shortcut to the Start menu that
+  opens the app (the tray icon). Before, only the settings and uninstall shortcuts were there, so searching for
+  WaveMascot did not offer a way to start it.
+- Reinstalling removes the Start menu shortcuts of a previous install that are no longer created (for example the
+  English names after switching to Spanish).
+- Installing or uninstalling a copy in a folder such as `WaveMascot` no longer touches the shortcuts of another copy
+  whose folder starts with the same name (`WaveMascot2`).
+
 ## [1.4.3] - 2026-11-20
 
 ### Added
@@ -199,6 +211,7 @@ First public release of WaveMascot.
 - `WaveMascot-Setup.exe` installer (PyInstaller, no Python or administrator rights needed) and a GitHub Actions
   workflow that publishes it on every `v*` tag.
 
+[1.4.4]: ../../releases/tag/v1.4.4
 [1.4.3]: ../../releases/tag/v1.4.3
 [1.4.2]: ../../releases/tag/v1.4.2
 [1.4.1]: ../../releases/tag/v1.4.1
