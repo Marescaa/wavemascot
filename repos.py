@@ -472,7 +472,10 @@ class Proyectos:
                 linux = salida if salida.startswith("/") else posixpath.normpath(posixpath.join(git.linux, salida))
                 self.comunes[raiz] = git.a_local(linux)
             else:
-                self.comunes[raiz] = os.path.normpath(os.path.join(raiz, salida))  # join ignora raiz si es absoluta
+                comun = os.path.join(raiz, salida)  # join ignora raiz si salida es absoluta
+                # En macOS /var es un enlace a /private/var: el repo principal y sus worktrees darían dos rutas
+                # para el mismo .git (y dos tarjetas). En Windows no: cambiaría las unidades mapeadas y subst.
+                self.comunes[raiz] = os.path.normpath(comun) if os.name == "nt" else os.path.realpath(comun)
         return self.comunes[raiz]
 
     def repos_en(self, cwd: str) -> list[str]:

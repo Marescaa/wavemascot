@@ -258,7 +258,8 @@ class RepoDeVerdad(unittest.TestCase):
                 self.git("init", "-q", str(tmp / nombre), donde=tmp)
             proyectos = repos.Proyectos(tmp / "nada")
             claves = {proyectos.comun_de(str(tmp / n)) for n in ("uno", "dos")}
-            self.assertEqual(claves, {str(tmp / "uno" / ".git"), str(tmp / "dos" / ".git")})
+            real = (lambda r: str(r)) if os.name == "nt" else os.path.realpath  # macOS: /var -> /private/var
+            self.assertEqual(claves, {real(tmp / "uno" / ".git"), real(tmp / "dos" / ".git")})
             original, llamadas = repos.Git.correr, []
 
             def lento(git, *args, **kw):
@@ -271,7 +272,7 @@ class RepoDeVerdad(unittest.TestCase):
             try:
                 otra = repos.Proyectos(tmp / "nada")
                 self.assertEqual(otra.comun_de(str(tmp / "uno")), "")
-                self.assertEqual(otra.comun_de(str(tmp / "uno")), str(tmp / "uno" / ".git"))
+                self.assertEqual(otra.comun_de(str(tmp / "uno")), real(tmp / "uno" / ".git"))
             finally:
                 repos.Git.correr = original
             self.assertEqual(proyectos.comun_de(str(tmp)), "")  # no es un repo: eso sí se recuerda
