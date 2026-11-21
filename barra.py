@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ctypes
 import math
+import re
 import threading
 import time
 
@@ -30,18 +31,22 @@ import animacion
 import estadisticas
 import mascota as m
 import ojos
+import pedidos
 import seguimiento
 import sprites
 import ventanas
 from idiomas import t
 
 from PyQt6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, QTimer
-from PyQt6.QtGui import (QColor, QCursor, QFont, QFontMetricsF, QGuiApplication, QLinearGradient, QPainter,
+from PyQt6.QtGui import (QColor, QCursor, QFont, QFontMetricsF, QTextCharFormat, QTextLayout,
+                         QTextOption, QGuiApplication, QLinearGradient, QPainter,
                          QPainterPath, QPen, QPixmap, QRadialGradient)
 from PyQt6.QtWidgets import QWidget
 
 ARRIBA = 6            # separación del borde de arriba de la pantalla
 ALTO_CHICA = 30
+ALTO_PEDIDO = 34      # pidiendo permiso crece un poco, para que los botones respiren
+BOTON = 24            # el alto de Permitir y Denegar
 ANCHO_ABIERTA = 470
 CABECERA = 58
 FILA = 58
@@ -52,6 +57,12 @@ MARGEN = 18           # lugar alrededor para la sombra y los bordes que se abomb
 RADIO = 20
 K = 0.5523            # curva de Bézier que imita un cuarto de círculo
 HISTORIAL = m.CONFIG_DIR / "duraciones.json"
+AMARILLO = QColor(255, 209, 102)  # el color de "permiso" de la mascota
+VERDE = QColor(52, 199, 89)       # el borde al permitir
+ROJO = QColor(255, 69, 58)        # el borde al denegar
+ANCHO_DETALLE = 470               # con el pedido desplegado (la flechita), para leerlo entero
+MAX_DETALLE = 240                 # lo más alto que se despliega el texto del pedido
+RELLENO = 12                      # el aire alrededor del comando, adentro de su recuadro
 
 
 def corto(segundos: float) -> str:
@@ -202,6 +213,7 @@ class Barra(QWidget):
         self.fase = 0.0                        # segundos desde que arrancó: el latido y los brillos
         self.trabajando = False
         self.zona = QRect()                    # lo último que se pintó: solo se repinta eso y lo nuevo
+        self.desenfoque_previo = QRectF()      # dónde quedó el desenfoque en el cuadro anterior
         self.clave_quieto, self.foto_quieto = None, (QPoint(), QPixmap())
         self.desenfoque_posible = desenfocar and ventanas.ES_WINDOWS
         self.vidrio = Desenfoque() if self.desenfoque_posible and self.config["barra"]["desenfoque"] else None
@@ -216,6 +228,21 @@ class Barra(QWidget):
         # a su ventana), y esa fila no muestra su × hasta que el mouse se aleje unos píxeles.
         self.quitada_en = -999.0
         self.punto_quitar = QPointF(-999, -999)
+        # Pedidos de permiso (pedidos.py): el que se muestra, los que esperan y lo que ya se contestó acá.
+        self.pedido: dict | None = None
+        self.en_cola = 0
+        self.tomados: dict[str, dict] = {}              # clave -> pedido: los que la isla dijo que muestra
+        self.respondidos: set[str] = set()
+        self.hecho: tuple[str, float, str] | None = None  # (texto, hasta, decisión) un momento después del clic
+        self.detalle_abierto = False                    # la flechita: el pedido completo, desplegado
+        self.mostrado: tuple[str, object] | None = None  # lo último que se pintó (para que se vaya suave)
+        self.pedido_desde = 0.0
+        self.ultimo_latido = 0.0
+        self.en_pantalla_completa = False
+        self.zonas_pedido: dict[str, QRectF] = {}
+        self.mano = False
+        self.detalle_maquetado: tuple[tuple, list, float] = ((), [], 0.0)  # (clave, renglones armados, alto)
+        self.sonidos = m.Sonidos(self)
 
         # El cuerpo líquido: ancho y alto rebotan distinto, así no se estira como una caja.
         repintar = self.repintar
@@ -223,6 +250,9 @@ class Barra(QWidget):
         self.r_alto = animacion.Resorte(self, ALTO_CHICA, 0.50, 0.70, al_paso=repintar)
         self.r_contenido = animacion.Resorte(self, 0.0, 0.28, 1.0, al_paso=repintar)
         self.r_brillo = animacion.Resorte(self, 0.0, 0.30, 1.0, al_paso=repintar)
+        self.r_pedido = animacion.Resorte(self, 0.0, 0.28, 1.0, al_paso=repintar)
+        # Cuánto se tapa el vidrio mientras cambia de tamaño (ver alfa_vidrio): sube rápido, baja suave.
+        self.r_tapar = animacion.Resorte(self, 0.0, 0.10, 1.0, al_paso=repintar)
 
         self.timer_abrir = QTimer(self, singleShot=True, interval=110, timeout=lambda: self.abrir(True))
         self.timer_cerrar = QTimer(self, singleShot=True, interval=420, timeout=lambda: self.abrir(False))
@@ -232,6 +262,7 @@ class Barra(QWidget):
         self.timer_cuadro.setTimerType(Qt.TimerType.PreciseTimer)
         self.timer_tic = QTimer(self, interval=250, timeout=self.tic)
         self.timer_pantalla = QTimer(self, interval=1000, timeout=self.revisar_pantalla)
+        self.timer_pedidos = QTimer(self, interval=300, timeout=self.revisar_pedidos)
         self.oculta = False                    # escondida sola: pantalla completa o ningún chat activo
         self.ultima_chat = time.time()         # cuándo se movió algún chat (la cuenta arranca al abrir)
         pantalla = QGuiApplication.primaryScreen()
@@ -245,7 +276,7 @@ class Barra(QWidget):
         self.oculta = self.debe_esconderse()
         if not self.oculta:
             self.aparecer()
-        for timer in (self.timer_cuadro, self.timer_tic, self.timer_pantalla):
+        for timer in (self.timer_cuadro, self.timer_tic, self.timer_pantalla, self.timer_pedidos):
             timer.start()
         self.aplicar_opciones()
         self.tic()
@@ -273,7 +304,9 @@ class Barra(QWidget):
             self.vidrio.hide()
 
     def cerrar(self) -> None:
-        for timer in (self.timer_cuadro, self.timer_tic, self.timer_pantalla, self.timer_abrir, self.timer_cerrar):
+        self.soltar_pedidos()
+        for timer in (self.timer_cuadro, self.timer_tic, self.timer_pantalla, self.timer_pedidos, self.timer_abrir,
+                      self.timer_cerrar):
             timer.stop()
         self.esconder()
 
@@ -332,11 +365,13 @@ class Barra(QWidget):
         return seguimiento.sin_chats(self.ultima_chat, time.time(), self.isla["minutos_sin_chats"])
 
     def debe_esconderse(self) -> bool:
-        return self.hay_pantalla_completa() or self.sin_chats()
+        # Un chat esperando permiso puede no moverse en un rato: con un pedido a la vista no se va.
+        return self.hay_pantalla_completa() or (self.sin_chats() and not (self.pedido or self.hecho))
 
     def revisar_pantalla(self) -> None:
         """Está siempre, menos sobre un video, un juego o una presentación en pantalla completa y (si se
         eligió) cuando hace rato que no hay ningún chat activo."""
+        self.en_pantalla_completa = self.hay_pantalla_completa()
         esconder = self.debe_esconderse()
         if esconder and not self.oculta:
             self.oculta = True
@@ -347,6 +382,98 @@ class Barra(QWidget):
             self.repintar()
         elif not esconder and self.vidrio:
             self.vidrio.seguir(self, self.rect_desenfoque(), forzar=True)  # que siga justo debajo
+
+    def puede_pedir(self) -> bool:
+        """¿La isla puede mostrar pedidos de permiso? (prendida, con la opción y no en pantalla completa)"""
+        return self.timer_pedidos.isActive() and self.isla["permisos"] and not self.en_pantalla_completa
+
+    def revisar_pedidos(self) -> None:
+        """Cada 300 ms: ¿hay algún pedido de permiso esperando? La isla los toma todos (así el hook no saca el
+        cartel de la mascota) y muestra el más viejo; los otros esperan su turno con un "+1". Cada pedido se
+        reconoce por su clave (un pid se puede repetir)."""
+        ahora = time.time()
+        if self.hecho and time.monotonic() > self.hecho[1]:
+            self.hecho = None
+        puede = self.puede_pedir()
+        if puede and ahora - self.ultimo_latido > pedidos.LATIDO:
+            pedidos.latir(m.PEDIDOS)  # "acá estoy": si no, el hook ni la espera
+            self.ultimo_latido = ahora
+        if not puede:
+            self.soltar_pedidos()
+            return
+        lista = pedidos.pendientes(m.PEDIDOS, ahora)
+        claves = {d["clave"] for d in lista}
+        self.tomados = {c: d for c, d in self.tomados.items() if c in claves}
+        self.respondidos &= claves
+        lista = [d for d in lista if d["clave"] not in self.respondidos]
+        for d in lista:
+            if d["clave"] not in self.tomados:
+                try:
+                    pedidos.contestar(m.PEDIDOS, d, visto=True)
+                    self.tomados[d["clave"]] = d
+                except OSError as e:
+                    m.log(f"[barra] no se pudo tomar el pedido de permiso: {e}")
+        lista = [d for d in lista if d["clave"] in self.tomados]
+        antes = self.pedido
+        if self.pedido and self.pedido["clave"] not in self.tomados:
+            self.pedido = None  # se contestó en otro lado (terminal, cartel, Telegram) o se le pasó el tiempo
+        if not self.pedido and not self.hecho and lista:
+            self.mostrar_pedido(lista[0])
+        self.en_cola = max(0, len(lista) - (1 if self.pedido else 0))
+        if antes and not self.pedido and not self.hecho:
+            m.log("[barra] pedido de permiso cerrado")
+        self.r_pedido.ir_a(1.0 if self.pedido or self.hecho else 0.0)
+        self.medir()
+
+    def mostrar_pedido(self, pedido: dict) -> None:
+        self.pedido, self.mostrado = pedido, ("pedido", pedido)
+        self.detalle_abierto = False
+        self.pedido_desde = time.monotonic()  # un clic que iba para el anterior no cae en este
+        self.sonidos.tocar(pedido.get("sonido") or "", self.config["volumen"])
+        self.timer_abrir.stop()
+        self.abrir(False)  # si estaba estirada mostrando las sesiones, vuelve a pastilla
+        if self.oculta:
+            self.revisar_pantalla()  # escondida por falta de chats: vuelve
+        m.log(f"[barra] pedido de permiso a la vista: {pedido['etiqueta']}")
+
+    def soltar_pedidos(self) -> None:
+        """La isla no los puede mostrar más (se apagó, se sacó la opción o hay pantalla completa): les avisa a
+        los hooks, que dejan de esperarla."""
+        if self.ultimo_latido:
+            pedidos.callar(m.PEDIDOS)
+            self.ultimo_latido = 0.0
+        if not self.tomados and not self.pedido:
+            return
+        for d in self.tomados.values():
+            try:
+                pedidos.contestar(m.PEDIDOS, d, visto=False)
+            except OSError:
+                pass
+        m.log(f"[barra] suelta {len(self.tomados)} pedido(s) de permiso")
+        self.tomados, self.pedido, self.en_cola = {}, None, 0
+        self.detalle_abierto = False
+        self.r_pedido.ir_a(1.0 if self.hecho else 0.0)
+        self.medir()
+
+    def decidir(self, decision: str) -> None:
+        """Un clic en Permitir o Denegar: se le contesta al hook, que se lo devuelve a Claude Code."""
+        pedido = self.pedido
+        if not pedido:
+            return
+        try:
+            pedidos.contestar(m.PEDIDOS, pedido, visto=True, decision=decision)
+        except OSError as e:  # (ya se reintentó): los botones quedan, se puede volver a tocar
+            m.log(f"[barra] no se pudo contestar el permiso: {e}")
+            return
+        m.log(f"[barra] permiso {decision}: {pedido['etiqueta']}")
+        self.respondidos.add(pedido["clave"])
+        self.tomados.pop(pedido["clave"], None)
+        self.pedido = None
+        texto = t("Permitido") if decision == "allow" else t("Denegado")
+        self.hecho, self.mostrado = (texto, time.monotonic() + 1.4, decision), ("hecho", (texto, decision))
+        self.detalle_abierto = False
+        self.medir()
+        self.repintar()
 
     def tic(self) -> None:
         """Los datos: sesiones nuevas, la cuenta regresiva y el ancho que hace falta."""
@@ -387,7 +514,9 @@ class Barra(QWidget):
             return
         self.revisar_encima()
         cerca = self.encima or self.abierta
-        self.mirada.animo = "despierta" if self.trabajando else "tranquila" if self.sesiones else "dormida"
+        pidiendo = bool(self.pedido or self.hecho)
+        self.mirada.animo = ("despierta" if self.trabajando or pidiendo else "tranquila" if self.sesiones
+                             else "dormida")
         r = self.rect_cuerpo()
         dx, dy = self.cursor.x() - (r.left() + 30), self.cursor.y() - (r.top() + 15)
         if (self.isla["seguir_mouse"] and abs(dx) < 420 and -40 < dy < 320
@@ -395,10 +524,10 @@ class Barra(QWidget):
             self.mirada.seguir = (max(-1.0, min(1.0, dx / 120)), max(-1.0, min(1.0, dy / 80)))
         else:
             self.mirada.seguir = None
-        if self.mirada.avanzar() or cerca or self.trabajando:
+        if self.mirada.avanzar() or cerca or self.trabajando or pidiendo:
             self.repintar()
         # 60 por segundo con el mouse encima, 30 para el latido solo, y casi nada si no pasa nada.
-        intervalo = 16 if cerca else 33 if self.trabajando else 60
+        intervalo = 16 if cerca else 33 if self.trabajando or pidiendo else 60
         if self.timer_cuadro.interval() != intervalo:
             self.timer_cuadro.setInterval(intervalo)
 
@@ -409,8 +538,15 @@ class Barra(QWidget):
         zona = self.rect_cuerpo().adjusted(-MARGEN, -ARRIBA, MARGEN, MARGEN).toAlignedRect()
         self.update(zona.united(self.zona))
         self.zona = zona
-        if self.vidrio:
-            self.vidrio.seguir(self, self.rect_desenfoque())
+        cambiando = self.r_ancho.moviendose or self.r_alto.moviendose
+        if cambiando and self.r_tapar.objetivo != 1.0:
+            self.r_tapar.configurar(0.10, 1.0)
+            self.r_tapar.ir_a(1.0)
+        elif not cambiando and self.r_tapar.objetivo != 0.0:
+            self.r_tapar.configurar(0.45, 1.0)
+            self.r_tapar.ir_a(0.0)
+        # (el desenfoque se mueve en paintEvent, junto con lo que se dibuja: si se movía acá, iba un cuadro
+        # adelantado y al achicarse asomaba un rectángulo borroso al costado de la pastilla)
 
     def suavizar(self, dt: float) -> None:
         """La cuenta regresiva baja de a un segundo y se acerca de a poco a la estimación nueva."""
@@ -457,6 +593,14 @@ class Barra(QWidget):
         return t("Pensando {tiempo}", tiempo=corto(self.transcurrido(trabajando[0]))), " · ".join(resto)
 
     def medir(self) -> None:
+        if self.pedido or self.hecho:  # se alarga para el permiso (y no se estira con el mouse)
+            ancho = math.ceil(self.ancho_pedido() / 2) * 2
+            alto = ALTO_PEDIDO + (self.alto_detalle(ancho) if self.pedido and self.detalle_abierto else 0)
+            if abs(self.r_ancho.objetivo - ancho) > 0.5:
+                self.r_ancho.ir_a(ancho)
+            if abs(self.r_alto.objetivo - alto) > 0.5:
+                self.r_alto.ir_a(alto)
+            return
         if self.abierta:
             alto = self.alto_abierta()
             if self.r_ancho.objetivo != ANCHO_ABIERTA:
@@ -479,6 +623,115 @@ class Barra(QWidget):
             self.r_ancho.ir_a(ancho)
         if abs(self.r_alto.objetivo - ALTO_CHICA) > 0.5:
             self.r_alto.ir_a(ALTO_CHICA)
+
+    def ancho_pedido(self) -> float:
+        """Lo que ocupa la pastilla pidiendo permiso: ojos, la etiqueta, "+1" y los dos botones."""
+        inicio = 12 + self.ancho_ojos() + 9
+        fuerte = QFontMetricsF(m.fuente(9, QFont.Weight.DemiBold))
+        if self.hecho or not self.pedido:
+            return inicio + fuerte.horizontalAdvance(self.hecho[0] if self.hecho else "") + 18
+        etiqueta = min(190.0, fuerte.horizontalAdvance(self.pedido["etiqueta"]) + 2)
+        mas = QFontMetricsF(m.fuente(8)).horizontalAdvance(f"+{self.en_cola}") + 6 if self.en_cola else 0
+        ancho = (inicio + etiqueta + mas + 14 + self.ancho_boton("deny") + 5 + self.ancho_boton("allow") + 5
+                 + BOTON + 5)  # (la flechita)
+        return max(ancho, ANCHO_DETALLE) if self.detalle_abierto else ancho
+
+    @staticmethod
+    def fuente_detalle():
+        """La letra del pedido desplegado: la misma de la isla, un punto más grande que la de los datos."""
+        return m.fuente(9)
+
+    def texto_detalle(self) -> tuple[str, str, list[str]]:
+        """(la herramienta, el proyecto y el chat, los renglones del pedido completo). Un comando encadenado va
+        de a un comando por renglón."""
+        pedido = self.pedido or {}
+        herramienta = pedido.get("herramienta") or ""
+        contexto = " · ".join(d for d in (pedido.get("proyecto"), pedido.get("chat")) if d)
+        texto = pedido.get("detalle") or pedido.get("etiqueta") or ""
+        lineas = pedidos.renglones(texto) if herramienta in ("Bash", "PowerShell") else [texto]
+        # el operador del final nunca queda solo en un renglón: va pegado (espacio duro) a lo anterior
+        lineas = [re.sub(r" (&&|\|\||\|)$", "\u00a0\\1", linea) for linea in lineas]
+        return herramienta, contexto, lineas or [texto]
+
+    def maquetar_detalle(self, ancho: float) -> tuple[list, float]:
+        """Arma los renglones del pedido para un ancho: sin cortar palabras (salvo que una sola no entre), lo que
+        no entra sigue abajo con sangría, y en cada comando el programa resaltado y los argumentos más tenues.
+        Se guarda: se pinta 60 veces por segundo y no cambia."""
+        herramienta, _, lineas = self.texto_detalle()
+        claro = self.config["tema"] == "claro"
+        clave = (tuple(lineas), herramienta, round(ancho), claro)
+        if clave == self.detalle_maquetado[0]:
+            return self.detalle_maquetado[1], self.detalle_maquetado[2]
+        letra = self.fuente_detalle()
+        fm = QFontMetricsF(letra)
+        texto = QColor(22, 22, 30) if claro else QColor(246, 246, 250)
+        util = max(40.0, ancho - 2 * RELLENO)
+        sangria = fm.horizontalAdvance("    ")
+        opciones = QTextOption()
+        opciones.setWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
+        armados, y = [], 0.0
+        for linea in lineas:
+            # Que corte solo en los espacios: después de un guion o una barra va una "unión" invisible (U+2060),
+            # así "--maxfail=1" o "build/dist" no se parten (salvo que una palabra sola no entre).
+            linea = re.sub(r"([-/])(?=\S)", "\\1\u2060", linea)
+            capa = QTextLayout(linea, letra)
+            capa.setTextOption(opciones)
+            if herramienta in ("Bash", "PowerShell"):
+                capa.setFormats(self.formatos_comando(linea, texto))
+            capa.beginLayout()
+            primera = True
+            while True:
+                renglon = capa.createLine()
+                if not renglon.isValid():
+                    break
+                x = 0.0 if primera else sangria
+                renglon.setLineWidth(util - x)
+                renglon.setPosition(QPointF(x, y))
+                y += fm.lineSpacing() + 3
+                primera = False
+            capa.endLayout()
+            armados.append(capa)
+            y += 5  # un respiro entre comando y comando
+        alto = max(0.0, y - 5)
+        self.detalle_maquetado = (clave, armados, alto)
+        return armados, alto
+
+    @staticmethod
+    def formatos_comando(linea: str, texto: QColor) -> list:
+        """El programa (y su subcomando) bien visible, los argumentos un poco más tenues y el operador del final
+        (&&, |, ;) apagado."""
+        def formato(color: QColor, negrita: bool = False):
+            f = QTextCharFormat()
+            f.setForeground(color)
+            if negrita:
+                f.setFontWeight(QFont.Weight.DemiBold)
+            return f
+
+        def rango(inicio: int, largo: int, f) -> QTextLayout.FormatRange:
+            r = QTextLayout.FormatRange()
+            r.start, r.length, r.format = inicio, largo, f
+            return r
+
+        rangos = [rango(0, len(linea), formato(con_alfa(texto, 0.72)))]
+        programa = re.match(r"\s*((?:\w+=\S+\s+)*)(\S+)(\s+[a-z][\w:-]*)?", linea)
+        if programa:
+            inicio = programa.start(2)
+            fin = programa.end(3) if programa.group(3) else programa.end(2)
+            rangos.append(rango(inicio, fin - inicio, formato(texto, negrita=True)))
+        operador = re.search(r"\s*(&&|\|\||\||;)$", linea)
+        if operador:
+            rangos.append(rango(operador.start(1), len(operador.group(1)), formato(con_alfa(texto, 0.40))))
+        return rangos
+
+    def alto_detalle(self, ancho: float) -> float:
+        """Lo que crece hacia abajo con el pedido desplegado: la cabecera y el recuadro del comando (con tope)."""
+        _, alto = self.maquetar_detalle(ancho - 36)
+        return 10 + 22 + 10 + min(MAX_DETALLE, alto) + 2 * RELLENO + 14
+
+    @staticmethod
+    def ancho_boton(decision: str) -> float:
+        texto = t("Permitir") if decision == "allow" else t("Denegar")
+        return QFontMetricsF(m.fuente(8, QFont.Weight.DemiBold)).horizontalAdvance(texto) + 24
 
     def ancho_ojos(self) -> float:
         """Lo que ocupa el display de los ojos en la pastilla, a 2 px por píxel de arte (o el punto)."""
@@ -519,12 +772,19 @@ class Barra(QWidget):
             self.r_brillo.ir_a(1.0 if adentro else 0.0)
             if adentro:
                 self.timer_cerrar.stop()
-                if self.isla["abrir"] == "mouse":  # si no, recién al tocarla
+                # (pidiendo permiso no se estira: los botones no se le pueden ir de abajo del mouse)
+                if self.isla["abrir"] == "mouse" and not (self.pedido or self.hecho):  # si no, recién al tocarla
                     self.timer_abrir.start()
             else:
                 self.timer_abrir.stop()
                 self.timer_cerrar.start()
             self.medir()
+        # La manito sobre los botones (self.cursor es dónde está el mouse, no el cursor de Qt).
+        zona = next((c for c, z in self.zonas_pedido.items() if z.contains(self.cursor)), None) if self.pedido else None
+        mano = zona in ("allow", "deny", "flecha") or (zona == "etiqueta" and bool(self.pedido.get("ventana")))
+        if mano != self.mano:
+            self.mano = mano
+            self.setCursor(Qt.CursorShape.PointingHandCursor if mano else Qt.CursorShape.ArrowCursor)
 
     def abrir(self, abrir: bool) -> None:
         if abrir == self.abierta:
@@ -535,6 +795,21 @@ class Barra(QWidget):
 
     def mousePressEvent(self, evento) -> None:
         punto = evento.position()
+        if self.pedido or self.hecho:
+            if not self.pedido or self.r_pedido.x < 0.8 or time.monotonic() - self.pedido_desde < 0.45:
+                return  # todavía se está alargando, recién cambió de pedido o ya se contestó
+            for clave, zona in self.zonas_pedido.items():
+                if zona.contains(punto):
+                    if clave in ("allow", "deny"):
+                        self.decidir(clave)
+                    elif clave == "flecha":  # despliega (o pliega) el pedido completo
+                        self.detalle_abierto = not self.detalle_abierto
+                        self.medir()
+                        self.repintar()
+                    elif clave == "etiqueta" and self.pedido.get("ventana"):  # trae la ventana de esa sesión
+                        ventanas.enfocar(int(self.pedido["ventana"]))
+                    return
+            return
         if not self.abierta:
             if self.rect_cuerpo().contains(punto):
                 self.timer_abrir.stop()
@@ -620,7 +895,15 @@ class Barra(QWidget):
         }
 
     def alfa_vidrio(self) -> int:
-        return round(255 * self.isla["opacidad"] / 100)
+        """Cuánto tapa el vidrio. Mientras la pastilla cambia de tamaño, tapa más: Windows redibuja el desenfoque
+        de atrás con atraso al redimensionarlo (y a veces se saltea un par de cuadros), y el fondo titilaba entre
+        nítido y borroso. Sube rápido apenas empieza a moverse (y más si va rápido) y vuelve suave al quedarse
+        quieta, así el cambio no se nota."""
+        alfa = 255 * self.isla["opacidad"] / 100
+        if self.vidrio:
+            rapidez = min(1.0, max(abs(self.r_ancho.v), abs(self.r_alto.v)) / 220.0)  # píxeles por segundo
+            alfa += (238 - alfa) * max(rapidez, min(1.0, self.r_tapar.x))
+        return round(alfa)
 
     def paintEvent(self, evento) -> None:
         self.fase = time.monotonic() - self.arranque
@@ -631,31 +914,68 @@ class Barra(QWidget):
         forma = self.forma()
         cuerpo = self.rect_cuerpo()
         # Con la pantalla al 125 % o 150 % la foto guardada caería a medio píxel: ahí se pinta siempre.
-        if self.r_ancho.moviendose or self.r_alto.moviendose or not self.devicePixelRatioF().is_integer():
+        if (self.r_ancho.moviendose or self.r_alto.moviendose or self.r_tapar.moviendose
+                or not self.devicePixelRatioF().is_integer()):
             self.pintar_vidrio(p, forma, cuerpo, col, bool(self.vidrio))
         else:  # quieto, el vidrio es siempre el mismo: se pinta una vez y se guarda
             p.drawPixmap(*self.vidrio_quieto(forma, cuerpo, col))
-        self.pintar_luces(p, forma, cuerpo, col, self.trabajando)
+        self.pintar_luces(p, forma, cuerpo, col, self.trabajando or bool(self.pedido))
         p.save()
         p.setClipPath(forma)
         # Lo de la pastilla chica se va rápido; lo de adentro aparece recién cuando el cuerpo ya casi creció,
         # así nunca se ven las dos cosas encimadas.
         k = self.r_contenido.x
-        crecio = (self.r_alto.x - ALTO_CHICA) / max(1.0, self.alto_abierta() - ALTO_CHICA)
+        base = ALTO_PEDIDO if self.r_pedido.x > 0.01 else ALTO_CHICA
+        crecio = max(0.0, (self.r_alto.x - base) / max(1.0, self.alto_abierta() - base))
         chica = max(0.0, 1 - k * 2.5) * max(0.0, 1 - crecio * 3)
         adentro = min(max(0.0, (k - 0.5) / 0.5), max(0.0, min(1.0, (crecio - 0.55) / 0.4)))
+        # Lo del permiso entra cuando la pastilla ya casi se alargó; lo de siempre se va antes.
+        pedido = max(0.0, (self.r_pedido.x - 0.4) / 0.6)
+        chica *= max(0.0, 1 - self.r_pedido.x * 2.5)
         if chica > 0.01:
             p.setOpacity(chica)
             self.pintar_chica(p, cuerpo, col)
+        if pedido > 0.01 and self.mostrado:
+            p.setOpacity(pedido)
+            self.pintar_pedido(p, cuerpo, col)
+            if self.mostrado[0] == "hecho":  # completado: un borde verde (permitido) o rojo (denegado)
+                p.restore()
+                p.save()
+                self.pintar_borde(p, forma, VERDE if self.mostrado[1][1] == "allow" else ROJO, pedido)
+                p.setClipPath(forma)
         if adentro > 0.01:
             p.setOpacity(adentro)
             self.pintar_abierta(p, cuerpo, col)
         p.restore()
         p.end()
+        self.seguir_vidrio()
+
+    def seguir_vidrio(self) -> None:
+        """El desenfoque va debajo de lo que se acaba de dibujar. Mientras cambia de tamaño, nunca más grande que
+        el cuadro anterior, este ni el que viene (se calcula siguiendo la misma velocidad): Windows puede mostrar
+        la ventana del desenfoque un cuadro antes o después que la pastilla, y así nunca asoma por fuera (adentro,
+        el borde sin desenfocar lo tapa el canto del vidrio)."""
+        if not self.vidrio:
+            return
+        actual = self.rect_desenfoque()
+        moviendose = self.r_ancho.moviendose or self.r_alto.moviendose
+        previo = self.desenfoque_previo
+        self.desenfoque_previo = actual
+        if moviendose and not previo.isEmpty():
+            siguiente = QRectF(QPointF(2 * actual.left() - previo.left(), 2 * actual.top() - previo.top()),
+                               QPointF(2 * actual.right() - previo.right(), 2 * actual.bottom() - previo.bottom()))
+            destino = actual.intersected(previo)
+            if siguiente.isValid():
+                destino = destino.intersected(siguiente)
+            if destino.isEmpty():
+                destino = actual
+        else:
+            destino = actual
+        self.vidrio.seguir(self, destino)
 
     def vidrio_quieto(self, forma: QPainterPath, r: QRectF, col: dict) -> tuple[QPoint, QPixmap]:
         escala = self.devicePixelRatioF()
-        clave = (r.x(), r.y(), r.width(), r.height(), col["claro"], bool(self.vidrio), escala, self.isla["opacidad"])
+        clave = (r.x(), r.y(), r.width(), r.height(), col["claro"], bool(self.vidrio), escala, self.alfa_vidrio())
         if clave != self.clave_quieto:
             zona = r.adjusted(-MARGEN, -ARRIBA, MARGEN, MARGEN).toAlignedRect()
             foto = QPixmap(round(zona.width() * escala), round(zona.height() * escala))
@@ -708,8 +1028,10 @@ class Barra(QWidget):
         if trabajando and self.isla["latido"]:
             latido = 0.5 + 0.5 * math.sin(self.fase * 2.4)
             luz = QRadialGradient(QPointF(r.center().x(), r.bottom() + 6), max(r.width() * 0.55, 60))
-            luz.setColorAt(0.0, con_alfa(col["acento"], 0.20 + 0.16 * latido))
-            luz.setColorAt(1.0, con_alfa(col["acento"], 0.0))
+            # Pidiendo permiso, el amarillo de "permiso", más suave: que se note sin molestar.
+            color, fuerza = (AMARILLO, 0.6) if self.pedido else (col["acento"], 1.0)
+            luz.setColorAt(0.0, con_alfa(color, (0.20 + 0.16 * latido) * fuerza))
+            luz.setColorAt(1.0, con_alfa(color, 0.0))
             p.fillRect(r.adjusted(-10, -10, 10, 10), luz)
         # El reflejo que sigue al mouse.
         b = self.r_brillo.x
@@ -779,6 +1101,146 @@ class Barra(QWidget):
                        QFontMetricsF(p.font()).elidedText(resto, Qt.TextElideMode.ElideRight, lugar + 2))
         if m.silenciada(self.config):
             self.pintar_luna(p, QPointF(r.right() - 17, cy), col["tenue"], 5.0)
+
+    @staticmethod
+    def pintar_borde(p: QPainter, forma: QPainterPath, color: QColor, fuerza: float) -> None:
+        """El borde de color de "completado": un tinte apenas adentro, el filo y un halo suave afuera."""
+        p.setOpacity(1.0)
+        p.save()
+        p.setClipPath(forma)
+        p.fillPath(forma, con_alfa(color, 0.10 * fuerza))
+        p.restore()
+        for ancho, alfa in ((7.0, 0.10), (4.0, 0.18)):
+            p.strokePath(forma, QPen(con_alfa(color, alfa * fuerza), ancho))
+        p.strokePath(forma, QPen(con_alfa(color, 0.95 * fuerza), 1.6))
+
+    def pintar_pedido(self, p: QPainter, r: QRectF, col: dict) -> None:
+        """Pidiendo permiso: los ojos, el permiso en una o dos palabras y, a la derecha, Denegar y Permitir.
+        Al lado, una flechita que despliega el pedido completo. Abajo de todo, una línea finita que se acorta con
+        el tiempo que queda para contestar."""
+        cy = r.top() + ALTO_PEDIDO / 2
+        fila = QRectF(r.left(), r.top(), r.width(), ALTO_PEDIDO)
+        ancho_ojos = self.ancho_ojos()
+        if self.isla["ojos"]:
+            ojos.pintar(p, QPointF(r.left() + 12 + ancho_ojos / 2, cy), 2, self.config["aspecto"], self.mirada)
+        else:
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(AMARILLO)
+            p.drawEllipse(QPointF(r.left() + 12 + ancho_ojos / 2, cy), 4, 4)
+        x = r.left() + 12 + ancho_ojos + 9
+        fuerte = m.fuente(9, QFont.Weight.DemiBold)
+        tipo, valor = self.mostrado  # (lo último, así se va suave aunque ya no esté)
+        if tipo == "hecho":
+            p.setFont(fuerte)
+            p.setPen(col["texto"])
+            p.drawText(QRectF(x, r.top(), r.right() - x, ALTO_PEDIDO), Qt.AlignmentFlag.AlignVCenter, valor[0])
+            self.zonas_pedido = {}
+            return
+        pedido = valor
+        # Los botones, de derecha a izquierda: Permitir (el que resalta) y Denegar (apenas un vidrio).
+        derecha = r.right() - 5
+        zonas: dict[str, QRectF] = {"flecha": QRectF(derecha - BOTON, cy - BOTON / 2, BOTON, BOTON)}
+        derecha -= BOTON + 5
+        for decision in ("allow", "deny"):
+            ancho = self.ancho_boton(decision)
+            zonas[decision] = QRectF(derecha - ancho, cy - BOTON / 2, ancho, BOTON)
+            derecha -= ancho + 5
+        abierto = self.detalle_abierto and self.pedido is pedido
+        zona = zonas["flecha"]
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(con_alfa(col["texto"], 0.20 if zona.contains(self.cursor) or abierto else 0.11))
+        p.drawEllipse(zona)
+        self.pintar_flecha(p, zona.center(), col["texto"], arriba=abierto)
+        p.setFont(m.fuente(8, QFont.Weight.DemiBold))
+        for decision in ("allow", "deny"):
+            zona = zonas[decision]
+            encima = zona.contains(self.cursor)
+            p.setPen(Qt.PenStyle.NoPen)
+            if decision == "allow":
+                p.setBrush(con_alfa(col["texto"], 1.0 if encima else 0.88))
+                tinta = QColor(20, 21, 28) if not col["claro"] else QColor(250, 250, 252)
+            else:
+                p.setBrush(con_alfa(col["texto"], 0.20 if encima else 0.11))
+                tinta = col["texto"]
+            p.drawRoundedRect(zona, BOTON / 2, BOTON / 2)
+            p.setPen(tinta)
+            p.drawText(zona, Qt.AlignmentFlag.AlignCenter, t("Permitir") if decision == "allow" else t("Denegar"))
+        # La etiqueta (y cuántos más esperan); un clic ahí trae la ventana de esa sesión.
+        mas = f"+{self.en_cola}" if self.en_cola else ""
+        ancho_mas = QFontMetricsF(m.fuente(8)).horizontalAdvance(mas) + 6 if mas else 0
+        lugar = max(0.0, zonas["deny"].left() - 14 - ancho_mas - x)
+        p.setFont(fuerte)
+        texto = QFontMetricsF(fuerte).elidedText(pedido["etiqueta"], Qt.TextElideMode.ElideRight, lugar)
+        ancho_texto = QFontMetricsF(fuerte).horizontalAdvance(texto)
+        p.setPen(col["texto"])
+        p.drawText(QRectF(x, r.top(), lugar + 2, ALTO_PEDIDO), Qt.AlignmentFlag.AlignVCenter, texto)
+        if mas:
+            p.setFont(m.fuente(8))
+            p.setPen(col["tenue"])
+            p.drawText(QRectF(x + ancho_texto + 6, r.top(), ancho_mas, ALTO_PEDIDO), Qt.AlignmentFlag.AlignVCenter, mas)
+        # (la etiqueta: con un clic, la ventana de esa sesión)
+        zonas["etiqueta"] = QRectF(r.left(), r.top(), x + ancho_texto + 4 - r.left(), ALTO_PEDIDO)
+        self.zonas_pedido = zonas if self.pedido is pedido else {}
+        if abierto and r.height() > ALTO_PEDIDO + 12:
+            self.pintar_detalle(p, QRectF(r.left() + 18, fila.bottom(), r.width() - 36, r.bottom() - fila.bottom()), col)
+        # El tiempo que queda para contestar (después decide la terminal).
+        creado, vence = pedido.get("creado") or 0, pedido.get("vence") or 0
+        queda = max(0.0, min(1.0, (vence - time.time()) / max(1.0, vence - creado)))
+        if queda > 0:
+            largo = (r.width() - 2 * RADIO) * queda
+            pluma = QPen(con_alfa(AMARILLO, 0.75), 1.6)
+            pluma.setCapStyle(Qt.PenCapStyle.RoundCap)
+            p.setPen(pluma)
+            p.drawLine(QPointF(r.center().x() - largo / 2, r.bottom() - 1.6),
+                       QPointF(r.center().x() + largo / 2, r.bottom() - 1.6))
+
+    def pintar_detalle(self, p: QPainter, r: QRectF, col: dict) -> None:
+        """El pedido completo, desplegado debajo de los botones (se va descubriendo mientras crece): una
+        pastillita con la herramienta, el proyecto y el chat, y el comando en un recuadro como de terminal."""
+        herramienta, contexto, _ = self.texto_detalle()
+        ancho = max(40.0, self.r_ancho.objetivo - 36)  # el ancho final: que no se re-acomode en cada rebote
+        y = r.top() + 10
+        x = r.left()
+        if herramienta:
+            p.setFont(m.fuente(8, QFont.Weight.DemiBold))
+            insignia = QRectF(x, y, QFontMetricsF(p.font()).horizontalAdvance(herramienta) + 20, 22)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(con_alfa(col["texto"], 0.12))
+            p.drawRoundedRect(insignia, 11, 11)
+            p.setPen(col["texto"])
+            p.drawText(insignia, Qt.AlignmentFlag.AlignCenter, herramienta)
+            x = insignia.right() + 10
+        if contexto:
+            p.setFont(m.fuente(9))
+            p.setPen(col["tenue"])
+            lugar = r.left() + ancho - x
+            p.drawText(QRectF(x, y, lugar, 22), Qt.AlignmentFlag.AlignVCenter,
+                       QFontMetricsF(p.font()).elidedText(contexto, Qt.TextElideMode.ElideRight, lugar))
+        armados, alto = self.maquetar_detalle(ancho)
+        recuadro = QRectF(r.left(), y + 22 + 10, ancho, min(MAX_DETALLE, alto) + 2 * RELLENO)
+        p.setPen(QPen(con_alfa(col["texto"], 0.07), 1))
+        p.setBrush(QColor(0, 0, 0, 16) if col["claro"] else QColor(0, 0, 0, 72))
+        p.drawRoundedRect(recuadro, 10, 10)
+        p.save()
+        p.setClipRect(recuadro.adjusted(1, RELLENO - 2, -1, -RELLENO + 2))
+        p.setPen(col["texto"])
+        origen = QPointF(recuadro.left() + RELLENO, recuadro.top() + RELLENO)
+        for capa in armados:
+            capa.draw(p, origen)
+        p.restore()
+
+    @staticmethod
+    def pintar_flecha(p: QPainter, centro: QPointF, color: QColor, arriba: bool) -> None:
+        pluma = QPen(color, 1.6)
+        pluma.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pluma.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        p.setPen(pluma)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        d = -1.0 if arriba else 1.0
+        flecha = QPainterPath(centro + QPointF(-4.0, -2.0 * d))
+        flecha.lineTo(centro + QPointF(0.0, 2.2 * d))
+        flecha.lineTo(centro + QPointF(4.0, -2.0 * d))
+        p.drawPath(flecha)
 
     def pintar_abierta(self, p: QPainter, r: QRectF, col: dict) -> None:
         izq, der = r.left() + 18, r.right() - 18

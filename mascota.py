@@ -51,6 +51,7 @@ CONFIG_DIR = Path.home() / ".wavemascot"
 CONFIG = CONFIG_DIR / "config.json"
 LOG = CONFIG_DIR / "mascota.log"  # junto a la config: la carpeta del programa puede no ser escribible
 IMAGENES = CONFIG_DIR / "imagenes"  # PNG/GIF propios subidos desde ajustes
+PEDIDOS = CONFIG_DIR / "permisos"    # los pedidos de permiso que muestra la Dynamic Island (pedidos.py)
 SESIONES = CONFIG_DIR / "sesiones"  # cuándo empezó la tarea de cada sesión (para la duración)
 INDEFINIDO = 4_102_444_800  # 1/1/2100: "silenciada hasta que la reactive" (el botón No molestar)
 
@@ -154,7 +155,8 @@ CONFIG_DEFECTO = {
               "desenfoque": True,          # el vidrio desenfoca lo de atrás (Windows)
               "opacidad": 68,              # cuánto tapa el vidrio, en % (40 a 95)
               "rebote": True,              # se estira rebotando, como un líquido
-              "latido": True},             # el color de la mascota late mientras Claude trabaja
+              "latido": True,              # el color de la mascota late mientras Claude trabaja
+              "permisos": True},           # Permitir / Denegar en la pastilla cuando Claude pide permiso
     # La sección Uso de los ajustes: el lapso que se estaba mirando (5h, 1d, 7d, 30d o 180d).
     "uso": {"lapso": "5h"},
 }
@@ -1999,6 +2001,21 @@ def main() -> int:
         compania = config["modo"] == "compania"
         # La compañera igual cambia de cara (sin sonido ni cartel), salvo eventos apagados o permisos.
         silencioso = bool(motivo) and compania and "desactivado" not in motivo and nombre != "PermissionRequest"
+        # La Dynamic Island también muestra el pedido (aunque el cartel de la mascota tenga los permisos
+        # apagados); si la isla lo toma, el cartel no sale.
+        isla = None
+        import pedidos
+        if (nombre == "PermissionRequest" and config["barra"]["activa"] and config["barra"]["permisos"]
+                and evento.get("tool_name") not in NO_SE_APRUEBAN and pedidos.isla_viva(PEDIDOS)
+                and not motivo_para_no_avisar({**config, "permisos_desde_mascota": True}, evento, estado, None,
+                                              anfitriona)):
+            chat, proy = titulo_del_chat(evento) or evento.get("session_title") or "", proyecto(evento)
+            isla = {"sesion": evento.get("session_id") or "", "herramienta": evento.get("tool_name") or "",
+                    "etiqueta": pedidos.etiqueta(evento.get("tool_name") or "", evento.get("tool_input")),
+                    # el detalle va tal cual (sin limpiarlo como markdown): es lo que se aprueba
+                    "detalle": detalle_permiso(evento)[:1500], "proyecto": proy, "chat": chat,
+                    "ventana": anfitriona,
+                    "sonido": config["sonidos"].get("permiso", "ninguno") if config["sonido"] else ""}
 
         chat, proy = "", ""
         # Telegram decide aparte: aunque la mascota no se muestre (la terminal tiene el foco, una pregunta
@@ -2031,8 +2048,8 @@ def main() -> int:
 
         if motivo and not silencioso:
             log(f"evento={nombre} estado={estado}: no se avisa porque {motivo}")
-            if telegram:  # la mascota no se muestra (p. ej. la terminal tiene el foco), pero Telegram sí espera
-                responder_permiso(None, config["espera_permiso"], telegram)
+            if telegram or isla:  # el cartel no se muestra, pero Telegram o la isla sí esperan
+                responder_permiso(None, config["espera_permiso"], telegram, isla)
             return 0
 
         if not chat and not proy:
@@ -2064,7 +2081,7 @@ def main() -> int:
             f"modo={aviso['modo']} tema={aviso['tema']} sonido={sonido or 'no'}"
             + (f" (silencioso: {motivo})" if silencioso else ""))
         if nombre == "PermissionRequest":
-            responder_permiso(aviso, config["espera_permiso"], telegram)
+            responder_permiso(aviso, config["espera_permiso"], telegram, isla)
         else:
             lanzar_ventana(aviso)
     except Exception:
@@ -2091,19 +2108,25 @@ def direccion_permiso() -> str:
     return str(Path(tempfile.gettempdir()) / f"wavemascot-permiso-{os.getpid()}")
 
 
-def responder_permiso(aviso: dict | None, espera: int, telegram: dict | None = None) -> None:
-    """PermissionRequest: espera tu respuesta en la mascota (Permitir / Denegar) y, si no estás en la compu,
-    también en Telegram; lo primero que llegue se le devuelve a Claude Code y el otro lado se entera (el cartel
-    de Wave se cierra, el mensaje de Telegram pierde los botones). Si nadie responde a tiempo no se devuelve
-    nada y decide el diálogo de siempre de la terminal.
+def responder_permiso(aviso: dict | None, espera: int, telegram: dict | None = None,
+                      isla: dict | None = None) -> None:
+    """PermissionRequest: espera tu respuesta en la Dynamic Island o en el cartel de la mascota (Permitir /
+    Denegar) y, si no estás en la compu, también en Telegram; lo primero que llegue se le devuelve a Claude
+    Code y el otro lado se entera (la isla y el cartel se cierran, el mensaje de Telegram pierde los botones).
+    Si nadie responde a tiempo no se devuelve nada y decide el diálogo de siempre de la terminal.
 
-    aviso: el cartel de la mascota (None si no se muestra). telegram: {"llave", "texto", "idioma", "espera"}."""
+    Si la isla toma el pedido (contesta que lo está mostrando), el cartel no sale: un solo par de botones.
+    aviso: el cartel de la mascota (None si no se muestra). telegram: {"llave", "texto", "idioma", "espera"}.
+    isla: lo que muestra la isla (ver main), None si no va."""
     from multiprocessing.connection import Listener
 
     total = max(espera, telegram["espera"]) if telegram else espera
     resultado: dict = {}
     listo, candado = threading.Event(), threading.Lock()
-    pendientes = [int(bool(aviso)) + int(bool(telegram))]
+    vista = threading.Event()   # la isla ya muestra el pedido
+    fase = ["esperando"]        # de la isla: esperando -> tomada (lo muestra) o rendida (va el cartel)
+    clave = ""                  # la del pedido: la isla la devuelve en cada respuesta
+    pendientes = [int(bool(aviso)) + int(bool(telegram)) + int(bool(isla))]
 
     def decidir(decision: str, origen: str) -> None:
         with candado:
@@ -2158,7 +2181,60 @@ def responder_permiso(aviso: dict | None, espera: int, telegram: dict | None = N
                 return
         termino()
 
+    def por_la_isla() -> None:
+        import pedidos
+        fin = time.time() + espera + 3
+        while not listo.is_set() and time.time() < fin:
+            contestado = pedidos.respuesta(PEDIDOS, os.getpid(), clave)
+            with candado:  # tomada o rendida se decide una sola vez, acá o en el hilo principal
+                if fase[0] == "esperando" and contestado.get("visto"):
+                    fase[0] = "tomada"
+                    resultado["mostrado"] = True
+                    vista.set()
+                elif fase[0] == "esperando" and time.time() > inicio + 1.5:
+                    fase[0] = "rendida"
+                actual = fase[0]
+            if actual == "rendida":  # no contestó a tiempo: va el cartel, y que una isla lenta no lo muestre
+                break
+            if contestado.get("decision") in ("allow", "deny"):
+                decidir(contestado["decision"], "isla")
+                return
+            if actual == "tomada" and contestado.get("visto") is False:
+                log("permiso: la isla lo soltó (se apagó o se escondió)")
+                break
+            if actual == "tomada" and not pedidos.isla_viva(PEDIDOS):
+                log("permiso: la isla dejó de responder")
+                break
+            listo.wait(0.15)
+        pedidos.borrar(PEDIDOS, os.getpid())
+        termino()
+
     hilo_mascota = direccion = None
+    inicio = time.time()
+    if telegram:  # Telegram no espera a ver si la isla toma el pedido
+        threading.Thread(target=por_telegram, daemon=True).start()
+    if isla:
+        import pedidos
+        try:
+            clave = pedidos.nueva_clave()
+            pedidos.anotar(PEDIDOS, os.getpid(), {**isla, "clave": clave, "creado": inicio, "vence": inicio + espera})
+            threading.Thread(target=por_la_isla, daemon=True).start()
+            vista.wait(1.6)
+        except OSError as e:
+            log(f"permiso: no se pudo anotar el pedido para la isla ({e})")
+            isla = None
+            termino()
+        with candado:
+            if fase[0] == "esperando":
+                fase[0] = "rendida"
+            tomada = fase[0] == "tomada"
+        if tomada:
+            log("permiso: lo muestra la Dynamic Island")
+            if aviso:
+                aviso = None
+                termino()  # el cartel no va a esperar nada
+    if aviso and listo.is_set():  # Telegram ya contestó mientras se esperaba a la isla: no hace falta cartel
+        aviso = None
     if aviso:
         direccion = direccion_permiso()
         oyente = Listener(direccion, authkey=CLAVE_PERMISO)
@@ -2166,13 +2242,14 @@ def responder_permiso(aviso: dict | None, espera: int, telegram: dict | None = N
         lanzar_ventana(aviso)
         hilo_mascota = threading.Thread(target=por_la_mascota, daemon=True)
         hilo_mascota.start()
-    if telegram:
-        threading.Thread(target=por_telegram, daemon=True).start()
     # Si en 8 s no apareció el cartel ni salió el mensaje de Telegram, no se espera: decide la terminal.
     listo.wait(8)
     if resultado.get("mostrado") or resultado.get("telegram"):
         listo.wait(total + 5)
     decision, origen = resultado.get("decision"), resultado.get("origen")
+    if isla:
+        import pedidos
+        pedidos.borrar(PEDIDOS, os.getpid())  # la isla se cierra sola al no verlo más
     if resultado.get("telegram") and origen != "telegram":
         import celular
         try:
@@ -2191,7 +2268,7 @@ def responder_permiso(aviso: dict | None, espera: int, telegram: dict | None = N
         return
     salida = {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": decision}}}
     if decision == "deny":
-        donde = "Telegram" if origen == "telegram" else "WaveMascot"
+        donde = {"telegram": "Telegram", "isla": "the WaveMascot Dynamic Island"}.get(origen, "WaveMascot")
         salida["hookSpecificOutput"]["decision"]["message"] = f"The user denied it from {donde}."
     if sys.stdout:
         sys.stdout.write(json.dumps(salida))
