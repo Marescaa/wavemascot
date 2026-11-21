@@ -785,4 +785,164 @@ TEXTOS: dict[str, dict[str, str]] = {
     "Un agente": {"en": "An agent", "pt": "Um agente"},
     "Un permiso": {"en": "A permission", "pt": "Uma permissão"},
     "Permitido": {"en": "Allowed", "pt": "Permitido"},
+    # --- ajustes: Proyectos (ramas, carpetas y qué está subido) ---------------------------
+    '1 carpeta': {
+        "en": '1 folder',
+        "pt": '1 pasta'},
+    '{n} carpetas': {
+        "en": '{n} folders',
+        "pt": '{n} pastas'},
+    '1 rama': {
+        "en": '1 branch',
+        "pt": '1 branch'},
+    '{n} ramas': {
+        "en": '{n} branches',
+        "pt": '{n} branches'},
+    '1 commit en GitHub que no tenés': {
+        "en": "1 commit on GitHub you don't have",
+        "pt": '1 commit no GitHub que você não tem'},
+    '{n} commits en GitHub que no tenés': {
+        "en": "{n} commits on GitHub you don't have",
+        "pt": '{n} commits no GitHub que você não tem'},
+    '1 commit sin subir a GitHub': {
+        "en": '1 commit not pushed to GitHub',
+        "pt": '1 commit sem enviar ao GitHub'},
+    '{n} commits sin subir a GitHub': {
+        "en": '{n} commits not pushed to GitHub',
+        "pt": '{n} commits sem enviar ao GitHub'},
+    '1 rama más ya está en {base}': {
+        "en": '1 more branch is already in {base}',
+        "pt": 'Mais 1 branch já está em {base}'},
+    '{n} ramas más ya están en {base}': {
+        "en": '{n} more branches are already in {base}',
+        "pt": 'Mais {n} branches já estão em {base}'},
+    'Esconder las ramas que ya están en {base}': {
+        "en": 'Hide the branches already in {base}',
+        "pt": 'Esconder as branches que já estão em {base}'},
+    'Abrir en GitHub': {
+        "en": 'Open on GitHub',
+        "pt": 'Abrir no GitHub'},
+    'Abrir la carpeta {ruta}': {
+        "en": 'Open the folder {ruta}',
+        "pt": 'Abrir a pasta {ruta}'},
+    'Al día': {
+        "en": 'Up to date',
+        "pt": 'Em dia'},
+    'Archivos sin commitear': {
+        "en": 'Uncommitted files',
+        "pt": 'Arquivos sem commit'},
+    'Commits sin subir': {
+        "en": 'Unpushed commits',
+        "pt": 'Commits sem enviar'},
+    'Ramas para limpiar': {
+        "en": 'Branches to clean up',
+        "pt": 'Branches para limpar'},
+    'Ramas que ya están enteras en la principal y no tienen carpeta: se pueden borrar': {
+        "en": 'Branches fully merged into the main one with no folder: safe to delete',
+        "pt": 'Branches que já estão inteiras na principal e não têm pasta: dá para apagar'},
+    'Borrada en GitHub': {
+        "en": 'Deleted on GitHub',
+        "pt": 'Apagada no GitHub'},
+    'Buscando tus proyectos…': {
+        "en": 'Looking for your projects…',
+        "pt": 'Procurando seus projetos…'},
+    'Esta carpeta está en un commit suelto, sin rama': {
+        "en": 'This folder is on a detached commit, with no branch',
+        "pt": 'Esta pasta está num commit solto, sem branch'},
+    'GitHub revisado {cuando}': {
+        "en": 'GitHub checked {cuando}',
+        "pt": 'GitHub verificado {cuando}'},
+    'Revisando GitHub…': {
+        "en": 'Checking GitHub…',
+        "pt": 'Verificando o GitHub…'},
+    'Sin revisar en GitHub': {
+        "en": 'Not checked on GitHub yet',
+        "pt": 'Ainda não verificado no GitHub'},
+    'Preguntar a GitHub ahora': {
+        "en": 'Check GitHub now',
+        "pt": 'Verificar o GitHub agora'},
+    'Igual que {base}': {
+        "en": 'Same as {base}',
+        "pt": 'Igual a {base}'},
+    'Ya está en {base}': {
+        "en": 'Already in {base}',
+        "pt": 'Já está em {base}'},
+    'No se pudieron leer los proyectos. Probá de nuevo en un rato.': {
+        "en": "Couldn't read your projects. Try again in a bit.",
+        "pt": 'Não deu para ler os projetos. Tente de novo daqui a pouco.'},
+    'No se pudo leer': {
+        "en": "Couldn't read",
+        "pt": 'Não deu para ler'},
+    'No se pudo leer este repo: {error}': {
+        "en": "Couldn't read this repo: {error}",
+        "pt": 'Não deu para ler este repo: {error}'},
+    'Para ver tus proyectos hace falta tener git instalado.': {
+        "en": 'Git needs to be installed to show your projects.',
+        "pt": 'Para ver seus projetos é preciso ter o git instalado.'},
+    'Sin GitHub': {
+        "en": 'No GitHub',
+        "pt": 'Sem GitHub'},
+    'Solo en tu compu': {
+        "en": 'Only on this computer',
+        "pt": 'Só no seu computador'},
+    'Subida': {
+        "en": 'Pushed',
+        "pt": 'Enviada'},
+    'Tocá para verla en GitHub': {
+        "en": 'Click to see it on GitHub',
+        "pt": 'Clique para vê-la no GitHub'},
+    'Todavía no hay proyectos: aparecen acá cuando usás Claude Code en una carpeta con git.': {
+        "en": 'No projects yet: they show up here when you use Claude Code in a folder with git.',
+        "pt": 'Ainda não há projetos: eles aparecem aqui quando você usa o Claude Code numa pasta com git.'},
+    'WSL apagado': {
+        "en": 'WSL is off',
+        "pt": 'WSL desligado'},
+    'WSL está apagado: este proyecto aparece cuando lo prendas.': {
+        "en": 'WSL is off: this project shows up when you start it.',
+        "pt": 'O WSL está desligado: este projeto aparece quando você ligá-lo.'},
+    'commit suelto': {
+        "en": 'detached commit',
+        "pt": 'commit solto'},
+    'recién': {
+        "en": 'just now',
+        "pt": 'agora mesmo'},
+    '{a} adelante y {b} atrás de {base}': {
+        "en": '{a} ahead and {b} behind {base}',
+        "pt": '{a} à frente e {b} atrás de {base}'},
+    '{n} d': {
+        "en": '{n} d',
+        "pt": '{n} d'},
+    '{n} meses': {
+        "en": '{n} months',
+        "pt": '{n} meses'},
+    '↑ {n} sin subir': {
+        "en": '↑ {n} to push',
+        "pt": '↑ {n} para enviar'},
+    '↓ {n} para bajar': {
+        "en": '↓ {n} to pull',
+        "pt": '↓ {n} para baixar'},
+    '1 archivo sin commitear': {
+        "en": '1 uncommitted file',
+        "pt": '1 arquivo sem commit'},
+    '{n} archivos sin commitear': {
+        "en": '{n} uncommitted files',
+        "pt": '{n} arquivos sem commit'},
+    'Esta rama todavía no tiene commits': {
+        "en": 'This branch has no commits yet',
+        "pt": 'Esta branch ainda não tem commits'},
+    'git no pudo comparar esta rama con {base} (puede que haya tardado demasiado)': {
+        "en": "git couldn't compare this branch with {base} (it may have taken too long)",
+        "pt": 'O git não conseguiu comparar esta branch com {base} (pode ter demorado demais)'},
+    'no se pudo revisar GitHub': {
+        "en": "couldn't check GitHub",
+        "pt": 'não deu para verificar o GitHub'},
+    'Sin comparar': {
+        "en": 'Not compared',
+        "pt": 'Sem comparar'},
+    '{n} propios': {
+        "en": '{n} of its own',
+        "pt": '{n} próprios'},
+    '1 propio': {
+        "en": '1 of its own',
+        "pt": '1 próprio'},
 }

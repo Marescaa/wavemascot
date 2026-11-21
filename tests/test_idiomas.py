@@ -17,7 +17,7 @@ sys.path.insert(0, str(RAIZ))
 import idiomas  # noqa: E402
 
 ARCHIVOS = ("mascota.py", "ajustes.py", "bandeja.py", "instalador.py", "celular.py", "actualizacion.py",
-            "marco.py", "barra.py", "paneles.py", "pedidos.py")
+            "marco.py", "barra.py", "paneles.py", "pedidos.py", "proyectos.py")
 # Su primer argumento se traduce (los últimos son las tarjetas de paneles.py: su título).
 TRADUCEN = {"t", "seccion", "ayuda", "opcion", "Fila", "Desplegable", "Cifra", "Ranking", "Anillo"}
 # Tablas cuyos valores se traducen donde se usan: (archivo, nombre, cómo sacar el texto de cada valor)

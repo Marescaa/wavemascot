@@ -62,7 +62,8 @@ HOOKS = {
 }
 ARCHIVOS_FUENTE = ("mascota.py", "ajustes.py", "bandeja.py", "sprites.py", "ventanas.py", "instalador.py",
                    "idiomas.py", "celular.py", "actualizacion.py", "marco.py",
-                   "animacion.py", "seguimiento.py", "barra.py", "estadisticas.py", "paneles.py", "ojos.py", "pedidos.py")
+                   "animacion.py", "seguimiento.py", "barra.py", "estadisticas.py", "paneles.py", "ojos.py", "pedidos.py",
+                   "repos.py", "proyectos.py")
 
 
 class ErrorInstalacion(Exception):
