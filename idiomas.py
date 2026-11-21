@@ -769,4 +769,20 @@ TEXTOS: dict[str, dict[str, str]] = {
     '{tokens} tokens': {
         "en": '{tokens} tokens',
         "pt": '{tokens} tokens'},
+    # Permisos desde la Dynamic Island (barra.py, pedidos.py)
+    "Aprobar permisos desde la isla": {"en": "Approve permissions from the island",
+                                       "pt": "Aprovar permissões pela ilha"},
+    "Cuando Claude pide permiso, la pastilla se alarga con Permitir y Denegar en lugar del cartel de la mascota. "
+    "Si no elegís a tiempo, decide la terminal.": {
+        "en": "When Claude asks for permission, the pill stretches with Allow and Deny instead of the mascot's "
+              "card. If you don't choose in time, the terminal decides.",
+        "pt": "Quando o Claude pede permissão, a pílula se alonga com Permitir e Negar no lugar do cartão do "
+              "mascote. Se você não escolher a tempo, o terminal decide."},
+    "Editar {archivo}": {"en": "Edit {archivo}", "pt": "Editar {archivo}"},
+    "Escribir {archivo}": {"en": "Write {archivo}", "pt": "Escrever {archivo}"},
+    "Leer {archivo}": {"en": "Read {archivo}", "pt": "Ler {archivo}"},
+    "Buscar en la web": {"en": "Web search", "pt": "Buscar na web"},
+    "Un agente": {"en": "An agent", "pt": "Um agente"},
+    "Un permiso": {"en": "A permission", "pt": "Uma permissão"},
+    "Permitido": {"en": "Allowed", "pt": "Permitido"},
 }

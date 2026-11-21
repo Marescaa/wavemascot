@@ -2191,6 +2191,14 @@ class Ajustes(QWidget):
         interruptor(grupo, "sesiones", t("Cantidad de sesiones"))
 
         caja.addSpacing(16)
+        caja.addWidget(seccion("Permisos"))
+        grupo = Grupo()
+        caja.addWidget(grupo)
+        interruptor(grupo, "permisos", t("Aprobar permisos desde la isla"),
+                    t("Cuando Claude pide permiso, la pastilla se alarga con Permitir y Denegar en lugar del cartel "
+                      "de la mascota. Si no elegís a tiempo, decide la terminal."))
+
+        caja.addSpacing(16)
         caja.addWidget(seccion("Al estirarla"))
         grupo = Grupo()
         caja.addWidget(grupo)

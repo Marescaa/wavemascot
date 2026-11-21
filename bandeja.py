@@ -144,6 +144,8 @@ class Bandeja(QSystemTrayIcon):
             self.accion_desinstalar.triggered.connect(self.desinstalar)
         self.accion_salir = menu.addAction("")
         self.accion_salir.triggered.connect(QApplication.quit)
+        # Al salir, la isla suelta los permisos que estaba mostrando (y la terminal los vuelve a preguntar).
+        QApplication.instance().aboutToQuit.connect(lambda: self.barra and self.barra.cerrar())
         menu.aboutToShow.connect(self.actualizar)
         self.menu = menu
         self.setContextMenu(menu)
