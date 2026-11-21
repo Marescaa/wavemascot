@@ -91,8 +91,8 @@ it moves. On Windows the glass really blurs what's behind it.
 - **A notice for every moment**: done, needs permission, thinking, sub-agent finished, usage limit and API error.
 - **Allow or deny without the terminal**, from Wave's buttons or from your phone. The first answer wins.
 - **Dynamic Island**: all your Claude Code sessions in a glass pill, with the time each one has left.
-- **Dashboard and Usage**: today's tokens against the last two weeks, time Claude worked, projects, models and cache
-  hit rate for the last 5 hours up to 6 months. Live, and read only from your own computer.
+- **Usage**: your tokens on a curve, from the last 5 hours up to 6 months, with time Claude worked, models, projects
+  and cache hit rate. Live, and read only from your own computer.
 - **The right context**: chat, project, duration and a summary read locally. Notices from several sessions queue up.
 - **Stays out of the way**: a one-click **Do not disturb**, automatic silence by schedule, and nothing over
   full-screen apps or when you're already looking at the terminal.
@@ -145,13 +145,9 @@ look.
 
 <table>
   <tr>
-    <td width="50%" align="center">
-      <img src="docs/capturas/en/ajustes-5-dashboard.png" alt="Dashboard section: today's tokens, the last 14 days, sessions, time worked, projects and estimate accuracy"><br>
-      <b>Dashboard</b><br><sub>Your day in one number, with the last two weeks behind it.</sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="docs/capturas/en/ajustes-6-uso.png" alt="Usage section: tokens of the last 5 hours with input, output, cache, models and projects"><br>
-      <b>Usage</b><br><sub>5 hours, a day, a week, a month or six months, updated live.</sub>
+    <td colspan="2" align="center">
+      <img src="docs/capturas/en/ajustes-5-uso.png" alt="Usage section: token curve, model donut, sessions, time worked, cache and projects"><br>
+      <b>Usage</b><br><sub>5 hours, today, a week, a month or six months, updated live.</sub>
     </td>
   </tr>
   <tr>
@@ -178,8 +174,7 @@ look.
 | Mascot | Style, color, head, clothes, accessory, size and your own image |
 | Phone | Connect Telegram, when to send (only when you're away), Wave animated, Allow/Deny from the phone |
 | Dynamic Island | Show it, position, open on hover or click, eyes, time left, sessions listed, 5 h / 7 day usage, blur, opacity, bounce, pulse |
-| Dashboard | Today's tokens with the last 14 days, sessions, time Claude worked, projects of the week, how accurate the time estimate is |
-| Usage | Tokens for 5 hours, 1 day, 7 days, 1 month or 6 months: input, output, cache hit rate, models and projects |
+| Usage | Tokens for 5 hours, today, 7 days, 1 month or 6 months: curve, input, output, sessions, time Claude worked, cache hit rate, models and projects |
 | General | Language, theme (dark, light or accent), open at startup, updates |
 
 Everything is stored in `~/.wavemascot/config.json`. Every section is in the [gallery](docs/README.md#settings).
@@ -201,7 +196,7 @@ default it only messages you when there's been no mouse or keyboard activity for
 
 ## Privacy
 
-Everything runs on your computer. The summary, the Dynamic Island, the Dashboard and Usage are read locally from the
+Everything runs on your computer. The summary, the Dynamic Island and Usage are read locally from the
 transcripts Claude Code already keeps on your disk; they're estimates from those files, not your account's official
 limits. WaveMascot only goes online to check GitHub for a new version (at most once a day) and, if you connect it, to
 send notices to Telegram. Both can be turned off.
@@ -238,7 +233,7 @@ Island also reads the session transcripts in `~/.claude/projects`.
 
 It can't know for sure, so it estimates: it looks at your past turns that resemble the current one (same project and
 session, tools used so far, how long your message was, how far along Claude's task list is) and takes what they had
-left. The more you use it, the better it gets. Dashboard → **Time estimate accuracy** shows how close it has been for you.
+left. The more you use it, the better it gets.
 
 </details>
 

@@ -93,8 +93,8 @@ como se mexe. No Windows o vidro desfoca de verdade o que está atrás.
   e erro da API.
 - **Permitir ou negar sem ir ao terminal**, pelos botões do Wave ou pelo celular. Vale a primeira resposta.
 - **Dynamic Island**: todas as suas sessões do Claude Code numa pílula de vidro, com quanto falta para cada uma.
-- **Dashboard e Uso**: os tokens de hoje contra as últimas duas semanas, quanto o Claude trabalhou, projetos, modelos
-  e acertos de cache, das últimas 5 horas até 6 meses. Ao vivo, e lido só do seu computador.
+- **Uso**: seus tokens numa curva, das últimas 5 horas até 6 meses, com quanto o Claude trabalhou, modelos, projetos
+  e acertos de cache. Ao vivo, e lido só do seu computador.
 - **O contexto certo**: chat, projeto, quanto demorou e um resumo lido no seu computador. Avisos de várias sessões
   entram na fila.
 - **Não atrapalha**: **Não perturbe** com um clique, silêncio automático por horário, e nada sobre apps em tela cheia
@@ -149,13 +149,9 @@ como vai aparecer.
 
 <table>
   <tr>
-    <td width="50%" align="center">
-      <img src="docs/capturas/pt/ajustes-5-dashboard.png" alt="Seção Dashboard: tokens de hoje, os últimos 14 dias, sessões, tempo trabalhado, projetos e precisão da estimativa"><br>
-      <b>Dashboard</b><br><sub>Seu dia num número, com as últimas duas semanas atrás.</sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="docs/capturas/pt/ajustes-6-uso.png" alt="Seção Uso: tokens das últimas 5 horas com entrada, saída, cache, modelos e projetos"><br>
-      <b>Uso</b><br><sub>5 horas, um dia, uma semana, um mês ou seis meses, ao vivo.</sub>
+    <td colspan="2" align="center">
+      <img src="docs/capturas/pt/ajustes-5-uso.png" alt="Seção Uso: curva de tokens, rosca de modelos, sessões, tempo trabalhado, cache e projetos"><br>
+      <b>Uso</b><br><sub>5 horas, hoje, uma semana, um mês ou seis meses, ao vivo.</sub>
     </td>
   </tr>
   <tr>
@@ -182,8 +178,7 @@ como vai aparecer.
 | Mascote | Estilo, cor, cabeça, roupa, acessório, tamanho e sua própria imagem |
 | Celular | Conectar o Telegram, quando mandar (só se você não estiver), Wave animado, Permitir/Negar pelo celular |
 | Dynamic Island | Mostrar, onde fica, abrir ao passar o mouse ou ao clicar, olhos, tempo que falta, sessões à vista, uso de 5 h e 7 dias, desfoque, opacidade, rebote, pulsação |
-| Dashboard | Tokens de hoje com os últimos 14 dias, sessões, quanto o Claude trabalhou, projetos da semana, quão preciso é o tempo estimado |
-| Uso | Tokens de 5 horas, 1 dia, 7 dias, 1 mês ou 6 meses: entrada, saída, acertos de cache, modelos e projetos |
+| Uso | Tokens de 5 horas, hoje, 7 dias, 1 mês ou 6 meses: curva, entrada, saída, sessões, quanto o Claude trabalhou, acertos de cache, modelos e projetos |
 | Geral | Idioma, tema (escuro, claro ou destaque), abrir ao iniciar, atualizações |
 
 Tudo fica em `~/.wavemascot/config.json`. Todas as seções estão na [galeria](docs/README.pt.md#configurações).
@@ -205,7 +200,7 @@ para criar nem colar. Por padrão ele só escreve se você não mexeu no mouse n
 
 ## Privacidade
 
-Tudo roda no seu computador. O resumo, a Dynamic Island, o Dashboard e o Uso são lidos localmente dos transcripts que
+Tudo roda no seu computador. O resumo, a Dynamic Island e o Uso são lidos localmente dos transcripts que
 o Claude Code já guarda no seu disco; são contas feitas com esses arquivos, não os limites oficiais da sua conta. O
 WaveMascot só se conecta à internet para procurar no GitHub uma versão nova (no máximo uma vez por dia) e, se você
 conectar, para mandar avisos ao Telegram. Dá para desligar as duas coisas.
@@ -243,8 +238,7 @@ Dynamic Island também lê os transcripts das sessões em `~/.claude/projects`.
 
 Não dá para saber com certeza, então ele estima: olha seus turnos anteriores parecidos com o atual (mesmo projeto e
 sessão, ferramentas usadas até agora, o tamanho da sua mensagem, o andamento da lista de tarefas do Claude) e usa o
-que faltava para eles. Quanto mais você usa, melhor fica. Em Dashboard → **Precisão do tempo estimado** você vê o
-quanto ele acertou com você.
+que faltava para eles. Quanto mais você usa, melhor fica.
 
 </details>
 

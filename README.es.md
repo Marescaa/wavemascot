@@ -93,8 +93,8 @@ mueve. En Windows el vidrio desenfoca de verdad lo que hay detrás.
   error de la API.
 - **Permitir o denegar sin ir a la terminal**, desde los botones de Wave o desde el celular. Vale la primera respuesta.
 - **Dynamic Island**: todas tus sesiones de Claude Code en una pastilla de vidrio, con lo que le falta a cada una.
-- **Dashboard y Uso**: los tokens de hoy contra las últimas dos semanas, cuánto trabajó Claude, proyectos, modelos y
-  aciertos de caché, de las últimas 5 horas a 6 meses. En vivo, y leído solo de tu compu.
+- **Uso**: tus tokens en una curva, de las últimas 5 horas a 6 meses, con cuánto trabajó Claude, modelos, proyectos y
+  aciertos de caché. En vivo, y leído solo de tu compu.
 - **El contexto justo**: chat, proyecto, cuánto tardó y un resumen leído en tu compu. Los avisos de varias sesiones se
   encolan.
 - **No molesta**: **No molestar** con un click, silencio automático por horario, y nada sobre apps en pantalla
@@ -149,13 +149,9 @@ tal cual va a aparecer.
 
 <table>
   <tr>
-    <td width="50%" align="center">
-      <img src="docs/capturas/es/ajustes-5-dashboard.png" alt="Sección Dashboard: tokens de hoy, los últimos 14 días, sesiones, tiempo trabajado, proyectos y precisión de la estimación"><br>
-      <b>Dashboard</b><br><sub>Tu día en un número, con las últimas dos semanas detrás.</sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="docs/capturas/es/ajustes-6-uso.png" alt="Sección Uso: tokens de las últimas 5 horas con entrada, salida, caché, modelos y proyectos"><br>
-      <b>Uso</b><br><sub>5 horas, un día, una semana, un mes o seis meses, en vivo.</sub>
+    <td colspan="2" align="center">
+      <img src="docs/capturas/es/ajustes-5-uso.png" alt="Sección Uso: curva de tokens, dona de modelos, sesiones, tiempo trabajado, caché y proyectos"><br>
+      <b>Uso</b><br><sub>5 horas, hoy, una semana, un mes o seis meses, en vivo.</sub>
     </td>
   </tr>
   <tr>
@@ -182,8 +178,7 @@ tal cual va a aparecer.
 | Mascota | Estilo, color, cabeza, ropa, accesorio, tamaño y tu propia imagen |
 | Celular | Conectar Telegram, cuándo mandar (solo si no estás), Wave animada, Permitir/Denegar desde el celular |
 | Dynamic Island | Mostrarla, dónde va, abrir al pasar el mouse o al hacer click, ojos, tiempo que falta, sesiones a la vista, uso de 5 h y 7 días, desenfoque, opacidad, rebote, latido |
-| Dashboard | Tokens de hoy con los últimos 14 días, sesiones, cuánto trabajó Claude, proyectos de la semana, qué tan preciso es el tiempo estimado |
-| Uso | Tokens de 5 horas, 1 día, 7 días, 1 mes o 6 meses: entrada, salida, aciertos de caché, modelos y proyectos |
+| Uso | Tokens de 5 horas, hoy, 7 días, 1 mes o 6 meses: curva, entrada, salida, sesiones, cuánto trabajó Claude, aciertos de caché, modelos y proyectos |
 | General | Idioma, tema (oscuro, claro o acento), abrir al iniciar, actualizaciones |
 
 Todo se guarda en `~/.wavemascot/config.json`. Todas las secciones están en la [galería](docs/README.es.md#ajustes).
@@ -205,7 +200,7 @@ ni pegar. Por defecto solo te escribe si no tocaste el mouse ni el teclado en un
 
 ## Privacidad
 
-Todo corre en tu compu. El resumen, la Dynamic Island, el Dashboard y Uso se leen localmente de los transcripts que
+Todo corre en tu compu. El resumen, la Dynamic Island y Uso se leen localmente de los transcripts que
 Claude Code ya guarda en tu disco; son cuentas hechas con esos archivos, no los límites oficiales de tu cuenta.
 WaveMascot solo se conecta a internet para buscar en GitHub si hay una versión nueva (una vez por día como mucho) y,
 si lo conectás, para mandar los avisos a Telegram. Las dos cosas se pueden apagar.
@@ -243,8 +238,7 @@ Dynamic Island además lee los transcripts de las sesiones en `~/.claude/project
 
 No hay forma de saberlo de verdad, así que lo estima: mira tus turnos anteriores que se parecen al de ahora (mismo
 proyecto y sesión, herramientas usadas hasta el momento, qué tan largo fue tu mensaje, por dónde va la lista de tareas
-de Claude) y toma lo que les faltaba. Cuanto más lo usás, mejor le sale. En Dashboard → **Precisión del tiempo
-estimado** ves qué tan cerca estuvo con vos.
+de Claude) y toma lo que les faltaba. Cuanto más lo usás, mejor le sale.
 
 </details>
 

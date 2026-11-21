@@ -3,6 +3,21 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- **Dashboard and Usage are now one clean Usage section**: pick 5 h, Today, 7 days, 1 month or 6 months and get one
+  big number with a smooth area chart, a donut of your models, three figures and your top projects.
+- **Today** is the calendar day, hour by hour, compared with yesterday up to this same time.
+- **Cleaner, smoother charts** on soft cards: the curve morphs into the next period, numbers count to their value,
+  the donut redistributes itself, list rows glide to their new place and a dot follows the mouse along the curve.
+- Ctrl+5 opens Usage, Ctrl+6 Projects and Ctrl+7 General.
+
+### Removed
+
+- The "Time estimate accuracy" card. Its background calculation was what made these pages stutter when opening.
+
 ## [1.4.6] - 2026-11-20
 
 ### Added

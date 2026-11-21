@@ -1,11 +1,11 @@
-"""Las secciones Dashboard y Uso de los ajustes: pocas cosas, grandes, y un solo gráfico por pantalla.
+"""La sección Uso de los ajustes: tarjetas limpias y suaves, un gráfico de área y una dona.
 
-Las dos tienen la misma forma (como Tiempo de uso o Batería en iOS): una tarjeta protagonista con la cifra
-bien grande, cuánto cambió contra el período anterior y un gráfico de barras; debajo, tres cifras chicas y
-dos tarjetas cortas.
+Arriba el lapso (5 horas, hoy, 7 días, 1 mes o 6 meses). Debajo, la curva de tokens con la cifra grande y los
+modelos en una dona; abajo, tres números sueltos y los proyectos.
 
-- Dashboard: hoy. Las barras son los últimos 14 días.
-- Uso: el lapso que elijas (5 horas, 1 día, 7 días, 1 mes o 6 meses), siempre terminando ahora.
+El movimiento es parte del diseño, pero uno solo y tranquilo: al cambiar de lapso la curva se transforma en la
+nueva, los números corren hasta su valor y la dona reparte de nuevo. Nada se mueve si no cambió algo (repintar sin
+motivo es lo que hace sentir pesada una ventana). Los colores salen siempre del tema.
 
 Todo se actualiza en vivo mientras se mira: los datos los arma estadisticas.py en un hilo aparte (Analista)
 leyendo solo lo nuevo de cada transcript; acá solo se dibuja.
@@ -13,8 +13,8 @@ leyendo solo lo nuevo de cada transcript; acá solo se dibuja.
 
 from __future__ import annotations
 
+import math
 import threading
-import time
 from datetime import datetime, timedelta
 
 import estadisticas
@@ -24,22 +24,23 @@ from animacion import Resorte, mezcla
 from idiomas import t
 
 from PyQt6.QtCore import QObject, QPointF, QRectF, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QFontMetricsF, QPainter, QPainterPath, QPen
-from PyQt6.QtWidgets import QApplication, QHBoxLayout, QSizePolicy, QToolTip, QVBoxLayout, QWidget
+from PyQt6.QtGui import QColor, QFont, QFontMetricsF, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap
+from PyQt6.QtWidgets import QApplication, QGridLayout, QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
 
 # Los colores de la ventana de ajustes: ajustes.py pone acá su mismo diccionario (cambia con el tema).
 C: dict = {"fondo": "#1C1513", "panel": "#251D1A", "campo": "#2F2623", "borde": "#43362F", "texto": "#F4EDE8",
            "suave": "#B3A39A", "acento": "#D97757", "acento2": "#E8906F"}
 VIDRIO = False  # la ventana desenfoca lo de atrás (ver ajustes.Ajustes.preparar_vidrio)
 RADIO = 18      # el de las tarjetas; lo de adentro usa radios más chicos (concéntricos)
-HISTORIAL = m.CONFIG_DIR / "duraciones.json"
-VIVO = 5        # segundos entre un análisis y el siguiente mientras se mira Dashboard o Uso
-# Los lapsos de Uso (las claves de estadisticas.LAPSOS): el botón, el título de la tarjeta y desde cuándo.
-BOTON_LAPSO = {"5h": "5 h", "1d": "1 día", "7d": "7 días", "30d": "1 mes", "180d": "6 meses"}
-TITULO_LAPSO = {"5h": "Últimas 5 horas", "1d": "Últimas 24 horas", "7d": "Últimos 7 días", "30d": "Últimos 30 días",
+VIVO = 5        # segundos entre un análisis y el siguiente mientras se mira Uso
+SOMBRA = 10     # el margen de cada tarjeta suave, donde cae su sombra
+INTERIOR = 18   # de la tarjeta a su contenido
+PUNTOS = 121    # con cuántos puntos se dibuja la curva (siempre los mismos: así una se transforma en otra)
+# Los lapsos de Uso (las claves de estadisticas.LAPSOS, más "hoy"): el botón y el título de la tarjeta.
+BOTON_LAPSO = {"5h": "5 h", "hoy": "Hoy", "7d": "7 días", "30d": "1 mes", "180d": "6 meses"}
+TITULO_LAPSO = {"5h": "Últimas 5 horas", "hoy": "Hoy", "7d": "Últimos 7 días", "30d": "Últimos 30 días",
                 "180d": "Últimos 6 meses"}
-DESDE_LAPSO = {"5h": "hace 5 h", "1d": "hace 24 h", "7d": "hace 7 días", "30d": "hace 30 días",
-               "180d": "hace 6 meses"}
+AGRUPAR = {"5h": 3, "7d": 2}  # de cuántas barras sale cada punto: con tramos tan cortos la curva serían agujas
 
 
 def con_alfa(color, alfa: float) -> QColor:
@@ -72,6 +73,27 @@ def pintar_tarjeta(p: QPainter, rect, radio: float = RADIO) -> None:
         p.strokePath(forma, QPen(con_alfa(C["borde"], 0.8), 1))
 
 
+def pintar_suave(p: QPainter, ancho: float, alto: float, radio: float = RADIO) -> None:
+    """Una tarjeta que apenas flota: sombra difusa alrededor, superficie pareja y un borde casi invisible."""
+    claro = QColor(C["fondo"]).lightnessF() > 0.5
+    caja = QRectF(SOMBRA, SOMBRA, ancho - 2 * SOMBRA, alto - 2 * SOMBRA)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QColor(70, 50, 40, 3) if claro else QColor(0, 0, 0, 12))
+    for d in range(SOMBRA - 3, 0, -1):
+        p.drawRoundedRect(caja.adjusted(-d, 3 - d, d, 3 + d), radio + d, radio + d)
+    forma = QPainterPath()
+    forma.addRoundedRect(caja.adjusted(0.5, 0.5, -0.5, -0.5), radio, radio)
+    p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)  # la sombra no se ve a través del vidrio
+    p.fillPath(forma, QColor(0, 0, 0))
+    p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+    if VIDRIO:
+        relleno = con_alfa(mezcla(C["panel"], C["texto"], 0.06), 0.74)
+    else:
+        relleno = QColor(C["panel"]) if claro else mezcla(C["panel"], C["texto"], 0.025)
+    p.fillPath(forma, relleno)
+    p.strokePath(forma, QPen(con_alfa(C["texto"], 0.05 if claro else 0.07), 1))
+
+
 def tokens(n: float) -> str:
     return seguimiento.formato_tokens(int(n))
 
@@ -88,6 +110,10 @@ def duracion(segundos: float) -> str:
 def cambio(ahora: float, antes: float) -> float | None:
     """Cuánto cambió contra el período anterior (0.16 = +16 %), o None si no hay con qué comparar."""
     return (ahora - antes) / antes if antes else None
+
+
+def tope(x: float) -> float:
+    return max(0.0, min(1.0, x))
 
 
 class Tarjeta(QWidget):
@@ -117,10 +143,13 @@ class Tarjeta(QWidget):
         arriba = 40 if self.titulo else self.MARGEN
         return QRectF(self.rect()).adjusted(self.MARGEN, arriba, -self.MARGEN, -self.MARGEN)
 
+    def pintar_fondo(self, p: QPainter) -> None:
+        pintar_tarjeta(p, self.rect())
+
     def paintEvent(self, evento) -> None:
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        pintar_tarjeta(p, self.rect())
+        self.pintar_fondo(p)
         if self.titulo:
             p.setFont(letra(12.5, QFont.Weight.DemiBold))
             p.setPen(QColor(C["suave"]))
@@ -137,107 +166,402 @@ class Tarjeta(QWidget):
         p.drawText(r, int(Qt.AlignmentFlag.AlignCenter), texto or t("Todavía no hay datos"))
 
 
-class Protagonista(Tarjeta):
-    """La tarjeta grande: una cifra enorme, cuánto cambió contra el período anterior y un gráfico de barras
-    (la última, la de ahora, con todo el color). Al pasar el mouse, cada barra dice lo suyo."""
+class TarjetaSuave(Tarjeta):
+    """Una tarjeta con sombra difusa. El fondo se pinta una vez y se guarda: mientras algo se mueve, cada cuadro
+    solo apoya esa foto. La sombra cae dentro del propio widget (SOMBRA), así que no hay efectos que recalcular."""
 
-    def __init__(self, alto: int = 318):
+    def __init__(self, alto: int = 120):
         super().__init__("", alto)
-        self.cifra, self.unidad, self.cambio, self.detalle, self.contra = "—", "", None, "", ""
-        self.serie: list[float] = []
-        self.ayudas: list[str] = []
-        self.desde, self.hasta = "", ""
+        self.foto: QPixmap | None = None
+        self.clave_foto: tuple | None = None
+
+    def area(self) -> QRectF:
+        return QRectF(self.rect()).adjusted(SOMBRA + INTERIOR, SOMBRA + INTERIOR - 2, -SOMBRA - INTERIOR,
+                                            -SOMBRA - INTERIOR + 2)
+
+    def pintar_fondo(self, p: QPainter) -> None:
+        dpr = self.devicePixelRatioF()
+        clave = (self.width(), self.height(), dpr, VIDRIO, C["fondo"], C["panel"], C["texto"])
+        if clave != self.clave_foto:
+            self.clave_foto = clave
+            self.foto = QPixmap(round(self.width() * dpr), round(self.height() * dpr))
+            self.foto.setDevicePixelRatio(dpr)
+            self.foto.fill(Qt.GlobalColor.transparent)
+            lienzo = QPainter(self.foto)
+            lienzo.setRenderHint(QPainter.RenderHint.Antialiasing)
+            pintar_suave(lienzo, self.width(), self.height())
+            lienzo.end()
+        p.drawPixmap(QPointF(0, 0), self.foto)
+
+    @staticmethod
+    def pintar_titulo(p: QPainter, r: QRectF, texto: str) -> None:
+        p.setFont(letra(12.5, QFont.Weight.Medium))
+        p.setPen(QColor(C["suave"]))
+        p.drawText(QRectF(r.left(), r.top(), r.width(), 18),
+                   int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
+                   QFontMetricsF(p.font()).elidedText(texto, Qt.TextElideMode.ElideRight, r.width()))
+
+
+class Area(TarjetaSuave):
+    """La tarjeta grande: la cifra y una curva suave con el área fundiéndose hacia abajo. Al cambiar de lapso una
+    curva se transforma en la otra; al pasar el mouse, un punto la recorre y dice cuánto hubo ahí."""
+
+    def __init__(self, alto: int = 344):
+        super().__init__(alto)
+        self.textos: dict = {}
+        self.previos: dict | None = None
+        self.valor_desde = self.valor = 0.0
+        self.valores: list[float] = []
+        self.ayudas: list[tuple[str, str]] = []
+        self.ultimo = 0                     # el último punto con datos (hoy, la hora actual)
+        self.forma_desde = [0.0] * PUNTOS
+        self.forma = [0.0] * PUNTOS
+        self.fin_desde = self.fin = 1.0     # hasta dónde del ancho llega la curva
         self.encima = -1
+        pintar = lambda _: self.update()
+        self.morfo = Resorte(self, 1.0, 0.62, 1.0, al_paso=pintar)
+        self.fundido = Resorte(self, 1.0, 0.36, 1.0, al_paso=pintar, al_llegar=self.olvidar_previos)
+        self.cuenta = Resorte(self, 1.0, 0.62, 1.0, al_paso=pintar)
+        self.cursor = Resorte(self, 0.0, 0.18, 1.0, al_paso=pintar)
+        self.foco = Resorte(self, 0.0, 0.18, 1.0, al_paso=pintar)
         self.setMouseTracking(True)
 
-    def poner(self, titulo: str, cifra: str, unidad: str, cambio_: float | None, contra: str, detalle: str,
-              serie: list[float], ayudas: list[str], desde: str, hasta: str, de_nuevo: bool = False) -> None:
-        """contra: con qué se compara el cambio ("contra ayer"); detalle: una línea bajo la cifra."""
-        self.titulo, self.cifra, self.unidad, self.cambio, self.detalle = titulo, cifra, unidad, cambio_, detalle
-        self.contra = contra
-        self.serie, self.ayudas, self.desde, self.hasta = serie, ayudas, desde, hasta
-        self.llegaron_datos(de_nuevo)
+    def olvidar_previos(self) -> None:
+        self.previos = None
+
+    def forma_visible(self) -> list[float]:
+        k = tope(self.morfo.x)
+        return [a + (b - a) * k for a, b in zip(self.forma_desde, self.forma)]
+
+    def fin_visible(self) -> float:
+        return self.fin_desde + (self.fin - self.fin_desde) * tope(self.morfo.x)
+
+    def valor_visible(self) -> float:
+        return self.valor_desde + (self.valor - self.valor_desde) * tope(self.cuenta.x)
+
+    def poner(self, textos: dict, valor: float, valores: list[float], ayudas: list[tuple[str, str]], ultimo: int,
+              de_nuevo: bool = False) -> None:
+        """textos: titulo, unidad, cambio, contra, detalle y marcas [(fracción del ancho, texto)]."""
+        n = len(valores)
+        ultimo = max(0, min(n - 1, ultimo))  # a las 00:30 la curva es un solo punto: no se inventa la hora siguiente
+        crudo = estadisticas.suavizar(estadisticas.curva(valores[:ultimo + 1], PUNTOS))
+        maximo = max(crudo)
+        forma = [v / maximo for v in crudo] if maximo else [0.0] * PUNTOS
+        fin = ultimo / (n - 1) if n > 1 else 1.0
+        primero = not self.con_datos
+        moverse = primero or forma != self.forma or fin != self.fin
+        animar = self.isVisible()
+        if moverse:
+            self.forma_desde, self.fin_desde = ([0.0] * PUNTOS, fin) if primero else (self.forma_visible(),
+                                                                                       self.fin_visible())
+        if primero or de_nuevo:
+            self.previos = None if primero else self.textos
+            self.encima = -1
+            self.foco.ir_a(0.0) if animar else self.foco.fijar(0.0)
+        if valor != self.valor:
+            self.valor_desde, self.valor = self.valor_visible(), valor
+            self.cuenta.ir_a(1.0, desde=0.0) if animar else self.cuenta.fijar(1.0)
+        self.textos, self.valores, self.ayudas, self.ultimo = textos, valores, ayudas, ultimo
+        self.forma, self.fin = forma, fin
+        if self.encima > ultimo:
+            self.encima = -1
+            self.foco.ir_a(0.0) if animar else self.foco.fijar(0.0)
+        self.con_datos = True
+        if moverse:
+            self.morfo.ir_a(1.0, desde=0.0) if animar else self.morfo.fijar(1.0)
+        if primero or de_nuevo:
+            self.fundido.ir_a(1.0, desde=0.0) if animar else self.fundido.fijar(1.0)
+        self.update()
+
+    def entrar(self) -> None:
+        """Al volver a la sección la curva sube desde la base."""
+        if self.con_datos:
+            self.forma_desde, self.fin_desde = [0.0] * PUNTOS, self.fin
+            self.morfo.ir_a(1.0, desde=0.0)
 
     def zona(self) -> QRectF:
         r = self.area()
-        return QRectF(r.left(), r.top() + 96, r.width(), r.height() - 96 - 20)
+        return QRectF(r.left(), r.top() + 106, r.width(), r.height() - 106 - 24)
 
-    def barras(self) -> list[QRectF]:
-        zona, n = self.zona(), max(1, len(self.serie))
-        paso = zona.width() / n
-        ancho = max(3.0, min(30.0, paso * 0.66))
-        return [QRectF(zona.left() + i * paso + (paso - ancho) / 2, zona.top(), ancho, zona.height()) for i in range(n)]
+    def altura_en(self, forma: list[float], x: float, fin: float) -> float:
+        """La altura de la curva en x (fracción del ancho total)."""
+        j = tope(x / fin if fin else 0.0) * (PUNTOS - 1)
+        i = min(PUNTOS - 2, int(j))
+        return forma[i] + (forma[i + 1] - forma[i]) * (j - i)
 
     def mouseMoveEvent(self, evento) -> None:
-        zona, n = self.zona(), len(self.serie)
+        zona, n = self.zona(), len(self.valores)
         x, y = evento.position().x(), evento.position().y()
         encima = -1
-        if n and zona.left() <= x < zona.right() and y > zona.top() - 12:
-            encima = min(n - 1, int((x - zona.left()) / (zona.width() / n)))
-        if encima != self.encima:
-            self.encima = encima
-            self.update()
-            if 0 <= encima < len(self.ayudas):
-                QToolTip.showText(evento.globalPosition().toPoint(), self.ayudas[encima], self)
-            else:
-                QToolTip.hideText()
+        if n > 1 and zona.left() - 8 <= x <= zona.right() + 8 and zona.top() - 12 <= y <= zona.bottom() + 8:
+            encima = max(0, min(self.ultimo, round((x - zona.left()) / zona.width() * (n - 1))))
+        if encima == self.encima:
+            return
+        self.encima = encima
+        if encima < 0:
+            self.foco.ir_a(0.0)
+            return
+        destino = encima / (n - 1)
+        self.cursor.fijar(destino) if self.foco.x < 0.05 else self.cursor.ir_a(destino)
+        self.foco.ir_a(1.0)
 
     def leaveEvent(self, evento) -> None:
         self.encima = -1
-        self.update()
+        self.foco.ir_a(0.0)
+
+    def pintar_textos(self, p: QPainter, r: QRectF, d: dict, alfa: float, dy: float) -> None:
+        """Lo que se funde al cambiar de lapso: el título, la línea de abajo, la pastilla y las marcas del eje."""
+        if alfa <= 0.01:
+            return
+        izquierda = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        derecha = int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        centro = int(Qt.AlignmentFlag.AlignCenter)
+        p.setOpacity(alfa)
+        self.pintar_titulo(p, r.translated(0, dy), d["titulo"])
+        p.setFont(letra(12.5))
+        p.setPen(QColor(C["suave"]))
+        p.drawText(QRectF(r.left(), r.top() + 72 + dy, r.width(), 18), izquierda, d["detalle"])
+        if d["cambio"] is not None:
+            texto = ("↑ " if d["cambio"] >= 0 else "↓ ") + f"{min(999, abs(round(d['cambio'] * 100)))} %"
+            p.setFont(letra(12.5, QFont.Weight.DemiBold))
+            ancho = QFontMetricsF(p.font()).horizontalAdvance(texto) + 20
+            pastilla = QRectF(r.right() - ancho, r.top() - 2 + dy, ancho, 24)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(con_alfa(C["acento"], 0.15))
+            p.drawRoundedRect(pastilla, 12, 12)
+            p.setPen(QColor(C["acento"]))
+            p.drawText(pastilla, centro, texto)
+            p.setFont(letra(11.5))
+            p.setPen(QColor(C["suave"]))
+            p.drawText(QRectF(r.right() - 240, pastilla.bottom() + 4, 240, 16), derecha, d["contra"])
+        zona = self.zona()
+        p.setFont(letra(11.5))
+        p.setPen(QColor(C["suave"]))
+        for fraccion, marca in d["marcas"]:
+            x = zona.left() + fraccion * zona.width()
+            if fraccion <= 0:
+                p.drawText(QRectF(zona.left(), zona.bottom() + 8, 90, 16), izquierda, marca)
+            elif fraccion >= 1:
+                p.drawText(QRectF(zona.right() - 90, zona.bottom() + 8, 90, 16), derecha, marca)
+            else:
+                p.drawText(QRectF(x - 45, zona.bottom() + 8, 90, 16), centro, marca)
+
+    def pintar_curva(self, p: QPainter, zona: QRectF) -> None:
+        base = zona.bottom()
+        util = zona.height() - 10
+        p.setPen(QPen(con_alfa(C["texto"], 0.055), 1))
+        for k in (0.0, 0.5, 1.0):
+            y = round(base - util * k) + 0.5
+            p.drawLine(QPointF(zona.left(), y), QPointF(zona.right(), y))
+        forma, fin = self.forma_visible(), self.fin_visible()
+        puntos = [QPointF(zona.left() + fin * zona.width() * j / (PUNTOS - 1), base - util * h)
+                  for j, h in enumerate(forma)]
+        linea = QPainterPath(puntos[0])
+        for punto in puntos[1:]:
+            linea.lineTo(punto)
+        area = QPainterPath(linea)
+        area.lineTo(puntos[-1].x(), base)
+        area.lineTo(puntos[0].x(), base)
+        area.closeSubpath()
+        tinte = QLinearGradient(0, zona.top(), 0, base)
+        tinte.setColorAt(0, con_alfa(C["acento"], 0.36))
+        tinte.setColorAt(0.6, con_alfa(C["acento"], 0.12))
+        tinte.setColorAt(1, con_alfa(C["acento"], 0.0))
+        p.fillPath(area, tinte)
+        pluma = QPen(QColor(C["acento"]), 2.2)
+        pluma.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pluma.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        p.setPen(pluma)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPath(linea)
+        foco = tope(self.foco.x)
+        self.pintar_punto(p, puntos[-1], 1 - foco)
+        if foco > 0.01:
+            x = self.cursor.x
+            punto = QPointF(zona.left() + x * zona.width(), base - util * self.altura_en(forma, x, fin))
+            p.setOpacity(foco)
+            p.setPen(QPen(con_alfa(C["texto"], 0.16), 1))
+            p.drawLine(QPointF(punto.x(), zona.top()), QPointF(punto.x(), base))
+            p.setOpacity(1.0)
+            self.pintar_punto(p, punto, foco)
+            self.pintar_burbuja(p, zona, punto, foco)
+
+    @staticmethod
+    def pintar_punto(p: QPainter, centro: QPointF, alfa: float) -> None:
+        if alfa <= 0.01:
+            return
+        p.setOpacity(alfa)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(con_alfa(C["acento"], 0.20))
+        p.drawEllipse(centro, 9.0, 9.0)
+        p.setBrush(QColor(C["panel"]))
+        p.setPen(QPen(QColor(C["acento"]), 2.2))
+        p.drawEllipse(centro, 4.2, 4.2)
+        p.setOpacity(1.0)
+
+    def pintar_burbuja(self, p: QPainter, zona: QRectF, punto: QPointF, alfa: float) -> None:
+        i = self.encima
+        if not 0 <= i < len(self.ayudas):
+            return
+        cuando, valor = self.ayudas[i]
+        chica, fuerte = letra(11.5), letra(12.5, QFont.Weight.DemiBold)
+        ancho_c = QFontMetricsF(chica).horizontalAdvance(cuando)
+        ancho_v = QFontMetricsF(fuerte).horizontalAdvance(valor)
+        ancho = ancho_c + ancho_v + 32
+        x = max(zona.left() - 6, min(zona.right() + 6 - ancho, punto.x() - ancho / 2))
+        y = max(zona.top() - 16, punto.y() - 42)
+        caja = QRectF(x, y, ancho, 28)
+        p.setOpacity(alfa)
+        p.setPen(QPen(con_alfa(C["texto"], 0.08), 1))
+        p.setBrush(mezcla(C["panel"], C["texto"], 0.10))
+        p.drawRoundedRect(caja, 14, 14)
+        vertical = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        p.setFont(chica)
+        p.setPen(QColor(C["suave"]))
+        p.drawText(QRectF(caja.left() + 12, caja.top(), ancho_c + 2, caja.height()), vertical, cuando)
+        p.setFont(fuerte)
+        p.setPen(QColor(C["texto"]))
+        p.drawText(QRectF(caja.right() - 12 - ancho_v, caja.top(), ancho_v + 2, caja.height()), vertical, valor)
+        p.setOpacity(1.0)
 
     def pintar(self, p: QPainter, r: QRectF) -> None:
         if not self.con_datos:
             return self.sin_datos(p, r, t("Analizando…"))
-        # la cifra
-        p.setFont(letra(54, QFont.Weight.Bold))
+        f = tope(self.fundido.x)
+        if self.previos:  # primero se va lo viejo y recién después entra lo nuevo: los textos nunca se pisan
+            self.pintar_textos(p, r, self.previos, 1 - f / 0.42, -4 * f)
+        self.pintar_textos(p, r, self.textos, (f - 0.36) / 0.64 if self.previos else f, 4 * (1 - f))
+        p.setOpacity(1.0)
+        cifra = tokens(self.valor_visible())
+        p.setFont(letra(40, QFont.Weight.DemiBold))
         p.setPen(QColor(C["texto"]))
-        ancho = QFontMetricsF(p.font()).horizontalAdvance(self.cifra)
-        p.drawText(QRectF(r.left() - 2, r.top() - 4, ancho + 8, 62), int(Qt.AlignmentFlag.AlignVCenter), self.cifra)
-        p.setFont(letra(15, QFont.Weight.Medium))
+        ancho = QFontMetricsF(p.font()).horizontalAdvance(cifra)
+        p.drawText(QRectF(r.left() - 1, r.top() + 20, ancho + 8, 50), int(Qt.AlignmentFlag.AlignVCenter), cifra)
+        p.setFont(letra(14))
         p.setPen(QColor(C["suave"]))
-        p.drawText(QRectF(r.left() + ancho + 8, r.top() + 22, 160, 26), int(Qt.AlignmentFlag.AlignVCenter), self.unidad)
-        # el cambio, en una pastillita a la derecha
-        if self.cambio is not None:
-            texto = ("▲ " if self.cambio >= 0 else "▼ ") + f"{min(999, abs(round(self.cambio * 100)))} %"
-            p.setFont(letra(12.5, QFont.Weight.DemiBold))
-            ancho_p = QFontMetricsF(p.font()).horizontalAdvance(texto) + 22
-            pastilla = QRectF(r.right() - ancho_p, r.top() + 12, ancho_p, 26)
+        p.drawText(QRectF(r.left() + ancho + 8, r.top() + 34, 120, 26), int(Qt.AlignmentFlag.AlignVCenter),
+                   self.textos.get("unidad", ""))
+        self.pintar_curva(p, self.zona())
+
+
+class Dona(TarjetaSuave):
+    """En qué modelos se fue: una dona con los segmentos redondeados y su leyenda."""
+
+    GROSOR = 10.0
+    LADO = 104.0
+    ARRIBA = 28
+    FILA = 21
+
+    def __init__(self, titulo: str, alto: int = 288):
+        super().__init__(alto)
+        self.nombre = titulo
+        self.items: list[tuple[str, float]] = []
+        self.desde = self.fracciones = [0.0] * 4
+        self.corre = Resorte(self, 1.0, 0.62, 1.0, al_paso=lambda _: self.update())
+
+    def visibles(self) -> list[float]:
+        k = tope(self.corre.x)
+        return [a + (b - a) * k for a, b in zip(self.desde, self.fracciones)]
+
+    def poner(self, modelos: list[tuple[str, int]], total: float) -> None:
+        items = [(nombre, valor / total) for nombre, valor in modelos[:3]] if total else []
+        resto = 1 - sum(f for _, f in items)
+        if items and resto > 0.005:
+            items.append((t("Otros"), resto))
+        fracciones = [f for _, f in items] + [0.0] * (4 - len(items))
+        if items == self.items and self.con_datos:
+            return
+        self.desde, self.fracciones, self.items = self.visibles(), fracciones, items
+        self.con_datos = True
+        self.corre.ir_a(1.0, desde=0.0) if self.isVisible() else self.corre.fijar(1.0)
+        self.update()
+
+    @staticmethod
+    def tonos() -> list[QColor]:
+        return [QColor(C["acento"]), mezcla(C["acento"], C["texto"], 0.48), mezcla(C["acento"], C["fondo"], 0.52),
+                con_alfa(C["texto"], 0.20)]
+
+    def pintar(self, p: QPainter, r: QRectF) -> None:
+        self.pintar_titulo(p, r, self.nombre)
+        if not self.items:
+            return self.sin_datos(p, r)
+        lado = min(self.LADO, r.width() - 8)
+        aro = QRectF(r.center().x() - lado / 2, r.top() + self.ARRIBA, lado, lado).adjusted(
+            self.GROSOR / 2, self.GROSOR / 2, -self.GROSOR / 2, -self.GROSOR / 2)
+        pluma = QPen(con_alfa(C["texto"], 0.07), self.GROSOR)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(pluma)
+        p.drawEllipse(aro)
+        pluma.setCapStyle(Qt.PenCapStyle.RoundCap)
+        hueco = math.degrees(self.GROSOR / (aro.width() / 2)) + 3.0  # lo que ocupan las puntas redondas, y un aire
+        angulo = 90.0
+        for fraccion, tono in zip(self.visibles(), self.tonos()):
+            barrido = 360 * fraccion
+            if barrido > 0.2:
+                pluma.setColor(tono)
+                p.setPen(pluma)
+                if fraccion > 0.995:
+                    p.drawEllipse(aro)
+                else:
+                    arco = max(0.4, barrido - hueco)
+                    p.drawArc(aro, round((angulo - (barrido - arco) / 2) * 16), -round(arco * 16))
+            angulo -= barrido
+        principal, parte = self.items[0]
+        p.setFont(letra(19, QFont.Weight.DemiBold))
+        p.setPen(QColor(C["texto"]))
+        p.drawText(aro.adjusted(0, -9, 0, -9), int(Qt.AlignmentFlag.AlignCenter), f"{round(parte * 100)} %")
+        p.setFont(letra(10.5))
+        p.setPen(QColor(C["suave"]))
+        p.drawText(aro.adjusted(8, 15, -8, 15), int(Qt.AlignmentFlag.AlignCenter),
+                   QFontMetricsF(p.font()).elidedText(principal, Qt.TextElideMode.ElideRight, aro.width() - 20))
+        izquierda = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        derecha = int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        y = r.top() + self.ARRIBA + lado + 10
+        for (nombre, fraccion), tono in zip(self.items, self.tonos()):
             p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(con_alfa(C["texto"], 0.09))
-            p.drawRoundedRect(pastilla, 13, 13)
-            p.setPen(QColor(C["texto"]))
-            p.drawText(pastilla, int(Qt.AlignmentFlag.AlignCenter), texto)
-            p.setFont(letra(12))
+            p.setBrush(tono)
+            p.drawEllipse(QPointF(r.left() + 4, y + self.FILA / 2), 3.5, 3.5)
+            p.setFont(letra(12.5))
             p.setPen(QColor(C["suave"]))
-            p.drawText(QRectF(r.right() - 220, pastilla.bottom() + 4, 220, 18),
-                       int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter), self.contra)
-        p.setFont(letra(12.5))
-        p.setPen(QColor(C["suave"]))
-        p.drawText(QRectF(r.left(), r.top() + 60, r.width(), 20),
-                   int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter), self.detalle)
-        # las barras
-        zona = self.zona()
-        tope = max(self.serie) if self.serie else 0
-        p.setPen(QPen(con_alfa(C["texto"], 0.10), 1))
-        p.drawLine(QPointF(zona.left(), zona.bottom() + 0.5), QPointF(zona.right(), zona.bottom() + 0.5))
-        if tope:
-            crece = max(0.0, min(1.06, self.aparece.x))
-            ultima = len(self.serie) - 1
-            p.setPen(Qt.PenStyle.NoPen)
-            for i, (valor, b) in enumerate(zip(self.serie, self.barras())):
-                if not valor:
-                    continue
-                alto = max(2.0, (zona.height() - 6) * valor / tope * crece)
-                p.setBrush(QColor(C["acento"]) if i in (ultima, self.encima) else con_alfa(C["acento"], 0.42))
-                radio = min(5.0, b.width() / 2)
-                p.drawRoundedRect(QRectF(b.left(), zona.bottom() - alto, b.width(), alto), radio, radio)
-        p.setFont(letra(11.5))
-        p.setPen(QColor(C["suave"]))
-        p.drawText(QRectF(zona.left(), zona.bottom() + 5, 200, 16),
-                   int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter), self.desde)
-        p.drawText(QRectF(zona.right() - 200, zona.bottom() + 5, 200, 16),
-                   int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter), self.hasta)
+            porcentaje = f"{round(fraccion * 100)} %"
+            ancho = QFontMetricsF(p.font()).horizontalAdvance(porcentaje) + 8
+            p.drawText(QRectF(r.left() + 15, y, r.width() - 15 - ancho, self.FILA), izquierda,
+                       QFontMetricsF(p.font()).elidedText(nombre, Qt.TextElideMode.ElideRight, r.width() - 15 - ancho))
+            p.setPen(QColor(C["texto"]))
+            p.drawText(QRectF(r.left(), y, r.width(), self.FILA), derecha, porcentaje)
+            y += self.FILA
+
+
+class Dato(TarjetaSuave):
+    """Un número suelto con su nombre arriba. Corre hasta su valor."""
+
+    def __init__(self, nombre: str, formato, alto: int = 124):
+        super().__init__(alto)
+        self.nombre, self.formato = nombre, formato
+        self.desde = self.valor = 0.0
+        self.corre = Resorte(self, 1.0, 0.62, 1.0, al_paso=lambda _: self.update())
+
+    def visible(self) -> float:
+        return self.desde + (self.valor - self.desde) * tope(self.corre.x)
+
+    def poner(self, valor: float) -> None:
+        if valor == self.valor and self.con_datos:
+            return
+        self.desde, self.valor = self.visible(), valor
+        self.con_datos = True
+        self.corre.ir_a(1.0, desde=0.0) if self.isVisible() else self.corre.fijar(1.0)
+        self.update()
+
+    def pintar(self, p: QPainter, r: QRectF) -> None:
+        self.pintar_titulo(p, r, self.nombre)
+        texto = self.formato(self.visible()) if self.con_datos else "—"
+        px = 30.0
+        while px > 16 and QFontMetricsF(letra(px, QFont.Weight.DemiBold)).horizontalAdvance(texto) > r.width():
+            px -= 1  # en una ventana angosta el número se achica antes que cortarse
+        p.setFont(letra(px, QFont.Weight.DemiBold))
+        p.setPen(QColor(C["texto"]))
+        p.drawText(QRectF(r.left(), r.top() + 22, r.width(), r.height() - 22),
+                   int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter), texto)
 
 
 class Cifra(Tarjeta):
@@ -257,76 +581,80 @@ class Cifra(Tarjeta):
         p.drawText(r, int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter), self.numero)
 
 
-class Ranking(Tarjeta):
-    """Una lista corta de (nombre, valor, texto del valor) con una barra proporcional debajo de cada nombre."""
+class Filas(TarjetaSuave):
+    """Una lista corta con una barra finita debajo de cada nombre. Al cambiar, cada fila viaja a su lugar nuevo;
+    las que entran y salen se funden."""
 
-    FILA = 38
+    FILA = 34
+    ARRIBA = 26
+    CUANTAS = 3
 
-    def __init__(self, titulo: str, filas: int = 3):
-        super().__init__(t(titulo), 40 + filas * self.FILA + 10)
-        self.items: list[tuple[str, float, str]] = []
-        self.cuantas = filas
+    def __init__(self, nombre: str, alto: int = 180):
+        super().__init__(alto)
+        self.nombre = nombre
+        self.datos: list[tuple[str, float, str]] = []
+        self.filas: dict[str, dict] = {}
+        self.corre = Resorte(self, 1.0, 0.55, 1.0, al_paso=lambda _: self.update(), al_llegar=self.limpiar)
+
+    def limpiar(self) -> None:
+        self.filas = {k: f for k, f in self.filas.items() if f["a1"] > 0}
+
+    def actual(self, f: dict) -> tuple[float, float, float]:
+        k = tope(self.corre.x)
+        if f["a1"] <= 0:  # la que se va, rápido; la que entra espera un poco: los textos no se pisan
+            alfa = f["a0"] * (1 - tope(k / 0.36))
+        else:
+            alfa = f["a0"] + (1 - f["a0"]) * tope((k - 0.3) / 0.7)
+        return f["y0"] + (f["y1"] - f["y0"]) * k, f["f0"] + (f["f1"] - f["f0"]) * k, alfa
 
     def poner(self, items: list[tuple[str, float, str]]) -> None:
-        self.items = items[:self.cuantas]
-        self.llegaron_datos()
+        items = items[:self.CUANTAS]
+        if items == self.datos and self.con_datos:
+            return
+        self.datos = items
+        maximo = max((v for _, v, _ in items), default=0) or 1
+        viejas = {k: (self.actual(f), f) for k, f in self.filas.items()}
+        filas: dict[str, dict] = {}
+        for i, (nombre, valor, detalle) in enumerate(items):
+            y1 = float(i * self.FILA)
+            (y0, f0, a0), _ = viejas.pop(nombre, ((y1 + 6, 0.0, 0.0), None))
+            filas[nombre] = {"nombre": nombre, "detalle": detalle, "y0": y0, "y1": y1, "f0": f0, "f1": valor / maximo,
+                             "a0": a0, "a1": 1.0}
+        for nombre, ((y, fraccion, a), vieja) in viejas.items():
+            if a > 0.01:
+                filas[nombre] = dict(vieja, y0=y, y1=y - 4, f0=fraccion, f1=fraccion, a0=a, a1=0.0)
+        self.filas = filas
+        self.con_datos = True
+        self.corre.ir_a(1.0, desde=0.0) if self.isVisible() else self.corre.fijar(1.0)
+        self.update()
 
     def pintar(self, p: QPainter, r: QRectF) -> None:
-        if not self.items:
-            return self.sin_datos(p, r)
-        tope = max(v for _, v, _ in self.items) or 1
-        crece = max(0.0, min(1.0, self.aparece.x))
-        for i, (nombre, valor, detalle) in enumerate(self.items):
-            y = r.top() + i * self.FILA
-            ancho_detalle = QFontMetricsF(letra(13)).horizontalAdvance(detalle) + 8
-            p.setFont(letra(13.5, QFont.Weight.DemiBold if i == 0 else QFont.Weight.Normal))
+        self.pintar_titulo(p, r, self.nombre)
+        lista = QRectF(r.left(), r.top() + self.ARRIBA, r.width(), r.height() - self.ARRIBA)
+        if not self.datos and not self.filas:
+            return self.sin_datos(p, lista)
+        izquierda = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        derecha = int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        for f in self.filas.values():
+            dy, fraccion, alfa = self.actual(f)
+            if alfa <= 0.01:
+                continue
+            y = lista.top() + dy
+            p.setOpacity(tope(alfa))
+            p.setFont(letra(12.5))
+            ancho_detalle = QFontMetricsF(p.font()).horizontalAdvance(f["detalle"]) + 8
             p.setPen(QColor(C["texto"]))
-            p.drawText(QRectF(r.left(), y, r.width() - ancho_detalle, 20),
-                       int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
-                       QFontMetricsF(p.font()).elidedText(nombre, Qt.TextElideMode.ElideRight, r.width() - ancho_detalle - 8))
-            p.setFont(letra(13))
+            p.drawText(QRectF(lista.left(), y, lista.width() - ancho_detalle, 18), izquierda,
+                       QFontMetricsF(p.font()).elidedText(f["nombre"], Qt.TextElideMode.ElideRight,
+                                                          lista.width() - ancho_detalle - 4))
             p.setPen(QColor(C["suave"]))
-            p.drawText(QRectF(r.left(), y, r.width(), 20),
-                       int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter), detalle)
+            p.drawText(QRectF(lista.left(), y, lista.width(), 18), derecha, f["detalle"])
             p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(con_alfa(C["texto"], 0.09))
-            p.drawRoundedRect(QRectF(r.left(), y + 25, r.width(), 5), 2.5, 2.5)
-            p.setBrush(con_alfa(C["acento"], 1.0 if i == 0 else 0.55))
-            p.drawRoundedRect(QRectF(r.left(), y + 25, max(5.0, r.width() * valor / tope * crece), 5), 2.5, 2.5)
-
-
-class Anillo(Tarjeta):
-    """Un porcentaje en un anillo, con una línea al lado."""
-
-    def __init__(self, titulo: str, alto: int = 164):
-        super().__init__(t(titulo), alto)
-        self.fraccion: float | None = None
-        self.linea = ""
-
-    def poner(self, fraccion: float | None, linea: str = "") -> None:
-        self.fraccion, self.linea = fraccion, linea
-        self.llegaron_datos()
-
-    def pintar(self, p: QPainter, r: QRectF) -> None:
-        if self.fraccion is None:
-            return self.sin_datos(p, r, self.linea)
-        lado = min(r.height(), 96.0)
-        caja = QRectF(r.left() + 5, r.center().y() - lado / 2, lado, lado).adjusted(5, 5, -5, -5)
-        pluma = QPen(con_alfa(C["texto"], 0.10), 10)
-        pluma.setCapStyle(Qt.PenCapStyle.RoundCap)
-        p.setBrush(Qt.BrushStyle.NoBrush)
-        p.setPen(pluma)
-        p.drawEllipse(caja)
-        pluma.setColor(QColor(C["acento"]))
-        p.setPen(pluma)
-        p.drawArc(caja, 90 * 16, -round(360 * 16 * self.fraccion * max(0.0, min(1.0, self.aparece.x))))
-        p.setFont(letra(21, QFont.Weight.Bold))
-        p.setPen(QColor(C["texto"]))
-        p.drawText(caja, int(Qt.AlignmentFlag.AlignCenter), f"{round(self.fraccion * 100)}%")
-        p.setFont(letra(13))
-        p.setPen(QColor(C["suave"]))
-        p.drawText(QRectF(caja.right() + 22, r.top(), r.right() - caja.right() - 22, r.height()),
-                   int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter | Qt.TextFlag.TextWordWrap), self.linea)
+            p.setBrush(con_alfa(C["texto"], 0.07))
+            p.drawRoundedRect(QRectF(lista.left(), y + 22, lista.width(), 4), 2, 2)
+            p.setBrush(QColor(C["acento"]))
+            p.drawRoundedRect(QRectF(lista.left(), y + 22, max(4.0, lista.width() * max(0.0, fraccion)), 4), 2, 2)
+        p.setOpacity(1.0)
 
 
 class EnVivo(QWidget):
@@ -367,16 +695,12 @@ class Analista(QObject):
 
     listo = pyqtSignal(object)
 
-    def __init__(self, padre: QObject | None = None, analisis: estadisticas.Analisis | None = None,
-                 historial=HISTORIAL):
+    def __init__(self, padre: QObject | None = None, analisis: estadisticas.Analisis | None = None):
         super().__init__(padre)
         self.analisis = analisis or estadisticas.Analisis(cache=m.CONFIG_DIR / "cache" / "uso.json")
-        self.historial = historial
         self.ocupado = False
         self.cerrado = threading.Event()
         self.analisis.cancelado = self.cerrado.is_set
-        self.precision: dict | None = None
-        self.precision_hora = 0.0
 
     def pedir(self) -> bool:
         if self.ocupado or self.cerrado.is_set():
@@ -389,20 +713,9 @@ class Analista(QObject):
         informe = None
         try:
             informe = self.analisis.actualizar()
-            if informe is not None:
-                informe["precision"] = self.precision
-                informe["midiendo"] = self.precision is None and time.time() - self.precision_hora > 600
         except Exception as e:  # un transcript raro no puede dejar la sección colgada en "Analizando…"
             m.log(f"[paneles] error analizando el uso: {e!r}")
         self.avisar(informe)
-        # La precisión tarda unos segundos: los números llegan primero y ella después. Cada 10 minutos alcanza.
-        if informe is not None and time.time() - self.precision_hora > 600 and not self.cerrado.is_set():
-            self.precision_hora = time.time()
-            try:
-                self.medir_precision()
-                self.avisar(dict(informe, precision=self.precision, midiendo=False))
-            except Exception as e:
-                m.log(f"[paneles] no se pudo medir la precisión: {e!r}")
         self.ocupado = False
 
     def avisar(self, informe) -> None:
@@ -411,15 +724,6 @@ class Analista(QObject):
                 self.listo.emit(informe)
             except RuntimeError:  # la ventana se cerró mientras tanto
                 pass
-
-    def medir_precision(self) -> None:
-        estimador = seguimiento.Estimador(self.historial)
-        if estimador.vacio and self.historial:  # la barra todavía no armó el historial: se arma acá, igual
-            monitor = seguimiento.Monitor(self.historial, self.analisis.carpeta)
-            monitor.cancelado = self.cerrado.is_set
-            monitor.aprender_del_pasado()
-            estimador = monitor.estimador
-        self.precision = estimador.precision(150, self.cerrado.is_set)
 
     def cerrar(self) -> None:
         self.cerrado.set()
@@ -437,71 +741,84 @@ def lista_de(pares: list[tuple[str, int]]) -> list[tuple[str, float, str]]:
     return [(nombre, valor, tokens(valor)) for nombre, valor in pares]
 
 
-class Dashboard(QWidget):
-    """¿Cómo vengo hoy? La cifra de hoy y los últimos 14 días; abajo, tres números y dos tarjetas."""
-
-    def __init__(self):
-        super().__init__()
-        caja = QVBoxLayout(self)
-        caja.setContentsMargins(0, 0, 0, 0)
-        caja.setSpacing(14)
-        self.hoy = Protagonista()
-        caja.addWidget(self.hoy)
-        self.sesiones, self.trabajo, self.semana = Cifra("Sesiones"), Cifra("Claude trabajando"), Cifra("7 días")
-        caja.addLayout(columnas(self.sesiones, self.trabajo, self.semana))
-        self.proyectos = Ranking("Proyectos de la semana")
-        self.precision = Anillo("Precisión del tiempo estimado")
-        caja.addLayout(columnas(self.proyectos, self.precision))
-        caja.addStretch(1)
-
-    def mostrar(self, informe: dict | None) -> None:
-        if not informe:
-            return
-        hoy, ayer, dias = informe["hoy"], informe["ayer"], informe["dias"]
-        self.hoy.poner(t("Hoy"), tokens(hoy["tokens"]), "tokens", cambio(hoy["tokens"], ayer["tokens"] if ayer else 0),
-                       t("contra ayer"), t("{n} por minuto ahora", n=tokens(informe["ritmo"])) if informe["ritmo"] else "",
-                       [d["tokens"] for d in dias], [f"{d['dia']:%d/%m} · {tokens(d['tokens'])}" for d in dias],
-                       f"{dias[0]['dia']:%d/%m}", t("hoy"))
-        self.sesiones.poner(str(hoy["sesiones"]))
-        self.trabajo.poner(duracion(hoy["trabajo"]))
-        self.semana.poner(tokens(informe["semana"]))
-        self.proyectos.poner([(nombre, valor, tokens(valor)) for nombre, valor, _ in informe["proyectos"]])
-        medida = informe.get("precision")
-        if medida:
-            self.precision.poner(medida["dentro_del_doble"],
-                                 t("Error típico: {n}", n=duracion(medida["error_mediano"])))
-        else:
-            self.precision.poner(None, t("Analizando…") if informe.get("midiendo")
-                                 else t("Hacen falta más turnos para medirla"))
-
-
 class Uso(QWidget):
-    """¿Cuánto llevo gastado? El lapso elegido en grande, con su gráfico; abajo entrada, salida, caché y
-    en qué modelos y proyectos se fue."""
+    """¿Cómo vengo? La curva del lapso elegido y los modelos; abajo tres números y los proyectos."""
 
-    def __init__(self, selector: QWidget, lapso: str = "5h"):
+    ANGOSTA, ANCHA = 720, 760  # dos medidas: que una barra de scroll no la haga saltar de una forma a la otra
+
+    def __init__(self, selector: QWidget, lapso: str = "hoy"):
         super().__init__()
-        self.lapso = lapso if lapso in estadisticas.LAPSOS else "5h"
+        self.lapso = lapso if lapso in BOTON_LAPSO else "hoy"
         self.informe: dict | None = None
+        self.angosta: bool | None = None
+        # Lo que va a medir al terminar de acomodarse: al entrar, la columna de la vista previa se está plegando y
+        # la forma se elige por cómo va a quedar, no por cada paso del camino (ajustes.py conecta esto).
+        self.ancho_final = self.width
         caja = QVBoxLayout(self)
         caja.setContentsMargins(0, 0, 0, 0)
-        caja.setSpacing(14)
+        caja.setSpacing(2)
         arriba = QHBoxLayout()
-        arriba.addWidget(selector)  # el selector de lapso lo arma ajustes.py (sus segmentos)
+        arriba.setContentsMargins(SOMBRA, 0, SOMBRA, 0)
+        arriba.addWidget(selector)  # el selector lo arma ajustes.py (sus segmentos)
         arriba.addStretch(1)
         self.vivo = EnVivo()
         arriba.addWidget(self.vivo)
         caja.addLayout(arriba)
-        self.total = Protagonista()
-        caja.addWidget(self.total)
-        self.entrada, self.salida, self.cache = Cifra("Entrada"), Cifra("Salida"), Cifra("Desde la caché")
-        caja.addLayout(columnas(self.entrada, self.salida, self.cache))
-        self.modelos, self.proyectos = Ranking("Modelos"), Ranking("Proyectos")
-        caja.addLayout(columnas(self.modelos, self.proyectos))
+        self.curva = Area()
+        self.dona = Dona(t("Modelos"))
+        self.sesiones = Dato(t("Sesiones"), lambda x: str(round(x)))
+        self.trabajo = Dato(t("Claude trabajando"), duracion)
+        self.cache = Dato(t("Desde la caché"), lambda x: f"{round(x * 100)} %")
+        self.proyectos = Filas(t("Proyectos"))
+        self.datos = QWidget()
+        fila = QHBoxLayout(self.datos)
+        fila.setContentsMargins(0, 0, 0, 0)
+        fila.setSpacing(0)
+        for dato in (self.sesiones, self.trabajo, self.cache):
+            fila.addWidget(dato)
+        self.derecha = QWidget()  # la dona arriba de los proyectos: juntas miden lo mismo que la curva y los números
+        columna = QVBoxLayout(self.derecha)
+        columna.setContentsMargins(0, 0, 0, 0)
+        columna.setSpacing(0)
+        columna.addWidget(self.dona)
+        columna.addWidget(self.proyectos)
+        self.rejilla = QGridLayout()
+        self.rejilla.setSpacing(0)
+        caja.addLayout(self.rejilla)
         caja.addStretch(1)
+        self.acomodar(900)
+
+    def acomodar(self, ancho: int) -> None:
+        """Dos columnas si entra; si la ventana es angosta, una sola."""
+        angosta = ancho < self.ANGOSTA if self.angosta is None or not self.angosta else ancho < self.ANCHA
+        if angosta == self.angosta:
+            return
+        self.angosta = angosta
+        for w in (self.curva, self.datos, self.derecha):
+            self.rejilla.removeWidget(w)
+        self.rejilla.addWidget(self.curva, 0, 0)
+        self.rejilla.addWidget(self.datos, 1, 0)
+        if angosta:
+            self.rejilla.addWidget(self.derecha, 2, 0)
+            self.rejilla.setColumnStretch(0, 1)
+            self.rejilla.setColumnStretch(1, 0)
+        else:
+            self.rejilla.addWidget(self.derecha, 0, 1, 2, 1, Qt.AlignmentFlag.AlignTop)
+            self.rejilla.setColumnStretch(0, 2)
+            self.rejilla.setColumnStretch(1, 1)
+
+    def resizeEvent(self, evento) -> None:
+        super().resizeEvent(evento)
+        self.acomodar(self.ancho_final())
+
+    def showEvent(self, evento) -> None:
+        super().showEvent(evento)
+        self.acomodar(self.ancho_final())
+        if not evento.spontaneous():  # volver de minimizada no repite la entrada
+            self.curva.entrar()
 
     def elegir(self, lapso: str) -> None:
-        if lapso in estadisticas.LAPSOS and lapso != self.lapso:
+        if lapso in BOTON_LAPSO and lapso != self.lapso:
             self.lapso = lapso
             self.pintar_lapso(de_nuevo=True)
 
@@ -512,25 +829,50 @@ class Uso(QWidget):
             self.pintar_lapso()
 
     @staticmethod
-    def ayudas(cuantas: int, paso: int, serie: list[float]) -> list[str]:
+    def ayudas(cuantas: int, paso: int, serie: list[float]) -> list[tuple[str, str]]:
+        """Lo que dice la burbuja de cada punto: (cuándo, cuánto)."""
         ahora = datetime.now()
         formato = "%H:%M" if paso < 3600 else "%d/%m %H h" if paso < 86400 else "%d/%m"
-        return [f"{ahora - timedelta(seconds=(cuantas - i) * paso):{formato}} · {tokens(valor)}"
+        return [(f"{ahora - timedelta(seconds=(cuantas - i) * paso):{formato}}", tokens(valor))
                 for i, valor in enumerate(serie)]
+
+    @staticmethod
+    def marcas(cuantas: int, paso: int) -> list[tuple[float, str]]:
+        """Las fechas u horas debajo de la curva, repartidas parejo; la última es "ahora"."""
+        ahora = datetime.now()
+        formato = "%H:%M" if cuantas * paso <= 86400 else "%d/%m"
+        salida = []
+        for k in (0.0, 0.25, 0.5, 0.75):
+            i = round(k * (cuantas - 1))
+            salida.append((i / (cuantas - 1), f"{ahora - timedelta(seconds=(cuantas - i) * paso):{formato}}"))
+        return salida + [(1.0, t("ahora"))]
 
     def pintar_lapso(self, de_nuevo: bool = False) -> None:
         if not self.informe:
             return
         v = self.informe["lapsos"][self.lapso]
-        titulo, desde = TITULO_LAPSO[self.lapso], DESDE_LAPSO[self.lapso]
-        _, paso, cuantas = estadisticas.LAPSOS[self.lapso]
-        ritmo = self.informe["ritmo"]
-        detalle = t("{n} por minuto ahora", n=tokens(ritmo)) if ritmo else ""
-        self.total.poner(t(titulo), tokens(v["tokens"]), "tokens", cambio(v["tokens"], v["anterior"]),
-                         t("contra el lapso anterior"), detalle,
-                         v["serie"], self.ayudas(cuantas, paso, v["serie"]), t(desde), t("ahora"), de_nuevo)
-        self.entrada.poner(tokens(v["entrada"]))
-        self.salida.poner(tokens(v["salida"]))
-        self.cache.poner(f"{round(v['acierto_cache'] * 100)} %")
-        self.modelos.poner(lista_de(v["modelos"]))
+        if self.lapso == "hoy":
+            valores = v["serie"]
+            ultimo = datetime.now().hour
+            ayudas = [(f"{i:02d}:00", tokens(valor)) for i, valor in enumerate(valores)]
+            marcas = [(h / 23, f"{h:02d}:00") for h in (0, 6, 12, 18, 23)]
+            contra = t("contra ayer a esta hora")
+        else:
+            _, paso, _ = estadisticas.LAPSOS[self.lapso]
+            cada = AGRUPAR.get(self.lapso, 1)
+            valores = estadisticas.agrupar(v["serie"], cada)
+            paso *= cada
+            ultimo = len(valores) - 1
+            ayudas = self.ayudas(len(valores), paso, valores)
+            marcas = self.marcas(len(valores), paso)
+            contra = t("contra el lapso anterior")
+        textos = {"titulo": t(TITULO_LAPSO[self.lapso]), "unidad": "tokens", "contra": contra,
+                  "cambio": cambio(v["tokens"], v["anterior"]), "marcas": marcas,
+                  "detalle": t("{entrada} de entrada · {salida} de salida", entrada=tokens(v["entrada"]),
+                               salida=tokens(v["salida"]))}
+        self.curva.poner(textos, v["tokens"], valores, ayudas, ultimo, de_nuevo)
+        self.dona.poner(v["modelos"], v["tokens"])
+        self.sesiones.poner(float(v["sesiones"]))
+        self.trabajo.poner(float(v["trabajo"]))
+        self.cache.poner(float(v["acierto_cache"]))
         self.proyectos.poner(lista_de(v["proyectos"]))

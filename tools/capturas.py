@@ -7,7 +7,7 @@ nada en pantalla: las ventanas se dibujan fuera de pantalla y los avisos se pint
     python tools/capturas.py --solo-gif # solo los GIF de la mascota (no necesita Qt)
     python tools/capturas.py --solo=isla,ajustes --idioma=es   # una parte, en un idioma (para probar)
 
-La isla, el Dashboard y Uso leen transcripts de Claude Code: no se usan los tuyos, sino medio año de sesiones
+La isla y Uso leen transcripts de Claude Code: no se usan los tuyos, sino medio año de sesiones
 inventadas que escribe tools/datos_ejemplo.py en la carpeta temporal.
 """
 
@@ -646,7 +646,7 @@ def qt_capturas():
     def guardar(win, ruta):
         guardar_png(ventana_con_sombra(qimagen_a_pil(win.grab().toImage(), alfa=True), 2), ruta)
 
-    nombres = list(ajustes.PAGINAS)  # avisos, mascota, celular, isla, dashboard, uso, general
+    nombres = list(ajustes.PAGINAS)  # avisos, mascota, celular, isla, uso, proyectos, general
     # "Abrir al iniciar Windows" como queda después de instalar (prendido), sin mirar tu carpeta de Inicio
     import bandeja
     bandeja.ACCESO_INICIO = casa / "Inicio" / "WaveMascot.lnk"
@@ -683,7 +683,7 @@ def qt_capturas():
 
         if not toca("ajustes"):
             continue
-        datos_ejemplo.sesiones_de_ahora(PROYECTOS, time.time(), idioma)  # lo de hoy, para Dashboard y Uso
+        datos_ejemplo.sesiones_de_ahora(PROYECTOS, time.time(), idioma)  # lo de hoy, para Uso
         # --- la ventana de ajustes, una captura por sección (recién instalada: Telegram sin conectar) --
         SERVIDOR["estado"] = {}
         win = abrir({"idioma": idioma})
@@ -692,7 +692,10 @@ def qt_capturas():
             if nombre not in ajustes.SIN_VISTA:
                 win.ver_estado("permiso" if nombre == "celular" else "listo")
             if nombre in ajustes.DE_DATOS:
-                esperar(lambda: win.uso.informe is not None and win.dashboard.precision.fraccion is not None, 90)
+                esperar(lambda: win.uso.informe is not None and not any(r.moviendose for r in (
+                    win.uso.curva.morfo, win.uso.curva.fundido, win.uso.curva.cuenta, win.uso.dona.corre,
+                    win.uso.sesiones.corre, win.uso.trabajo.corre, win.uso.cache.corre,
+                    win.uso.proyectos.corre)), 90)
             else:
                 esperar(lambda: False, 1.2)  # deja que la vista previa entre y muestre el cartel
             guardar(win, carpeta / f"ajustes-{i + 1}-{nombre}.png")

@@ -78,8 +78,7 @@ para todos.
 |:---:|:---:|
 | <img src="capturas/es/ajustes-1-avisos.png" width="380" alt="Sección Avisos"><br>**Avisos** | <img src="capturas/es/ajustes-2-mascota.png" width="380" alt="Sección Mascota"><br>**Mascota** |
 | <img src="capturas/es/ajustes-3-celular.png" width="380" alt="Sección Celular"><br>**Celular** | <img src="capturas/es/ajustes-4-isla.png" width="380" alt="Sección Dynamic Island"><br>**Dynamic Island** |
-| <img src="capturas/es/ajustes-5-dashboard.png" width="380" alt="Sección Dashboard"><br>**Dashboard** | <img src="capturas/es/ajustes-6-uso.png" width="380" alt="Sección Uso"><br>**Uso** |
-| <img src="capturas/es/ajustes-7-general.png" width="380" alt="Sección General"><br>**General** |  |
+| <img src="capturas/es/ajustes-5-uso.png" width="380" alt="Sección Uso"><br>**Uso** | <img src="capturas/es/ajustes-7-general.png" width="380" alt="Sección General"><br>**General** |
 
 <sub>La ventana es la real; el escritorio desenfocado de atrás, las esquinas redondeadas, la sombra y los números de uso son recreados.</sub>
 

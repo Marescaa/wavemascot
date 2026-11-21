@@ -1,4 +1,4 @@
-"""Las cuentas de las secciones Dashboard y Uso de los ajustes: cuánto usaste Claude Code y cómo.
+"""Las cuentas de la sección Uso de los ajustes: cuánto usaste Claude Code y cómo.
 
 Todo sale de los transcripts de ~/.claude/projects (los mismos que lee la barra de sesiones); nada se
 manda a ningún lado. De cada transcript se guarda un resumen chico (tokens por tramo de 5 minutos y por
@@ -25,8 +25,9 @@ import seguimiento
 TRAMO = 300            # segundos de cada tramo en el que se agrupan los tokens
 VERSION = 1
 # Los lapsos de la sección Uso: cuánto abarcan, cada cuánto va una barra del gráfico y cuántas barras son.
-# Todos terminan ahora (las últimas 5 horas, los últimos 7 días...), así se ven moverse en vivo.
-LAPSOS = {"5h": (5 * 3600, 300, 60), "1d": (86400, 3600, 24), "7d": (7 * 86400, 6 * 3600, 28),
+# Todos terminan ahora (las últimas 5 horas, los últimos 7 días...), así se ven moverse en vivo. Aparte va
+# "hoy", que es el día del calendario: 24 barras, una por hora, comparado con ayer hasta esta misma hora.
+LAPSOS = {"5h": (5 * 3600, 300, 60), "7d": (7 * 86400, 6 * 3600, 28),
           "30d": (30 * 86400, 86400, 30), "180d": (182 * 86400, 7 * 86400, 26)}
 
 
@@ -81,6 +82,43 @@ def nombre_modelo(modelo: str) -> str:
     familia = next((p for p in partes if p.isalpha()), partes[0])
     numeros = [p for p in partes if p.isdigit()]
     return (familia.capitalize() + " " + ".".join(numeros)).strip()
+
+
+def agrupar(serie: list, cada: int) -> list:
+    """Junta de a `cada` tramos seguidos (la suma de cada grupo), para dibujar menos puntos."""
+    return [sum(serie[i:i + cada]) for i in range(0, len(serie), max(1, cada))]
+
+
+def curva(valores: list, puntos: int = 121) -> list[float]:
+    """La curva suave que pasa por los valores, en `puntos` puntos parejos. Es cúbica monótona (Fritsch-Butland):
+    entre dos valores nunca se pasa de ninguno, así que no baja de cero ni inventa picos, y lo plano queda plano."""
+    y = [float(v) for v in valores]
+    if len(y) < 2:
+        return [y[0] if y else 0.0] * puntos
+    d = [b - a for a, b in zip(y, y[1:])]
+    m = [d[0]] + [2 * a * b / (a + b) if a * b > 0 else 0.0 for a, b in zip(d, d[1:])] + [d[-1]]
+    salida = []
+    for j in range(puntos):
+        x = j * (len(y) - 1) / (puntos - 1)
+        i = min(len(y) - 2, int(x))
+        s = x - i
+        valor = ((2 * s ** 3 - 3 * s ** 2 + 1) * y[i] + (s ** 3 - 2 * s ** 2 + s) * m[i]
+                 + (3 * s ** 2 - 2 * s ** 3) * y[i + 1] + (s ** 3 - s ** 2) * m[i + 1])
+        salida.append(max(min(y[i], y[i + 1]), min(max(y[i], y[i + 1]), valor)))
+    return salida
+
+
+def suavizar(puntos: list[float], radio: int = 2, pasadas: int = 3) -> list[float]:
+    """Redondea las esquinas de una curva promediando cada punto con sus vecinos (solo para dibujarla). Al ser
+    promedios, nunca sale del rango de los valores."""
+    n = len(puntos)
+    for _ in range(pasadas):
+        suma = [0.0]
+        for valor in puntos:
+            suma.append(suma[-1] + valor)
+        puntos = [(suma[min(n, i + radio + 1)] - suma[max(0, i - radio)]) / (min(n, i + radio + 1) - max(0, i - radio))
+                  for i in range(n)]
+    return puntos
 
 
 def resumen_sano(resumen) -> bool:
@@ -245,9 +283,11 @@ def armar_informe(resumenes: list[dict], ahora: float, dias: int = 14) -> dict:
     proyectos: dict[str, list] = {}
     duraciones: list[float] = []
     semana, semana_anterior = 0, 0
-    lapsos = {clave: {"entrada": 0, "cache": 0, "salida": 0, "respuestas": 0, "anterior": 0, "modelos": Counter(),
-                      "proyectos": Counter(), "sesiones": set(), "serie": [0] * cuantos}
-              for clave, (_, _, cuantos) in LAPSOS.items()}
+    lapsos = {clave: {"entrada": 0, "cache": 0, "salida": 0, "respuestas": 0, "anterior": 0, "trabajo": 0.0,
+                      "modelos": Counter(), "proyectos": Counter(), "sesiones": set(), "serie": [0] * cuantos}
+              for clave, cuantos in (*((c, v[2]) for c, v in LAPSOS.items()), ("hoy", 24))}
+    ayer_hasta = datetime.combine(hoy - timedelta(days=1), datetime.fromtimestamp(ahora).time()).timestamp()
+    cero_de_hoy = datetime.combine(hoy, datetime.min.time()).timestamp()
     reciente, primero_reciente = 0, None   # tokens de los últimos 15 minutos
     for r in resumenes:
         tokens_semana = 0
@@ -279,25 +319,37 @@ def armar_informe(resumenes: list[dict], ahora: float, dias: int = 14) -> dict:
             if hace < 900:
                 reciente += tokens
                 primero_reciente = min(primero_reciente or momento, momento)
+            destinos = []  # (lapso, en qué barra de su gráfico cae)
+            if antiguedad == 0:
+                destinos.append((lapsos["hoy"], datetime.fromtimestamp(momento).hour))
+            elif antiguedad == 1 and momento <= ayer_hasta:
+                lapsos["hoy"]["anterior"] += tokens
             for nombre, (largo, paso, cuantos) in LAPSOS.items():
                 if hace < largo:
-                    lapso = lapsos[nombre]
-                    lapso["entrada"] += entrada
-                    lapso["cache"] += cache
-                    lapso["salida"] += salida
-                    lapso["respuestas"] += respuestas
-                    lapso["serie"][cuantos - 1 - min(cuantos - 1, int(hace // paso))] += tokens
-                    lapso["sesiones"].add(r.get("sesion"))
-                    lapso["proyectos"][r.get("proy") or "?"] += tokens
-                    for modelo, cuenta in por_modelo.items():
-                        lapso["modelos"][nombre_modelo(modelo)] += int(cuenta[0]) + int(cuenta[2])
+                    destinos.append((lapsos[nombre], cuantos - 1 - min(cuantos - 1, int(hace // paso))))
                 elif hace < 2 * largo:
                     lapsos[nombre]["anterior"] += tokens
+            for lapso, barra in destinos:
+                lapso["entrada"] += entrada
+                lapso["cache"] += cache
+                lapso["salida"] += salida
+                lapso["respuestas"] += respuestas
+                lapso["serie"][barra] += tokens
+                lapso["sesiones"].add(r.get("sesion"))
+                lapso["proyectos"][r.get("proy") or "?"] += tokens
+                for modelo, cuenta in por_modelo.items():
+                    lapso["modelos"][nombre_modelo(modelo)] += int(cuenta[0]) + int(cuenta[2])
         for fin, duracion in r.get("turnos") or ():
             dia = datetime.fromtimestamp(fin).date()
             if dia in por_dia:
                 por_dia[dia]["turnos"] += 1
                 por_dia[dia]["trabajo"] += duracion
+            if fin <= ahora:  # de un turno largo, solo la parte que cae adentro de cada lapso
+                if dia == hoy:
+                    lapsos["hoy"]["trabajo"] += min(duracion, fin - cero_de_hoy)
+                for nombre, (largo, _, _) in LAPSOS.items():
+                    if ahora - fin < largo:
+                        lapsos[nombre]["trabajo"] += min(duracion, fin - (ahora - largo))
             if (hoy - dia).days < 7:
                 duraciones.append(duracion)
         if tokens_semana:

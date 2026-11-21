@@ -78,8 +78,7 @@ Grátis para todos.
 |:---:|:---:|
 | <img src="capturas/pt/ajustes-1-avisos.png" width="380" alt="Seção Avisos"><br>**Avisos** | <img src="capturas/pt/ajustes-2-mascota.png" width="380" alt="Seção Mascote"><br>**Mascote** |
 | <img src="capturas/pt/ajustes-3-celular.png" width="380" alt="Seção Celular"><br>**Celular** | <img src="capturas/pt/ajustes-4-isla.png" width="380" alt="Seção Dynamic Island"><br>**Dynamic Island** |
-| <img src="capturas/pt/ajustes-5-dashboard.png" width="380" alt="Seção Dashboard"><br>**Dashboard** | <img src="capturas/pt/ajustes-6-uso.png" width="380" alt="Seção Uso"><br>**Uso** |
-| <img src="capturas/pt/ajustes-7-general.png" width="380" alt="Seção Geral"><br>**Geral** |  |
+| <img src="capturas/pt/ajustes-5-uso.png" width="380" alt="Seção Uso"><br>**Uso** | <img src="capturas/pt/ajustes-7-general.png" width="380" alt="Seção Geral"><br>**Geral** |
 
 <sub>A janela é a real; a área de trabalho desfocada atrás, os cantos arredondados, a sombra e os números de uso são recriados.</sub>
 

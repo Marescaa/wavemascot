@@ -19,7 +19,7 @@ import idiomas  # noqa: E402
 ARCHIVOS = ("mascota.py", "ajustes.py", "bandeja.py", "instalador.py", "celular.py", "actualizacion.py",
             "marco.py", "barra.py", "paneles.py", "pedidos.py", "proyectos.py")
 # Su primer argumento se traduce (los últimos son las tarjetas de paneles.py: su título).
-TRADUCEN = {"t", "seccion", "ayuda", "opcion", "Fila", "Desplegable", "Cifra", "Ranking", "Anillo"}
+TRADUCEN = {"t", "seccion", "ayuda", "opcion", "Fila", "Desplegable", "Cifra"}
 # Tablas cuyos valores se traducen donde se usan: (archivo, nombre, cómo sacar el texto de cada valor)
 TABLAS = [
     ("ajustes.py", "NOMBRES_ESTADO", None), ("ajustes.py", "PAGINAS", 0), ("ajustes.py", "PARTES", None),
@@ -29,7 +29,6 @@ TABLAS = [
     ("sprites.py", "COLORES", 0), ("sprites.py", "CABEZAS", None), ("sprites.py", "ROPAS", None),
     ("sprites.py", "ACCESORIOS", None), ("sprites.py", "SONIDOS", 0), ("sprites.py", "ESTILOS", None),
     ("sprites.py", "PIELES", 0), ("paneles.py", "BOTON_LAPSO", None), ("paneles.py", "TITULO_LAPSO", None),
-    ("paneles.py", "DESDE_LAPSO", None),
 ]
 CAMPOS = re.compile(r"\{(\w*)\}")
 
