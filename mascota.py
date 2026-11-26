@@ -886,54 +886,104 @@ FONDO_CARTEL = {"clasico": (30, 22, 19), "sakura": (34, 22, 28), "ninja": (22, 2
 
 
 class Cartel:
-    """Mide y dibuja el cartel debajo de la mascota: mensaje, resumen, datos y botones."""
+    """Mide y dibuja el cartel de vidrio debajo de la mascota: mensaje, resumen, datos y botones."""
 
     ANCHO_TEXTO = 236
+    RELLENO = 19        # margen del texto a cada lado
+    MARGEN_ARRIBA, MARGEN_ABAJO, ALTO_BOTON = 13, 16, 28
+    RADIO = 22.0
+    ADENTRO = RADIO * 0.2929 + 0.2  # el desenfoque es rectangular: metido esto, su esquina no asoma del redondeo
+    ALFA_SOLO, ALFA_VIDRIO = 0.93, 0.76  # cuánto tapa el tinte sin desenfoque atrás y con él
     BOTONES = {"permitir": "Permitir", "denegar": "Denegar", "enfocar": "Ir a la terminal",
                "actualizar": "Actualizar", "ahora_no": "Ahora no"}
 
     def __init__(self):
         from PyQt6.QtGui import QFont
 
-        self.fuente = fuente(10, QFont.Weight.DemiBold)
-        self.fuente_resumen = fuente(8)
-        self.fuente_meta = fuente(7)
-        self.fuente_boton = fuente(8, QFont.Weight.DemiBold)
+        self.fuente = fuente(11, QFont.Weight.DemiBold)
+        self.fuente_resumen = fuente(9)
+        self.fuente_meta = fuente(8)
+        self.fuente_boton = fuente(9, QFont.Weight.DemiBold)
         self.mensaje = self.resumen = self.meta = ""
+        self.lineas: list[str] = []
+        self.lineas_resumen: list[str] = []
         self.botones: list[str] = []
+        self.terminal_icono = False
+        self.anchos: dict[str, float] = {}
         self.zonas: dict[str, object] = {}  # botón -> rectángulo en coordenadas del widget
         self.tema = "oscuro"
         self.estilo = "clasico"  # en el tema oscuro, el fondo toma un tinte del estilo de la mascota
+        self.alfa = self.ALFA_SOLO
+        self.respondido = ""     # "allow" o "deny": el borde va pasando a verde o rojo
+        self.avance_borde = 0.0  # de 0 (borde de vidrio) a 1 (todo el color)
         self.ancho = self.alto = self.texto_h = self.resumen_h = self.meta_h = 0.0
 
+    def marcar(self, decision: str) -> None:
+        self.respondido, self.avance_borde = decision, 0.0
+
+    def renglones(self, texto: str, letra, maximo: int) -> list[str]:
+        """Corta el texto en renglones: por palabras, y solo parte una si no entra sola (una ruta, un token), así
+        el cartel no crece hasta salirse de la ventana. Si sobra texto, el último renglón termina en "…"."""
+        from PyQt6.QtCore import Qt
+        from PyQt6.QtGui import QFontMetricsF, QTextLayout, QTextOption
+
+        texto = texto.replace("\r", "").replace("\n", " ").strip()
+        if not texto:
+            return []
+        capa = QTextLayout(texto, letra)
+        opcion = QTextOption()
+        # Con una palabra que no entra en un renglón se aprovecha todo el ancho (si no, "C:" quedaba solo arriba).
+        medida = QFontMetricsF(letra)
+        no_entra = any(medida.horizontalAdvance(palabra) > self.ANCHO_TEXTO for palabra in texto.split())
+        opcion.setWrapMode(QTextOption.WrapMode.WrapAnywhere if no_entra else QTextOption.WrapMode.WordWrap)
+        capa.setTextOption(opcion)
+        capa.beginLayout()
+        cortes = []
+        while (linea := capa.createLine()).isValid():
+            linea.setLineWidth(self.ANCHO_TEXTO)
+            cortes.append((linea.textStart(), linea.textLength()))
+        capa.endLayout()
+        crudo = texto.encode("utf-16-le")  # Qt cuenta en unidades UTF-16 (un emoji ocupa dos)
+        salida = [crudo[2 * i:2 * (i + n)].decode("utf-16-le").strip() for i, n in cortes[:maximo]]
+        if len(cortes) > maximo:
+            resto = crudo[2 * cortes[maximo - 1][0]:].decode("utf-16-le").strip()
+            salida[-1] = medida.elidedText(resto, Qt.TextElideMode.ElideRight, self.ANCHO_TEXTO)
+        return salida
+
     def medir(self, mensaje: str, resumen: str = "", meta: str = "", botones=()) -> None:
-        from PyQt6.QtCore import QRectF, Qt
         from PyQt6.QtGui import QFontMetricsF
 
+        self.zonas = {}  # hasta que se dibuje lo nuevo, ningún botón responde (Permitir no aprueba algo no mostrado)
+        # Un JSON puede traer medio emoji ("\ud83d"): no se puede codificar, se muestra como �.
+        mensaje, resumen, meta = (re.sub("[\ud800-\udfff]", "�", x) for x in (mensaje, resumen, meta))
         self.mensaje, self.resumen, self.meta = mensaje, resumen, meta
         self.botones = [b for b in botones if b in self.BOTONES]
-        envolver = int(Qt.AlignmentFlag.AlignHCenter) | int(Qt.TextFlag.TextWordWrap)
+        self.respondido, self.avance_borde = "", 0.0
         fm = QFontMetricsF(self.fuente)
-        r = fm.boundingRect(QRectF(0, 0, self.ANCHO_TEXTO, 1000), envolver, mensaje)
-        self.texto_h = min(r.height(), fm.lineSpacing() * 3)
-        ancho = r.width()
+        self.lineas = self.renglones(mensaje, self.fuente, 3)
+        self.texto_h = fm.lineSpacing() * len(self.lineas)
+        ancho = min(max((fm.horizontalAdvance(l) for l in self.lineas), default=0.0), self.ANCHO_TEXTO)
         self.resumen_h = self.meta_h = 0.0
-        if resumen:  # hasta dos líneas
+        self.lineas_resumen = self.renglones(resumen, self.fuente_resumen, 2)
+        if self.lineas_resumen:
             fr = QFontMetricsF(self.fuente_resumen)
-            rr = fr.boundingRect(QRectF(0, 0, self.ANCHO_TEXTO, 1000), envolver, resumen)
-            self.resumen_h = min(rr.height(), fr.lineSpacing() * 2)
-            ancho = max(ancho, rr.width())
+            self.resumen_h = fr.lineSpacing() * len(self.lineas_resumen)
+            ancho = max(ancho, min(max(fr.horizontalAdvance(l) for l in self.lineas_resumen), self.ANCHO_TEXTO))
         if meta:
             fmeta = QFontMetricsF(self.fuente_meta)
             self.meta_h = fmeta.lineSpacing()
             ancho = max(ancho, min(fmeta.horizontalAdvance(meta), self.ANCHO_TEXTO))
         fb = QFontMetricsF(self.fuente_boton)
-        self.anchos_boton = [fb.horizontalAdvance(t(self.BOTONES[b])) + 20 for b in self.botones]
+        # Todo en un renglón: al lado de otros botones, "Ir a la terminal" es solo un ícono.
+        self.terminal_icono = "enfocar" in self.botones and len(self.botones) > 1
+        self.anchos = {b: 34.0 if b == "enfocar" and self.terminal_icono
+                       else fb.horizontalAdvance(t(self.BOTONES[b])) + 26 for b in self.botones}
         if self.botones:
-            ancho = max(ancho, sum(self.anchos_boton) + 6 * (len(self.botones) - 1))
-        self.ancho = ancho + 28
-        self.alto = (9 + self.texto_h + (3 + self.resumen_h if resumen else 0) + (3 + self.meta_h if meta else 0)
-                     + (10 + 24 if self.botones else 0) + 13)
+            ancho = max(ancho, sum(self.anchos.values()) + 6 * (len(self.botones) - 1))
+        self.ancho = max(ancho + 1, 176) + 2 * self.RELLENO
+        self.alto = (self.MARGEN_ARRIBA + self.texto_h + (3 + self.resumen_h if self.lineas_resumen else 0)
+                     + (2 + self.meta_h if meta else 0) + (8 + self.ALTO_BOTON if self.botones else 0)
+                     + self.MARGEN_ABAJO)
 
     def colores(self, acento) -> dict:
         from PyQt6.QtGui import QColor
@@ -958,65 +1008,146 @@ class Cartel:
         base["texto_principal"] = QColor(255, 247, 240) if self.tema == "acento" else QColor(28, 21, 19)
         return base
 
-    def pintar(self, p, cx: float, y: float, acento, fraccion: float) -> None:
-        """Dibuja el cartel centrado en cx; fraccion es lo que queda de la barra de tiempo."""
-        from PyQt6.QtCore import QRectF, Qt
-        from PyQt6.QtGui import QFontMetricsF, QPainterPath, QPen
+    @staticmethod
+    def hueco(sprite_h: float, imagen=None) -> float:
+        """Distancia de la mascota al cartel: negativa para que quede parada sobre el vidrio (los sprites
+        tienen dos filas libres bajo los pies; una imagen propia puede no tenerlas)."""
+        return 2.0 if imagen else 1 - sprite_h * 2 / 56
 
+    def pintar(self, p, cx: float, y: float, acento, fraccion: float) -> None:
+        """Dibuja el cartel centrado en cx; fraccion es lo que queda de la línea de tiempo."""
+        from PyQt6.QtCore import QPointF, QRectF, Qt
+        from PyQt6.QtGui import (QBrush, QColor, QFontMetricsF, QLinearGradient, QPainterPath, QPen, QRadialGradient,
+                                 QTransform)
+
+        def con_alfa(color, alfa: float) -> QColor:
+            nuevo = QColor(color)
+            nuevo.setAlphaF(max(0.0, min(1.0, alfa)))
+            return nuevo
+
+        acento = QColor(acento)
         c = self.colores(acento)
+        claro, de_acento = self.tema == "claro", self.tema == "acento"
+        # En el tema acento el texto es oscuro: sobre el rojo de error no se leería, va un rojo más claro.
+        tinte = QColor(244, 116, 120) if de_acento and acento.name() == ESTADOS["error"]["acento"].lower() else c["fondo"]
+        tinta = QColor(c["tinta"])
         caja = QRectF(cx - self.ancho / 2, y, self.ancho, self.alto)
         forma = QPainterPath()
-        forma.addRoundedRect(caja, 11, 11)
-        p.fillPath(forma, c["fondo"])
-        p.setPen(QPen(c["borde"], 1))
-        p.drawPath(forma)
+        forma.addRoundedRect(caja, self.RADIO, self.RADIO)
+
+        # La sombra, solo por fuera: adentro se vería a través del vidrio.
         p.save()
-        p.setClipPath(forma)
-        p.fillRect(QRectF(caja.left(), caja.bottom() - 3, caja.width() * max(0.0, fraccion), 3), c["barra"])
+        afuera = QPainterPath()
+        afuera.addRect(caja.adjusted(-26, -26, 26, 26))
+        p.setClipPath(afuera.subtracted(forma))
+        sombra = forma.translated(0, 4)
+        for i in range(6, 0, -1):
+            p.strokePath(sombra, QPen(QColor(0, 0, 0, 10), i * 2.7))
         p.restore()
 
-        izq, ancho = caja.left() + 14, caja.width() - 28
-        centrado = int(Qt.AlignmentFlag.AlignHCenter)
-        envolver = centrado | int(Qt.TextFlag.TextWordWrap)
-        fila = caja.top() + 9
-        p.setFont(self.fuente)
-        p.setPen(c["texto"])
-        p.drawText(QRectF(izq, fila, ancho, self.texto_h), envolver, self.mensaje)
-        fila += self.texto_h
-        if self.resumen:
-            fila += 3
-            fr = QFontMetricsF(self.fuente_resumen)
-            texto = fr.elidedText(self.resumen, Qt.TextElideMode.ElideRight, ancho * 1.85)
+        p.fillPath(forma, con_alfa(tinte, self.alfa))
+        p.save()
+        p.setClipPath(forma)
+        # El canto: ahí atrás no hay desenfoque, así que el vidrio se cierra hacia el borde.
+        for grosor, alfa in ((self.ADENTRO * 2.3, 0.3), (self.ADENTRO * 1.45, 0.45), (self.ADENTRO * 0.6, 0.6)):
+            p.strokePath(forma, QPen(con_alfa(tinte, alfa), grosor))
+        brillo = QLinearGradient(0, caja.top(), 0, caja.bottom())
+        brillo.setColorAt(0.0, QColor(255, 255, 255, 120 if claro else 44))
+        brillo.setColorAt(0.42, QColor(255, 255, 255, 8))
+        brillo.setColorAt(1.0, QColor(0, 0, 0, 22))
+        p.fillRect(caja, brillo)
+        if not de_acento:  # la luz del estado, bajo los pies de la mascota (late si pide permiso)
+            latido = (0.82 + 0.18 * math.sin(time.monotonic() * 2.4)
+                      if acento.name() == ESTADOS["permiso"]["acento"].lower() else 1.0)
+            centro = QPointF(caja.center().x(), caja.top())
+            luz = QRadialGradient(centro, caja.width() * 0.62)
+            luz.setColorAt(0.0, con_alfa(acento, 0.36 * latido))
+            luz.setColorAt(1.0, con_alfa(acento, 0.0))
+            pincel = QBrush(luz)
+            pincel.setTransform(QTransform().translate(centro.x(), centro.y()).scale(1, 0.34)
+                                .translate(-centro.x(), -centro.y()))
+            p.fillRect(caja, pincel)
+        p.restore()
+
+        # El borde de vidrio se va apagando mientras entra el verde o el rojo de la respuesta.
+        k = self.avance_borde if self.respondido else 0.0
+        if k < 1:
+            borde = QLinearGradient(0, caja.top(), 0, caja.bottom())
+            borde.setColorAt(0.0, QColor(255, 255, 255, round((240 if claro else 165) * (1 - k))))
+            borde.setColorAt(0.55, QColor(255, 255, 255, round((125 if claro else 32) * (1 - k))))
+            borde.setColorAt(1.0, QColor(255, 255, 255, round((205 if claro else 78) * (1 - k))))
+            p.strokePath(forma, QPen(borde, 1.1))
+        if k > 0:
+            color = QColor("#62d58a" if self.respondido == "allow" else "#f0555b")
             p.save()
-            p.setClipRect(QRectF(izq, fila, ancho, self.resumen_h))
-            p.setFont(self.fuente_resumen)
-            p.setPen(c["suave"])
-            p.drawText(QRectF(izq, fila, ancho, self.resumen_h + 20), envolver, texto)
+            p.setClipPath(forma)
+            p.fillPath(forma, con_alfa(color, 0.08 * k))
             p.restore()
+            p.strokePath(forma, QPen(con_alfa(color, 0.16 * k), 4.0))
+            p.strokePath(forma, QPen(con_alfa(color, 0.95 * k), 1.1 + 0.6 * k))
+
+        izq, ancho = caja.left() + self.RELLENO, caja.width() - 2 * self.RELLENO
+        centrado = int(Qt.AlignmentFlag.AlignHCenter)
+        fila = caja.top() + self.MARGEN_ARRIBA
+
+        def escribir(lineas: list[str], letra, color, y: float) -> None:
+            alto_linea = QFontMetricsF(letra).lineSpacing()
+            p.setFont(letra)
+            p.setPen(color)
+            for i, linea in enumerate(lineas):
+                p.drawText(QRectF(izq - 1, y + i * alto_linea, ancho + 2, alto_linea),
+                           centrado | int(Qt.TextFlag.TextSingleLine), linea)
+
+        escribir(self.lineas, self.fuente, c["texto"], fila)
+        fila += self.texto_h
+        if self.lineas_resumen:
+            fila += 3
+            escribir(self.lineas_resumen, self.fuente_resumen, con_alfa(tinta, 1.0 if de_acento else 0.9), fila)
             fila += self.resumen_h
         if self.meta:
-            fila += 3
+            fila += 2
             fmeta = QFontMetricsF(self.fuente_meta)
             p.setFont(self.fuente_meta)
-            p.setPen(c["tenue"])
+            p.setPen(con_alfa(tinta, 1.0 if de_acento else 0.78))
             p.drawText(QRectF(izq, fila, ancho, self.meta_h), centrado,
                        fmeta.elidedText(self.meta, Qt.TextElideMode.ElideRight, ancho))
             fila += self.meta_h
         self.zonas = {}
         if self.botones:
-            fila += 10
-            x = cx - (sum(self.anchos_boton) + 6 * (len(self.botones) - 1)) / 2
+            fila += 8
             p.setFont(self.fuente_boton)
-            for clave, w in zip(self.botones, self.anchos_boton):
-                zona = QRectF(x, fila, w, 24)
+            x = cx - (sum(self.anchos.values()) + 6 * (len(self.botones) - 1)) / 2
+            for clave in self.botones:
+                zona = QRectF(x, fila, self.anchos[clave], self.ALTO_BOTON)
                 principal = clave in ("permitir", "actualizar")
-                p.setPen(Qt.PenStyle.NoPen)
-                p.setBrush(c["principal"] if principal else c["boton"])
-                p.drawRoundedRect(zona, 7, 7)
-                p.setPen(c["texto_principal"] if principal else c["texto"])
-                p.drawText(zona, int(Qt.AlignmentFlag.AlignCenter), t(self.BOTONES[clave]))
+                capsula = QPainterPath()
+                capsula.addRoundedRect(zona, self.ALTO_BOTON / 2, self.ALTO_BOTON / 2)
+                p.fillPath(capsula, c["principal"] if principal else con_alfa(tinta, 0.15))
+                p.save()
+                p.setClipPath(capsula)
+                p.setPen(QPen(QColor(255, 255, 255, 135 if principal else 62), 1))
+                p.drawLine(QPointF(zona.left() + 9, zona.top() + 0.6), QPointF(zona.right() - 9, zona.top() + 0.6))
+                p.restore()
+                if clave == "enfocar" and self.terminal_icono:  # el ícono de terminal: ">_"
+                    centro_x, centro_y = zona.center().x(), zona.center().y()
+                    p.setPen(QPen(c["texto"], 1.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                                  Qt.PenJoinStyle.RoundJoin))
+                    p.drawLine(QPointF(centro_x - 6, centro_y - 4), QPointF(centro_x - 2, centro_y))
+                    p.drawLine(QPointF(centro_x - 2, centro_y), QPointF(centro_x - 6, centro_y + 4))
+                    p.drawLine(QPointF(centro_x, centro_y + 4.5), QPointF(centro_x + 6, centro_y + 4.5))
+                else:
+                    p.setPen(c["texto_principal"] if principal else c["texto"])
+                    p.drawText(zona, int(Qt.AlignmentFlag.AlignCenter), t(self.BOTONES[clave]))
                 self.zonas[clave] = p.transform().mapRect(zona)
-                x += w + 6
+                x += self.anchos[clave] + 6
+
+        if not self.respondido:  # el tiempo que queda: una línea fina de luz
+            pista = QRectF(caja.left() + 21, caja.bottom() - 7.5, caja.width() - 42, 2)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(con_alfa(tinta, 0.14))
+            p.drawRoundedRect(pista, 1, 1)
+            p.setBrush(QColor(28, 21, 19) if de_acento else acento)
+            p.drawRoundedRect(QRectF(pista.left(), pista.top(), pista.width() * max(0.0, min(1.0, fraccion)), 2), 1, 1)
 
     def boton_en(self, pos) -> str | None:
         return next((clave for clave, zona in self.zonas.items() if zona.contains(pos)), None)
@@ -1112,12 +1243,27 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
         s.disconnectFromServer()
         return ok
 
+    class VidrioCartel(QWidget):
+        """Ventana vacía justo debajo del cartel que desenfoca lo de atrás (Windows la desenfoca como rectángulo)."""
+
+        def __init__(self):
+            super().__init__(None, Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool
+                             | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.WindowDoesNotAcceptFocus
+                             | Qt.WindowType.NoDropShadowWindowHint | Qt.WindowType.WindowTransparentForInput)
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+            self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+            self.setWindowTitle("WaveMascot")
+            self.caja = None
+
     class Mascota(QWidget):
+        MS_BORDE = 1000      # lo que tarda el borde en pasar a verde o rojo al responder
+        MS_RESPUESTA = 1900  # lo que queda el cartel después de responder: la transición y un rato para verla
+        ESPERA_CLIC = 0.45   # segundos en que los botones recién aparecidos no aceptan clics (igual que la isla)
         RETRASO = 0.18   # el cartel entra un poco después que la mascota (y sale antes)
         BORDE = 14       # distancia al borde de la pantalla ya en su lugar
         HOLGURA = 18     # lugar del lado de adentro para el rebote al llegar
         MARGEN_ARRIBA = 36  # deja libres los botones de la barra de título
-        ALTO_CARTEL_MAX = 170  # la compañera reserva este lugar para no saltar cuando aparece el cartel
+        ALTO_CARTEL_MAX = 230  # la compañera reserva este lugar para no saltar cuando aparece el cartel
         PIES = 54 / 56   # fila de los pies dentro del sprite: ahí se apoya sobre la barra de tareas
         RADIO_PASEO = 260  # cuánto se aleja de su lugar al caminar (px)
         ESTADOS_QUE_SIGUEN = ("pensando", "limite")  # la compañera los mantiene después del cartel
@@ -1201,6 +1347,12 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             self.timer_pensando = QTimer(self, singleShot=True, interval=600_000,
                                          timeout=lambda: self.estado == "pensando" and self.cambiar_estado("idle"))
             self.vigia = None
+            self.vidrio, self.vidrio_activo, self.con_vidrio, self.vidrio_rechazado = None, False, False, False
+            self.botones_desde = self.presion_en = 0.0
+            self.ultimo_cuadro = time.monotonic()
+            self.anim_borde = QVariantAnimation(self, startValue=0.0, endValue=1.0, duration=self.MS_BORDE)
+            self.anim_borde.setEasingCurve(QEasingCurve.Type.InOutCubic)
+            self.anim_borde.valueChanged.connect(lambda v: (setattr(self.cartel, "avance_borde", float(v)), self.update()))
             if servidor:
                 servidor.newConnection.connect(self.nueva_conexion)
 
@@ -1224,6 +1376,8 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
                 log(f"aviso de otra sesión en cola ({len(self.cola)} esperando)")
                 return
             self.soltar_permiso()
+            self.anim_borde.stop()
+            self.con_vidrio = self.quiere_vidrio(cargar_config()) and not self.vidrio_rechazado
             self.sesion = d.get("sesion") or ""
             self.caminando, self.espejo = False, False  # un aviso se ve siempre como en la vista previa
             self.timer_paso.stop()
@@ -1237,17 +1391,32 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             self.cartel.tema = self.base["tema"] if self.base["tema"] in TEMAS else "oscuro"
             self.cartel.estilo = self.base["aspecto"]["estilo"]
             self.respuesta = d.get("respuesta")
-            self.ventana_terminal = int(d.get("ventana") or 0)
+            try:
+                self.ventana_terminal = int(d.get("ventana") or 0)
+            except (TypeError, ValueError):
+                self.ventana_terminal = 0
             self.dpr = self.pantalla().devicePixelRatio()  # cada monitor puede tener otra escala
             self.conectar_permiso()
-            self.mensaje = (d.get("mensaje") or "")[:120]
+            self.mensaje = str(d.get("mensaje") or "")[:120]
             botones = ["permitir", "denegar"] if self.respuesta else []
             if self.ventana_terminal and d.get("boton_enfocar", True) and self.mensaje:
                 botones.append("enfocar")
             self.novedad = d.get("novedad") or ""  # aviso de versión nueva: Actualizar / Ahora no
             if self.novedad:
                 botones = ["actualizar", "ahora_no"]
-            self.cartel.medir(self.mensaje, (d.get("resumen") or "")[:200], (d.get("meta") or "")[:120], botones)
+            if botones:
+                self.botones_desde = time.monotonic()  # un clic que iba para el cartel anterior no cae en este
+            try:
+                self.cartel.medir(self.mensaje, str(d.get("resumen") or "")[:200], str(d.get("meta") or "")[:120],
+                                  botones)
+            except Exception:  # nunca botones conectados a un pedido cuyo contenido no se pudo mostrar
+                log("no se pudo armar el cartel:\n" + traceback.format_exc())
+                self.soltar_permiso()  # decide la terminal
+                self.mensaje = t(ESTADOS[estado]["mensaje"])
+                try:
+                    self.cartel.medir(self.mensaje)
+                except Exception:  # ni eso: sale la mascota sola, sin cartel
+                    self.mensaje, self.cartel.zonas = "", {}
             self.mostrar_cartel = bool(self.mensaje)
             self.cambiar_estado(estado)
             self.maquetar()
@@ -1384,11 +1553,13 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             area = self.pantalla().availableGeometry()
             if self.compania:
                 self.maquetar_compania(area, esquina, reubicar)
+                self.ajustar_vidrio()
                 return
-            hueco, arriba_extra = 2, 4  # el "pop" crece sobre la parte transparente del sprite
+            arriba_extra = 4  # el "pop" crece sobre la parte transparente del sprite
+            hueco = Cartel.hueco(self.sprite_h, self.base.get("imagen")) if self.mostrar_cartel else 2
             contenido = max(self.sprite_w, self.cartel.ancho)
             ancho = math.ceil(contenido + self.BORDE + self.HOLGURA)
-            alto = math.ceil(arriba_extra + self.sprite_h + hueco + self.cartel.alto + 10)
+            alto = math.ceil(arriba_extra + self.sprite_h + hueco + self.cartel.alto + 16)  # con lugar para la sombra
             derecha, abajo = esquina.endswith("derecha"), esquina.startswith("abajo")
             self.direccion = 1 if derecha else -1  # borde por el que entra y sale
             self.cx = self.cartel_cx = ancho - self.BORDE - contenido / 2 if derecha else self.BORDE + contenido / 2
@@ -1403,10 +1574,68 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             if self.arrastrada:  # una vez arrastrada se queda donde la dejaste
                 x, y, self.deslizar = self.x(), self.y(), False
             self.setGeometry(int(x), int(y), ancho, alto)
+            self.ajustar_vidrio()
+
+        @staticmethod
+        def quiere_vidrio(config: dict) -> bool:
+            """El cartel usa la misma opción de desenfoque que la Dynamic Island."""
+            return bool(ventanas.ES_WINDOWS and not os.environ.get("WAVEMASCOT_SIN_VIDRIO")
+                        and config["barra"]["desenfoque"])
+
+        def ajustar_vidrio(self) -> None:
+            """Cambió el tamaño: Windows redibuja el desenfoque con atraso, así que el tinte tapa un momento."""
+            if self.vidrio_activo:
+                self.cartel.alfa = Cartel.ALFA_SOLO
+                self.seguir_vidrio()
+
+        def apagar_vidrio(self) -> None:
+            if self.vidrio_activo:
+                self.vidrio.hide()
+                self.vidrio_activo = False
+            self.cartel.alfa = Cartel.ALFA_SOLO
+
+        def seguir_vidrio(self) -> None:
+            """El desenfoque aparece con el cartel ya quieto: mientras entra, sale o lo arrastran, el tinte tapa
+            (Windows no llega a mover el desenfoque al mismo tiempo y titilaría)."""
+            quieto = (self.con_vidrio and self.mostrar_cartel and self.t >= 0.999 and not self.saliendo
+                      and not self.arrastrando and self.k_cartel >= 0.999 and self.salida >= 0.999
+                      and self.anim.state() != QVariantAnimation.State.Running and self.isVisible())
+            if not quieto:
+                self.apagar_vidrio()
+                return
+            if self.vidrio is None:
+                self.vidrio = VidrioCartel()
+            if not self.vidrio_activo:
+                self.vidrio.caja = None
+                self.vidrio.resize(1, 1)
+                self.vidrio.show()
+                self.vidrio_activo = ventanas.desenfocar_detras(int(self.vidrio.winId()))
+                if not self.vidrio_activo:  # este sistema no lo da: queda el tinte solo
+                    self.vidrio.hide()
+                    self.con_vidrio, self.vidrio_rechazado = False, True  # no se vuelve a intentar
+                    return
+            d, k = Cartel.ADENTRO, self.devicePixelRatioF()
+            origen = self.mapToGlobal(QPoint(0, 0))
+            monitor = (self.screen() or QGuiApplication.primaryScreen()).geometry()
+            izq, arriba = self.cartel_cx - self.cartel.ancho / 2 + d, self.etiqueta_y + d
+            # Qt deja el origen de cada monitor en píxeles reales: solo se escala lo que está adentro de él.
+            caja = (round(monitor.x() + (origen.x() - monitor.x() + izq) * k),
+                    round(monitor.y() + (origen.y() - monitor.y() + arriba) * k),
+                    max(1, round((self.cartel.ancho - 2 * d) * k)), max(1, round((self.cartel.alto - 2 * d) * k)))
+            if caja != self.vidrio.caja:
+                self.vidrio.caja = caja
+                ventanas.poner_debajo(int(self.vidrio.winId()), int(self.winId()), *caja)
+
+        def marcar_respuesta(self, decision: str) -> None:
+            """El borde pasa de vidrio a verde o rojo de a poco."""
+            self.cartel.marcar(decision)
+            self.anim_borde.stop()
+            self.anim_borde.start()
+            self.total = self.restante = self.MS_RESPUESTA
 
         def maquetar_compania(self, area, esquina: str, reubicar: bool) -> None:
             posicion = self.base.get("posicion")
-            contenido = max(self.sprite_w, self.cartel.ANCHO_TEXTO + 28)
+            contenido = max(self.sprite_w, self.cartel.ANCHO_TEXTO + 2 * Cartel.RELLENO)
             ancho = math.ceil(contenido + 2 * self.BORDE)
             # Tamaño fijo, con lugar arriba para el cartel: así la mascota no salta cuando avisa.
             alto = math.ceil(10 + self.ALTO_CARTEL_MAX + self.sprite_h * 0.86)
@@ -1422,7 +1651,7 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             self.direccion = 1 if derecha else -1
             self.pies_y = alto - 1  # los pies apoyan justo sobre la barra de tareas
             self.cx = ancho - self.BORDE - self.sprite_w / 2 if derecha else self.BORDE + self.sprite_w / 2
-            self.cartel_cx = min(max(self.cx, self.cartel.ancho / 2 + 6), ancho - self.cartel.ancho / 2 - 6)
+            self.cartel_cx = min(max(self.cx, self.cartel.ancho / 2 + 12), ancho - self.cartel.ancho / 2 - 12)
             self.sprite_y = self.pies_y - self.sprite_h * self.PIES
             # El cartel va por encima de los globitos de la mascota ("!", pensamiento), sin taparlos.
             self.etiqueta_y = self.pies_y - self.sprite_h * 0.82 - self.cartel.alto
@@ -1559,6 +1788,8 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             if config["modo"] != "compania":
                 self.salir()
                 return
+            self.con_vidrio = self.quiere_vidrio(config) and not self.vidrio_rechazado
+            self.seguir_vidrio()  # si lo apagaste en ajustes, se va ya
             nuevo = {clave: config[clave] for clave in self.base if clave in config}
             nuevo["aspecto"] = sprites.normalizar(nuevo["aspecto"])
             if nuevo != self.base:
@@ -1643,6 +1874,7 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             if self.saliendo:
                 return
             self.saliendo = True
+            self.apagar_vidrio()
             if not rapido and self.t >= 0.999 and self.con_entrada_propia():
                 # Se prepara quieta mientras el cartel se va, y después sale por el costado con su animación.
                 self.empezar_especial("salida")
@@ -1656,6 +1888,7 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
         def terminar(self) -> None:
             self.terminada = True
             self.soltar_permiso()
+            self.apagar_vidrio()
             if self.servidor:
                 self.servidor.close()
             self.candado.soltar()
@@ -1685,9 +1918,9 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
                     self.salir(rapido=True)
             elif clave in ("permitir", "denegar"):
                 self.responder("allow" if clave == "permitir" else "deny")
-                self.cartel.medir(t("Permitido ✓") if clave == "permitir" else t("Denegado"), self.cartel.resumen)
+                self.cartel.medir(t("Permitido") if clave == "permitir" else t("Denegado"), self.cartel.resumen)
                 self.maquetar()
-                self.total = self.restante = 1200
+                self.marcar_respuesta("allow" if clave == "permitir" else "deny")
                 self.update()
 
         def conectar_permiso(self) -> None:
@@ -1738,6 +1971,8 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             self.cartel.medir(texto or self.mensaje, self.cartel.resumen)
             self.maquetar()
             self.total = self.restante = 1500 if texto else 0
+            if texto:
+                self.marcar_respuesta(decision)
             self.update()
 
         def menu_compania(self, donde) -> None:
@@ -1804,6 +2039,7 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
                     self.menu_compania(evento.globalPosition().toPoint())
                 return
             self.terminar_paseo()
+            self.presion_en = time.monotonic()
             self.inicio_agarre = evento.globalPosition().toPoint()
             self.agarre = self.inicio_agarre - self.pos()
             self.arrastrando = False
@@ -1834,6 +2070,8 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
                     self.timer_esconder.start()
                 return
             clave = self.cartel.boton_en(evento.position()) if self.mostrar_cartel else None
+            if clave and self.presion_en < self.botones_desde + self.ESPERA_CLIC:
+                return  # el clic empezó antes de que se pudiera leer este cartel: no toca sus botones
             if clave:
                 self.accion(clave)
             elif self.compania:
@@ -1853,6 +2091,10 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             if MAC:
                 ventanas.ventana_flotante(int(self.winId()))
                 self.timer_encima.start()
+
+        def hideEvent(self, evento) -> None:
+            self.apagar_vidrio()
+            super().hideEvent(evento)
 
         def mouse_encima(self) -> bool:
             return self.encima if MAC else self.underMouse()
@@ -1897,6 +2139,12 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
         def paintEvent(self, evento) -> None:
             if self.t <= 0 or not self.cuadros:
                 return
+            self.seguir_vidrio()
+            ahora = time.monotonic()
+            if self.vidrio_activo:  # con el desenfoque ya detrás, el tinte se aclara de a poco
+                paso = min(1.0, (ahora - self.ultimo_cuadro) / 0.14)
+                self.cartel.alfa += (Cartel.ALFA_VIDRIO - self.cartel.alfa) * paso
+            self.ultimo_cuadro = ahora
             p = QPainter(self)
             p.setRenderHint(QPainter.RenderHint.Antialiasing)
             if self.deslizar:
@@ -1932,7 +2180,7 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
             if self.mostrar_cartel:
                 p.translate(corrida_cartel, 0)
                 p.setOpacity(p.opacity() * min(1.0, max(0.0, self.salida if self.chiquita() else 1.0)))
-                self.cartel.pintar(p, self.cartel_cx, self.etiqueta_y, self.acento, self.restante / self.total)
+                self.cartel.pintar(p, self.cartel_cx, self.etiqueta_y, self.acento, self.restante / max(1, self.total))
             p.end()
 
     if MAC:  # sin ícono en el Dock: la mascota vive en la pantalla y en la barra de menús
