@@ -71,7 +71,6 @@ TEXTOS: dict[str, dict[str, str]] = {
     "Permitir": {"en": "Allow", "pt": "Permitir"},
     "Denegar": {"en": "Deny", "pt": "Negar"},
     "Ir a la terminal": {"en": "Go to terminal", "pt": "Ir ao terminal"},
-    "Permitido ✓": {"en": "Allowed ✓", "pt": "Permitido ✓"},
     "Denegado": {"en": "Denied", "pt": "Negado"},
     "Zzz… se terminó el límite de uso": {"en": "Zzz… out of usage for now", "pt": "Zzz… o limite de uso acabou"},
     "Me despierto a las {hora}": {"en": "I'll wake up at {hora}", "pt": "Acordo às {hora}"},

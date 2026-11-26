@@ -3,10 +3,14 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.4.7] - 2026-11-26
 
 ### Changed
 
+- **Liquid glass notifications**: the mascot's card is now frosted glass with real blur behind it on Windows (it
+  follows the Dynamic Island's blur option), with the mascot standing on top. Long paths and tokens wrap inside the card.
+- **Compact permission card**: Allow, Deny and a terminal button in a single row. When you answer, the border turns
+  green or red over one second.
 - **Dashboard and Usage are now one clean Usage section**: pick 5 h, Today, 7 days, 1 month or 6 months and get one
   big number with a smooth area chart, a donut of your models, three figures and your top projects.
 - **Today** is the calendar day, hour by hour, compared with yesterday up to this same time.
@@ -17,6 +21,13 @@ and the project uses [semantic versioning](https://semver.org/).
 ### Removed
 
 - The "Time estimate accuracy" card. Its background calculation was what made these pages stutter when opening.
+
+### Fixed
+
+- Permission cards show the command as it is: symbols such as `*`, `|` or `>` are no longer removed, and it is no
+  longer cut at the first sentence.
+- A click that misses the buttons no longer closes a permission card that is still waiting for your answer.
+- Newly shown buttons ignore clicks for a moment, so a click meant for something else can't approve a request.
 
 ## [1.4.6] - 2026-11-20
 
@@ -265,6 +276,7 @@ First public release of WaveMascot.
 - `WaveMascot-Setup.exe` installer (PyInstaller, no Python or administrator rights needed) and a GitHub Actions
   workflow that publishes it on every `v*` tag.
 
+[1.4.7]: ../../releases/tag/v1.4.7
 [1.4.4]: ../../releases/tag/v1.4.4
 [1.4.3]: ../../releases/tag/v1.4.3
 [1.4.2]: ../../releases/tag/v1.4.2

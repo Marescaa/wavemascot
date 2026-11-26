@@ -1851,8 +1851,9 @@ class VistaPrevia(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setMinimumSize(280, 380)
+        self.setMinimumSize(280, 392)
         self.cartel = m.Cartel()
+        self.con_imagen = False
         self.cuadros: list = []
         self.entrada = self.salida = self.bucle = None
         self.clave, self.estado, self.duracion, self.fase = None, "listo", 5.0, "entrada"
@@ -1881,6 +1882,7 @@ class VistaPrevia(QWidget):
         self.cartel.tema = config["tema"]
         self.cartel.estilo = config["aspecto"]["estilo"]
         self.cartel.medir(mensaje, resumen, meta, botones)
+        self.con_imagen = bool(config["imagen"])
         self.update()
 
     def avance(self, t: float, retraso: float) -> float:
@@ -1949,7 +1951,8 @@ class VistaPrevia(QWidget):
         if t <= 0 or pm is None:
             return
         sw, sh = pm.width() / pm.devicePixelRatio(), pm.height() / pm.devicePixelRatio()
-        arriba = r.top() + (r.height() - sh - 2 - self.cartel.alto) / 2
+        hueco = m.Cartel.hueco(sh, self.con_imagen)  # la mascota parada sobre el vidrio, como en la pantalla
+        arriba = r.top() + (r.height() - sh - hueco - self.cartel.alto) / 2
         cx = r.center().x()
         recorrido = r.width()  # entra y sale por el costado derecho, como en la esquina por defecto
         p.setClipPath(forma)
@@ -1959,7 +1962,7 @@ class VistaPrevia(QWidget):
         p.drawPixmap(QPointF(cx - sw / 2, arriba), pm)
         p.restore()
         p.translate((1 - self.avance(t, self.RETRASO) * k) * recorrido, 0)
-        self.cartel.pintar(p, cx, arriba + sh + 2, QColor(m.ESTADOS[self.estado]["acento"]), barra)
+        self.cartel.pintar(p, cx, arriba + sh + hueco, QColor(m.ESTADOS[self.estado]["acento"]), barra)
 
 
 # --- ventana principal -------------------------------------------------------------

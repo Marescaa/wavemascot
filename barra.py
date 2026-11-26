@@ -60,6 +60,7 @@ HISTORIAL = m.CONFIG_DIR / "duraciones.json"
 AMARILLO = QColor(255, 209, 102)  # el color de "permiso" de la mascota
 VERDE = QColor(52, 199, 89)       # el borde al permitir
 ROJO = QColor(255, 69, 58)        # el borde al denegar
+SEG_BORDE = 1.0                   # lo que tarda el borde en pasar a ese color
 ANCHO_DETALLE = 470               # con el pedido desplegado (la flechita), para leerlo entero
 MAX_DETALLE = 240                 # lo más alto que se despliega el texto del pedido
 RELLENO = 12                      # el aire alrededor del comando, adentro de su recuadro
@@ -234,6 +235,7 @@ class Barra(QWidget):
         self.tomados: dict[str, dict] = {}              # clave -> pedido: los que la isla dijo que muestra
         self.respondidos: set[str] = set()
         self.hecho: tuple[str, float, str] | None = None  # (texto, hasta, decisión) un momento después del clic
+        self.hecho_desde = 0.0                 # cuándo se contestó: el borde pasa al color de a poco
         self.detalle_abierto = False                    # la flechita: el pedido completo, desplegado
         self.mostrado: tuple[str, object] | None = None  # lo último que se pintó (para que se vaya suave)
         self.pedido_desde = 0.0
@@ -470,7 +472,8 @@ class Barra(QWidget):
         self.tomados.pop(pedido["clave"], None)
         self.pedido = None
         texto = t("Permitido") if decision == "allow" else t("Denegado")
-        self.hecho, self.mostrado = (texto, time.monotonic() + 1.4, decision), ("hecho", (texto, decision))
+        self.hecho_desde = time.monotonic()
+        self.hecho, self.mostrado = (texto, self.hecho_desde + SEG_BORDE + 1.0, decision), ("hecho", (texto, decision))
         self.detalle_abierto = False
         self.medir()
         self.repintar()
@@ -941,7 +944,9 @@ class Barra(QWidget):
             if self.mostrado[0] == "hecho":  # completado: un borde verde (permitido) o rojo (denegado)
                 p.restore()
                 p.save()
-                self.pintar_borde(p, forma, VERDE if self.mostrado[1][1] == "allow" else ROJO, pedido)
+                k = min(1.0, (time.monotonic() - self.hecho_desde) / SEG_BORDE)
+                self.pintar_borde(p, forma, VERDE if self.mostrado[1][1] == "allow" else ROJO,
+                                  pedido * k * k * (3 - 2 * k))
                 p.setClipPath(forma)
         if adentro > 0.01:
             p.setOpacity(adentro)

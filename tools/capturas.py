@@ -394,7 +394,7 @@ def aviso_gif(m, estado, mensaje, resumen, meta, botones, ruta):
     cartel.tema = "oscuro"
     cartel.medir(mensaje, resumen, meta, botones)
     esc = 2
-    w, h = int(cartel.ancho + 24), int(cartel.alto + 8)
+    w, h = int(cartel.ancho + 24), int(cartel.alto + 26)  # con lugar para la sombra del vidrio
     cuadros, ms = cuadros_de(ASPECTOS["clasico"], estado)
     ms = ms if isinstance(ms, int) else ms[0]
     n = max(len(cuadros), int(3000 / max(ms, 1)))
@@ -412,7 +412,7 @@ def aviso_gif(m, estado, mensaje, resumen, meta, botones, ruta):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         p.scale(esc, esc)
-        cartel.pintar(p, w / 2, 4, QColor(m.ESTADOS[estado]["acento"]), 1 - i / n)
+        cartel.pintar(p, w / 2, 9, QColor(m.ESTADOS[estado]["acento"]), 1 - i / n)
         p.end()
         tarjeta = qimagen_a_pil(fr)
         hoja = Image.new("RGB", (ancho, alto), FONDO)
