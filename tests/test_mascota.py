@@ -61,6 +61,12 @@ class TextoDelCartel(unittest.TestCase):
         self.assertEqual(cartel.resumen, "rm -rf proyecto �")
         self.assertEqual("".join(cartel.lineas_resumen), "rm -rf proyecto �")
 
+    def test_marcas_invisibles_no_esconden_parte_del_comando(self):
+        for marca in (chr(0xFEFF), chr(0xFFFE)):
+            cartel = m.Cartel()
+            cartel.medir("¿Permitir Bash?", marca + "rm -rf /tmp/x9", "", ("permitir", "denegar"))
+            self.assertEqual("".join(cartel.lineas_resumen), "�rm -rf /tmp/x9")
+
     def test_ningun_boton_responde_hasta_dibujar_lo_nuevo(self):
         cartel = m.Cartel()
         cartel.zonas = {"permitir": object()}

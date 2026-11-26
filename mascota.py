@@ -954,8 +954,9 @@ class Cartel:
         from PyQt6.QtGui import QFontMetricsF
 
         self.zonas = {}  # hasta que se dibuje lo nuevo, ningún botón responde (Permitir no aprueba algo no mostrado)
-        # Un JSON puede traer medio emoji ("\ud83d"): no se puede codificar, se muestra como �.
-        mensaje, resumen, meta = (re.sub("[\ud800-\udfff]", "�", x) for x in (mensaje, resumen, meta))
+        # Medio emoji ("\ud83d") no se puede codificar, y las marcas ﻿ y ￾ corren o dan vuelta el texto al
+        # pasar por Qt (se vería otro comando que el que se aprueba): todo eso se muestra como �.
+        mensaje, resumen, meta = (re.sub("[\ud800-\udfff﻿￾]", "�", x) for x in (mensaje, resumen, meta))
         self.mensaje, self.resumen, self.meta = mensaje, resumen, meta
         self.botones = [b for b in botones if b in self.BOTONES]
         self.respondido, self.avance_borde = "", 0.0
