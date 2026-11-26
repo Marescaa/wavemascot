@@ -2074,6 +2074,8 @@ def ejecutar_ui(args: argparse.Namespace) -> int:
                 return  # el clic empezó antes de que se pudiera leer este cartel: no toca sus botones
             if clave:
                 self.accion(clave)
+            elif self.respuesta:
+                return  # con un permiso sin contestar, un clic que erró el botón no cierra el cartel
             elif self.compania:
                 if self.mostrar_cartel:
                     self.restante = 0
