@@ -446,6 +446,14 @@ def hora_de_reinicio(texto: str, ahora: datetime | None = None) -> float | None:
     return reinicio.timestamp()
 
 
+def comando_corto(texto: str, largo: int = 120) -> str:
+    """Lo que se va a aprobar, tal cual: sin limpiar markdown (borraría *, | o >) ni cortar en la primera oración.
+    Cada salto de línea se ve como ⏎, las marcas que dan vuelta el texto como �, y si no entra termina en "…"."""
+    texto = re.sub("[‎‏‪-‮⁦-⁩]", "�", texto or "")
+    texto = " ⏎ ".join(" ".join(linea.split()) for linea in texto.splitlines() if linea.strip())
+    return texto if len(texto) <= largo else texto[:largo - 1].rstrip() + "…"
+
+
 def resumen_para(evento: dict) -> str:
     nombre = evento.get("hook_event_name")
     if nombre in ("Stop", "SubagentStop"):
@@ -458,7 +466,7 @@ def resumen_para(evento: dict) -> str:
                         evento.get("prompt") or "", flags=re.S)
         return texto_corto(prompt, 90)
     if nombre == "PermissionRequest":
-        return texto_corto(detalle_permiso(evento), 120)
+        return comando_corto(detalle_permiso(evento))
     return ""
 
 

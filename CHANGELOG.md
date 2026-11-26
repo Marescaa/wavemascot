@@ -24,6 +24,8 @@ and the project uses [semantic versioning](https://semver.org/).
 
 ### Fixed
 
+- Permission cards show the command as it is: symbols such as `*`, `|` or `>` are no longer removed, and it is no
+  longer cut at the first sentence.
 - A click that misses the buttons no longer closes a permission card that is still waiting for your answer.
 - Newly shown buttons ignore clicks for a moment, so a click meant for something else can't approve a request.
 
