@@ -398,6 +398,15 @@ class SinChats(unittest.TestCase):
         self.assertTrue(s.sin_chats(antes, self.AHORA, 10))
         self.assertFalse(s.sin_chats(antes, self.AHORA, 15))
 
+    def test_al_abrir_arranca_escondida_salvo_un_chat_reciente(self):
+        # La isla arranca con la cuenta en 0 (nunca se movió nada): sin chats no aparece al abrir la app.
+        self.assertEqual(s.ultima_actividad([], 0.0, self.AHORA), 0.0)
+        self.assertTrue(s.sin_chats(s.ultima_actividad([], 0.0, self.AHORA), self.AHORA, 10))
+        self.assertTrue(s.sin_chats(s.ultima_actividad([self.sesion(20 * 60)], 0.0, self.AHORA), self.AHORA, 10))
+        self.assertFalse(s.sin_chats(s.ultima_actividad([self.sesion(60)], 0.0, self.AHORA), self.AHORA, 10))
+        self.assertFalse(s.sin_chats(s.ultima_actividad([self.sesion(25 * 60, trabajando=True)], 0.0,
+                                                        self.AHORA), self.AHORA, 10))
+
     def test_sesion_quieta_dentro_y_fuera_del_rato(self):
         ultima = s.ultima_actividad([self.sesion(120)], 0.0, self.AHORA)
         self.assertEqual(ultima, self.AHORA - 120)

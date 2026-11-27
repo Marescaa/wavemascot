@@ -3,6 +3,13 @@
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- **The Dynamic Island no longer shows up when you open WaveMascot** if no Claude Code chat is active. It appears on
+  its own as soon as a session starts or moves (with "Hide it when no chat is active" on, the default).
+
 ## [1.4.7] - 2026-11-26
 
 ### Changed
