@@ -114,6 +114,20 @@ class OpcionesDeLaIsla(unittest.TestCase):
         self.barra.eta = {"0": 60.0}
         self.barra.trabajando = True
 
+    def test_arranca_escondida_sin_chats(self):
+        # Al abrir la app no aparece: ni antes de la primera lectura ni después, si ningún chat se movió.
+        import time
+        import seguimiento
+        b, isla = self.barra, self.barra.config["barra"]
+        self.assertTrue(b.sin_chats())
+        b.lector.listo.set()
+        self.assertTrue(b.sin_chats())
+        b.ultima_chat = seguimiento.ultima_actividad([{"ultima": time.time() - 60}], b.ultima_chat, time.time())
+        self.assertFalse(b.sin_chats())  # un chat que se movió hace un minuto la trae
+        isla["esconder_sin_chats"] = False
+        b.ultima_chat = 0.0
+        self.assertFalse(b.sin_chats())  # con la opción apagada está siempre
+
     def test_pastilla(self):
         b, isla = self.barra, self.barra.config["barra"]
         self.assertEqual(b.texto_chica(), ("~1:00", "9 sesiones"))

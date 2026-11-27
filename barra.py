@@ -266,7 +266,7 @@ class Barra(QWidget):
         self.timer_pantalla = QTimer(self, interval=1000, timeout=self.revisar_pantalla)
         self.timer_pedidos = QTimer(self, interval=300, timeout=self.revisar_pedidos)
         self.oculta = False                    # escondida sola: pantalla completa o ningún chat activo
-        self.ultima_chat = time.time()         # cuándo se movió algún chat (la cuenta arranca al abrir)
+        self.ultima_chat = 0.0                 # cuándo se movió algún chat (al abrir: nunca, arranca escondida)
         pantalla = QGuiApplication.primaryScreen()
         if pantalla:  # cambió la resolución o se movió la barra de tareas: vuelve al centro de arriba
             pantalla.availableGeometryChanged.connect(lambda _: (self.ubicar(), self.repintar()))
@@ -360,10 +360,12 @@ class Barra(QWidget):
 
     def sin_chats(self) -> bool:
         """Ningún chat se movió en los minutos elegidos (o Claude está cerrado): se va hasta que vuelva uno."""
-        if not self.isla["esconder_sin_chats"] or not self.lector.listo.is_set():
-            return False  # (hasta la primera lectura no se sabe nada: que no parpadee al arrancar)
+        if not self.isla["esconder_sin_chats"]:
+            return False
         if self.encima or self.abierta:
             return False  # no se le va de abajo del mouse
+        if not self.lector.listo.is_set():
+            return True  # hasta la primera lectura no se sabe nada: escondida, así no aparece y se va
         return seguimiento.sin_chats(self.ultima_chat, time.time(), self.isla["minutos_sin_chats"])
 
     def debe_esconderse(self) -> bool:
